@@ -279,22 +279,20 @@ int BattleScene::PlayLoop(bool replay)
 
 		//Draw lifebars.
 		glBindTexture(GL_TEXTURE_2D, hud.texture.id);
-		hud.ResizeBarId(0, (gameTicks%120)/119.f);
-		hud.ResizeBarId(1, (gameTicks%240)/239.f);
-		hud.ResizeBarId(2, (gameTicks%60)/59.f);
-		hud.ResizeBarId(3, (gameTicks%512)/511.f);
-		hud.ResizeBarId(4, player.GetHealthRatio());
-		hud.ResizeBarId(5, player2.GetHealthRatio());
+		/* hud.ResizeBarId(0, (gameTicks%120)/119.f);
+		hud.ResizeBarId(1, (gameTicks%240)/239.f); */
+		hud.ResizeBarId(2, player.GetHealthRatio());
+		hud.ResizeBarId(3, player2.GetHealthRatio());
 		hud.Draw();
 
 		//Draw fps bar
-		/* timerString.seekp(0);
+		timerString.seekp(0);
 		timerString << "SFP: " << mainWindow->GetSpf() << " FPS: " << 1/mainWindow->GetSpf()<<"      Entities:"<<drawList.v.size()<<
 			"   Particles:"<<particles.size()<<"  ";
 		glBindTexture(GL_TEXTURE_2D, activeTextures[T_FONT].id);
 		int count = DrawText(timerString.str(), textVertData, 2, 10);
 		vaoTexOnly.UpdateBuffer(textId, textVertData.data());
-		vaoTexOnly.Draw(textId); */
+		vaoTexOnly.Draw(textId);
 
 		//End drawing.
 		++gameTicks;

@@ -30,6 +30,7 @@ void Hud::Load(std::filesystem::path file, Vao &vao)
 	{
 		float w,h,x,y,tx,ty;
 		bool flipped;
+		bool inverted;
 	};
 	std::vector<OriginalSize> sizes;
 
@@ -92,7 +93,11 @@ void Hud::Load(std::filesystem::path file, Vao &vao)
 		}
 		sizes.push_back({w,h,posX,posY,x,y,false});
 		if(rect["isBar"].get_or(false))
+		{
 			barSet.insert(coords.size()-6);
+			sizes.back().inverted = rect["inverted"].get_or(false);
+		}
+			
 		//else
 		staticCount += 6;
 
@@ -109,7 +114,10 @@ void Hud::Load(std::filesystem::path file, Vao &vao)
 			}
 			sizes.push_back({w,h,posX,posY,x,y,true});
 			if(rect["isBar"].get_or(false))
+			{
 				barSet.insert(coords.size()-6);
+				sizes.back().inverted = rect["inverted"].get_or(false);
+			}
 			//else
 			staticCount += 6;
 		}
@@ -122,7 +130,7 @@ void Hud::Load(std::filesystem::path file, Vao &vao)
 		{
 			auto &original = sizes[i/6];
 			barData.push_back({i, original.w, original.h,
-				original.x, original.y, original.tx, original.ty, original.flipped});
+				original.x, original.y, original.tx, original.ty, original.flipped, original.inverted});
 			continue;
 		}
 
@@ -149,17 +157,26 @@ void Hud::ResizeBarId(int id, float horizPercentage)
 {
 	auto &bar = barData[id]; 
 	int start = bar.pos;
-	if(!bar.flipped)
+	float internalW = 0;
+	float flipFactor = 1;
+	if(bar.flipped)
+	{
+		internalW = internalWidth;
+		flipFactor = -1;
+	}
+	
+	if(!bar.inverted)
 		for(int i = 0; i < 6; ++i)
 		{
-			coords[start+i].x = bar.x + gScale*tX[i]*bar.w*horizPercentage;
-			coords[start+i].s = (bar.tx + tX[i]*barData[id].w*horizPercentage)/width;
+			coords[start+i].x = internalW + flipFactor*(bar.x + gScale*tX[i]*bar.w*horizPercentage);
+			coords[start+i].s = (bar.tx + tX[i]*bar.w*horizPercentage)/width;
 		}
 	else
 		for(int i = 0; i < 6; ++i)
 		{
-			coords[start+i].x = internalWidth - (bar.x + gScale*tX[i]*bar.w*horizPercentage);
-			coords[start+i].s = (bar.tx + tX[i]*barData[id].w*horizPercentage)/width;
+			coords[start+i].x = internalW + flipFactor*(bar.x + gScale*bar.w * (1 - tX[i]*horizPercentage));
+			coords[start+i].s = (bar.tx + bar.w*(1 - tX[i]*horizPercentage))/width;
 		}
+
 	vao->UpdateBuffer(bar.id, &coords[start], sizeof(Coord)*6);
 }

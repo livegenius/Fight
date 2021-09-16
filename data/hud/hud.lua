@@ -28,9 +28,9 @@ texture = {
 				w = 144,
 				h = 120
 			}
-		}, ]]
-		{
-			name = "meterbase.png",
+		},
+		{ ]]
+--[[ 			name = "meterbase.png",
 			coords = {
 				x = 1,
 				y = 203,
@@ -46,7 +46,7 @@ texture = {
 				w = 192,
 				h = 21
 			}
-		},
+		}, ]]
 		{
 			name = "guardmask.png",
 			coords = {
@@ -63,10 +63,9 @@ texture = {
 				y = 274,
 				w = 212,
 				h = 10
-			},
-			isBar = true
+			}
 		},
-		{
+--[[ 		{
 			name = "text.png",
 			coords = {
 				x = 215,
@@ -90,7 +89,7 @@ texture = {
 			mirror = false,
 			fromRight = true,
 			fromBottom = true,
-		}
+		} ]]
 	},
 	file = "hud.lzs3"
 }
@@ -101,11 +100,14 @@ for i, v in ipairs(texture.rects) do
 end
 
 texture.scale = 0.75;
+--[=[
 texture.rects[names["meterbase.png"]].fromBottom = true;
 texture.rects[names["metermask.png"]].fromBottom = true;
 texture.rects[names["metermask.png"]].isBar = true;
 texture.rects[names["metermask.png"]].pos = {x = 35, y = 21};
+]=]
 texture.rects[names["guardmask.png"]].pos = {x = 155, y = -25};
 texture.rects[names["guardmask.png"]].isBar = true;
 texture.rects[names["gauge.png"]].isBar = true;
+texture.rects[names["gauge.png"]].inverted = true;
 texture.rects[names["gauge.png"]].pos = {x = 61, y = -9};

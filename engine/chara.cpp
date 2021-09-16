@@ -284,14 +284,15 @@ bool Character::Update()
 
 bool Character::TurnAround(int sequence)
 {
-	if (root.x < target->root.x && GetSide() < 0) //Side switching.
+	//Second condition fixes a bug where grabbing the wall while backturned doesn't let you turn around.
+	if (GetSide() < 0 && (root.x < target->root.x || (touchedWall==-1 && root.x <= target->root.x))) 
 	{
 		mustTurnAround = false;
 		SetSide(1);
 		GotoSequence(sequence);
 		return true;
 	}
-	else if (root.x > target->root.x && GetSide() > 0)
+	else if (GetSide() > 0 && (root.x > target->root.x || (touchedWall==1 && root.x >= target->root.x)))
 	{
 		mustTurnAround = false;
 		SetSide(-1);

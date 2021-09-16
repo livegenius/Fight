@@ -20,6 +20,7 @@ class Hud
 		float x,y;
 		float tx,ty;
 		bool flipped;
+		bool inverted;
 		int id;
 	};
 	
