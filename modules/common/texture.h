@@ -11,7 +11,7 @@ struct texture_options{
 	bool repeat = false;
 	bool linearFilter = false;
 	bool rectangle = false; //Rectangle textures only.
-	bool linearAlpha = true; //Set to false to fix the image's alpha when loading it.
+	//bool linearAlpha = true; //Set to false to fix the image's alpha when loading it.
 };
 
 class Texture
@@ -30,7 +30,7 @@ public:
 	Texture( const Texture& ) = delete; // non construction-copyable
 	Texture& operator=( const Texture& ) = delete; // non copyable
 	
-	void LoadPng(std::filesystem::path imageFile, const texture_options options={}, std::filesystem::path paletteFile = {});
+	void LoadPng(std::filesystem::path imageFile, const texture_options options={});
 	void LoadLzs3(std::filesystem::path imageFile, const texture_options options={});
 	void Unapply();
 

@@ -1,25 +1,10 @@
 #include "image.h"
-#include <memory>
-#include <png.h>
-#include <cstdio>
-#include <csetjmp>
+#include <spng.h>
+#include <iostream>
 #include <fstream>
-#include <cassert>
 #include <stdint.h>
-
-#ifndef LIB_PNG_WARN
-	#define LIB_PNG_WARN 1
-#endif
-
-//Auxiliary function for printing warnings. Images saved with photoshop generate iCCP warnings. It's annoying.
-void png_user_warning_fn(png_structp png_ptr, png_const_charp warning_msg)
-{
-	if(LIB_PNG_WARN)
-	{
-		char* error_ptr = (char*)png_get_error_ptr(png_ptr);
-		fprintf(stderr, "%s - %s\n", error_ptr, warning_msg);
-	}
-}
+#include <stdio.h>
+#include <inttypes.h>
 
 ImageData::ImageData():
 data(nullptr), width(0), height(0), flag(0), bytesPerPixel(0)
@@ -31,9 +16,9 @@ data(nullptr), width(_width), height(_height), flag(0), bytesPerPixel(_bytesPerP
 	data = (uint8_t*) malloc(width * height * bytesPerPixel * sizeof(uint8_t));
 }
 
-ImageData::ImageData(const char* image, const char* palette, bool linearAlpha): ImageData()
+ImageData::ImageData(std::filesystem::path image): ImageData()
 {
-	LoadFromPng(image, palette, linearAlpha);
+	LoadFromPng(image);
 }
 
 ImageData::~ImageData()
@@ -52,305 +37,179 @@ void ImageData::FreeData()
 	data = nullptr;
 }
 
-bool ImageData::WriteAsPng(const char* file_name, const char* palette_file) const
+bool ImageData::WriteRaw(std::filesystem::path filename) const
 {
-	FILE *fp = fopen(file_name, "wb");
-	if (fp == 0)
-	{
-		fprintf(stderr, "Image write: %s couldn't be opened\n", file_name);
+	std::ofstream out(filename);
+	if(!out.is_open())
 		return false;
-	}
-
-	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING, (png_voidp*)file_name, nullptr, png_user_warning_fn);
-	if (!png_ptr)
-	{
-		fprintf(stderr, "Image write: %s error: png_create_write_struct returned 0\n", file_name);
-		fclose(fp);
-		return false;
-	}
-
-	png_infop info_ptr = png_create_info_struct(png_ptr);
-	if (!info_ptr)
-	{
-		fprintf(stderr, "Image write: %s error: png_create_info_struct returned 0\n", file_name);
-		png_destroy_write_struct(&png_ptr, (png_infopp)nullptr);
-		fclose(fp);
-		return false;
-	}
-
-	if (setjmp(png_jmpbuf(png_ptr))) {
-		fprintf(stderr, "Image write: %s fatal error.\n", file_name);
-		png_destroy_write_struct(&png_ptr, &info_ptr);
-		fclose(fp);
-		return false;
-	}
-
-	png_init_io(png_ptr, fp);
-
-	int color_type = 0;
-	switch(bytesPerPixel)
-	{
-		case 1:
-			color_type = palette_file ? PNG_COLOR_TYPE_PALETTE : PNG_COLOR_TYPE_GRAY;
-			break;
-		case 3:
-			color_type = PNG_COLOR_TYPE_RGB;
-			break;
-		case 4:
-			color_type = PNG_COLOR_TYPE_RGB_ALPHA;
-			break;
-		default:
-			fprintf(stderr, "Image write: %s error: unhandled number of channel: %i\n", file_name, bytesPerPixel);
-			break;
-	}
-	png_set_IHDR(png_ptr, info_ptr, width, height,
-		8, color_type, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 	
-	png_color *palette = nullptr;
-	if(palette_file)
-	{
-		palette = (png_color*)png_malloc(png_ptr, 256*sizeof(png_color));
-		std::ifstream pltefile;
-
-		pltefile.open(palette_file, std::ifstream::in | std::ifstream::binary);
-		if(!pltefile.is_open())
-		{
-			fprintf(stderr, "Couldn't open palette file.\n");
-			png_destroy_write_struct(&png_ptr, &info_ptr);
-			png_free(png_ptr, palette);
-			return false;
-		}
-
-		for (unsigned int p = 0; p < 256; p++)
-		{
-			png_color* col = &palette[p];
-			pltefile.read((char*)&col->red, sizeof(png_byte));
-			pltefile.read((char*)&col->green, sizeof(png_byte));
-			pltefile.read((char*)&col->blue, sizeof(png_byte));
-		}
-		pltefile.close();
-		png_set_PLTE(png_ptr, info_ptr, palette, 256);
-	}
-	
-	if(bytesPerPixel == 1)
-	{
-		png_byte trans_alpha = 0;
-		png_set_tRNS(png_ptr, info_ptr, &trans_alpha, 1, nullptr);
-	}
-
-	png_bytep * row_pointers;
-	row_pointers = png_bytepp(malloc (sizeof(png_bytep) * height) );
-	if (row_pointers == nullptr)
-	{
-		fprintf(stderr, "Image write: %s error: could not allocate memory for PNG row pointers\n", file_name);
-		png_destroy_write_struct(&png_ptr, &info_ptr);
-		fclose(fp);
-		return false;
-	}
-
-	// set the individual row_pointers to point at the correct offsets of image_data
-	for (unsigned int i = 0; i < height; i++)
-	{
-		row_pointers[height - 1 - i] = data + i*(width*bytesPerPixel);
-	}
-
-	png_set_rows(png_ptr, info_ptr, row_pointers);
-	png_write_png(png_ptr, info_ptr, PNG_TRANSFORM_IDENTITY, NULL);
-
-	free(row_pointers);
-	png_free(png_ptr, palette);
-	png_destroy_write_struct(&png_ptr, &info_ptr);
-	fclose(fp);
+	struct meta{
+		uint32_t w, h, bpp;
+	} meta = {
+		width, height, bytesPerPixel
+	};
+	uint32_t size = GetMemSize();
+	out.write((char*)&meta, sizeof(meta));
+	out.write((char*)data, size);
 	return true;
 }
 
-bool ImageData::LoadFromPng(const char* file_name, const char* palette_file, bool linearAlpha)
+int SpngStreamRead(spng_ctx *ctx, void *user, void *dest, size_t length)
+{
+	auto *file = (std::ifstream*)user;
+	file->read((char *)dest, length);
+	if(file->eof())
+		return SPNG_IO_EOF;
+	else if(file->fail())
+		return SPNG_IO_ERROR;
+	return 0;
+}
+
+bool ImageData::LoadFromPng(std::filesystem::path filename)
 {
 	FreeData();
-	png_byte header[8];
-	FILE *fp = fopen(file_name, "rb");
-	if (fp == 0)
+	std::ifstream png(filename, std::ios_base::binary);
+	spng_ctx *ctx = NULL;
+	int r;
+	unsigned char *out = NULL;
+
+	if(png.fail())
 	{
-		fprintf(stderr, "Image load: %s couldn't be opened\n", file_name);
+		std::cerr <<filename<<": error opening input file \n";
 		return false;
 	}
 
-	fread(header, 1, 8, fp);
+	ctx = spng_ctx_new(0);
 
-	if (png_sig_cmp(header, 0, 8))
+	if(ctx == NULL)
 	{
-		fprintf(stderr, "Image load: %s is not a PNG file\n", file_name);
-		fclose(fp);
+		std::cerr <<filename<<": spng_ctx_new() failed\n";
 		return false;
 	}
 
-	png_structp png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, (png_voidp*)file_name, nullptr, png_user_warning_fn);
-	if (!png_ptr)
+	/* Ignore and don't calculate chunk CRC's */
+	spng_set_crc_action(ctx, SPNG_CRC_USE, SPNG_CRC_USE);
+
+	/* Set memory usage limits for storing standard and unknown chunks,
+	this is important when reading untrusted files! */
+	constexpr size_t limit = 4096 * 4096 * 16;
+	spng_set_chunk_limits(ctx, limit, limit);
+
+	/* Set source PNG */
+	spng_set_png_stream(ctx, SpngStreamRead, &png);
+
+	struct spng_ihdr ihdr;
+	r = spng_get_ihdr(ctx, &ihdr);
+
+	if(r)
 	{
-		fprintf(stderr, "Image load: %s error: png_create_read_struct returned 0\n", file_name);
-		fclose(fp);
+		std::cerr <<filename<<": spng_get_ihdr() error: "<<spng_strerror(r)<<"\n";
 		return false;
 	}
 
-	png_infop info_ptr = png_create_info_struct(png_ptr);
-	if (!info_ptr)
+	const char *clr_type_str;
+
+	if(ihdr.color_type == SPNG_COLOR_TYPE_GRAYSCALE)
+		clr_type_str = "grayscale";
+	else if(ihdr.color_type == SPNG_COLOR_TYPE_TRUECOLOR)
+		clr_type_str = "truecolor";
+	else if(ihdr.color_type == SPNG_COLOR_TYPE_INDEXED)
+		clr_type_str = "indexed color";
+	else if(ihdr.color_type == SPNG_COLOR_TYPE_GRAYSCALE_ALPHA)
+		clr_type_str = "grayscale with alpha";
+	else
+		clr_type_str = "truecolor with alpha";
+
+
+	printf("width: %" PRIu32 "\nheight: %" PRIu32 "\n"
+		"bit depth: %" PRIu8 "\ncolor type: %" PRIu8 " - %s\n",
+		ihdr.width, ihdr.height,
+		ihdr.bit_depth, ihdr.color_type, clr_type_str);
+	printf("compression method: %" PRIu8 "\nfilter method: %" PRIu8 "\n"
+		"interlace method: %" PRIu8 "\n",
+		ihdr.compression_method, ihdr.filter_method,
+		ihdr.interlace_method);
+
+	struct spng_plte plte = {0};
+	r = spng_get_plte(ctx, &plte);
+
+	if(r && r != SPNG_ECHUNKAVAIL)
 	{
-		fprintf(stderr, "Image load: %s error: png_create_info_struct returned 0\n", file_name);
-		png_destroy_read_struct(&png_ptr, (png_infopp)nullptr, (png_infopp)nullptr);
-		fclose(fp);
+		printf("spng_get_plte() error: %s\n", spng_strerror(r));
 		return false;
 	}
 
-	png_infop end_info = nullptr;
-	// create png end info struct. Maybe not needed.
-	/*
-	png_infop end_info = png_create_info_struct(png_ptr);
-	if (!end_info)
+	if(!r) printf("palette entries: %" PRIu32 "\n", plte.n_entries);
+
+
+	size_t out_size, out_width;
+
+	/* Output format, does not depend on source PNG format except for
+	SPNG_FMT_PNG, which is the PNG's format in host-endian or
+	big-endian for SPNG_FMT_RAW.
+	Note that for these two formats <8-bit images are left byte-packed */
+	int fmt = SPNG_FMT_PNG;
+
+	/* Pick another format to expand them */
+	if(ihdr.color_type == SPNG_COLOR_TYPE_INDEXED) fmt = SPNG_FMT_RGB8;
+
+	r = spng_decoded_image_size(ctx, fmt, &out_size);
+
+	if(r) return false;
+
+	out = (unsigned char*)malloc(out_size);
+	if(out == NULL) return false;
+
+	/* This is required to initialize for progressive decoding */
+	r = spng_decode_image(ctx, NULL, 0, fmt, SPNG_DECODE_PROGRESSIVE);
+	if(r)
 	{
-		std::cerr << file_name << " error: png_create_info_struct returned 0.\n";
-		png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp) nullptr);
-		fclose(fp);
-		return image;
-	}
-	*/
-
-	//error handling
-	if (setjmp(png_jmpbuf(png_ptr))) {
-		fprintf(stderr, "Image load: %s error: Calling setjmp to pass png_jmpbuf failed\n", file_name);
-		png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
-		fclose(fp);
-		return false;
+		printf("progressive spng_decode_image() error: %s\n", spng_strerror(r));
+		goto error;
 	}
 
-	// init png reading
-	png_init_io(png_ptr, fp);
-	png_set_sig_bytes(png_ptr, 8);
-	png_read_info(png_ptr, info_ptr);
+	/* ihdr.height will always be non-zero if spng_get_ihdr() succeeds */
+	out_width = out_size / ihdr.height;
 
-	if(!linearAlpha)
-		png_set_alpha_mode(png_ptr, PNG_ALPHA_BROKEN, PNG_DEFAULT_sRGB);
+	struct spng_row_info row_info = {0};
 
-	int bit_depth, color_type, interlace_method, interlace_type, compression_type, filter_method;
-	png_uint_32 temp_width, temp_height;
-
-	png_get_IHDR(png_ptr, info_ptr, &temp_width, &temp_height, &bit_depth, &color_type,
-		&interlace_type, &compression_type, &filter_method);
-	assert(bit_depth == 8);
-	interlace_method = png_set_interlace_handling(png_ptr);
-
-	png_color* palette = nullptr;
-	if ((color_type == PNG_COLOR_TYPE_PALETTE || color_type == PNG_COLOR_TYPE_GRAY) && palette_file)
+	do
 	{
-		
-		palette = (png_color*)png_malloc(png_ptr, 256*sizeof(png_color));
+		r = spng_get_row_info(ctx, &row_info);
+		if(r) break;
 
-		std::ifstream pltefile;
-
-		pltefile.open(palette_file, std::ifstream::in | std::ifstream::binary);
-		if(!pltefile.is_open())
-		{
-			fprintf(stderr, "Couldn't open palette file.\n");
-			png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
-			png_free(png_ptr, palette);
-			return false;
-		}
-
-		for (unsigned int p = 0; p < 256; p++)
-		{
-			png_color* col = &palette[p];
-			pltefile.read((char*)&col->red, sizeof(png_byte));
-			pltefile.read((char*)&col->green, sizeof(png_byte));
-			pltefile.read((char*)&col->blue, sizeof(png_byte));
-		}
-		pltefile.close();
-
-		png_set_PLTE(png_ptr, info_ptr, palette, 256);
-
-		if(color_type == PNG_COLOR_TYPE_PALETTE)
-			png_set_expand(png_ptr);
-		/*
-		if(color_type == PNG_COLOR_TYPE_GRAY)
-		{
-			png_byte trans_alpha = 0;
-			png_set_tRNS(png_ptr, info_ptr, &trans_alpha, 1, nullptr);
-			png_set_gray_to_rgb(png_ptr);
-		}*/
+		//Decode upside down as usual.
+		r = spng_decode_row(ctx, out+out_size - out_width - row_info.row_num * out_width, out_width);
 	}
-	//png_set_invert_alpha(png_ptr);
+	while(!r);
 
-	png_read_update_info(png_ptr, info_ptr);
-	
-
-	// lenght in bytes of a row.
-	unsigned int rowbytes = png_get_rowbytes(png_ptr, info_ptr);
-	// glTexImage2d requires rows to be 4-byte aligned
-	rowbytes += 3 - ((rowbytes-1) % 4);
-
-
-	png_byte * image_data;
-	image_data = png_bytep(malloc(rowbytes * temp_height * sizeof(png_byte)));
-	if (image_data == nullptr)
+	if(r != SPNG_EOI)
 	{
-		fprintf(stderr, "Image load: %s error: could not allocate memory for PNG image data\n", file_name);
-		png_free(png_ptr, palette);
-		png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
-		fclose(fp);
-		return false;
+		printf("progressive decode error: %s\n", spng_strerror(r));
+
+		if(ihdr.interlace_method)
+			printf("last pass: %d, scanline: %" PRIu32 "\n", row_info.pass, row_info.scanline_idx);
+		else
+			printf("last row: %" PRIu32 "\n", row_info.row_num);
 	}
 
-
-	png_bytep * row_pointers;
-	row_pointers = png_bytepp(malloc (sizeof(png_bytep) * temp_height) );
-	if (row_pointers == nullptr)
+	/* Alternatively you can decode the image in one go,
+	this doesn't require a separate initialization step. */
+	/* r = spng_decode_image(ctx, out, out_size, SPNG_FMT_RGBA8, 0);
+	if(r)
 	{
-		fprintf(stderr, "Image load: %s error: could not allocate memory for PNG row pointers\n", file_name);
-		png_free(png_ptr, palette);
-		png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
-		free(image_data);
-		fclose(fp);
-		return false;
-	}
+		printf("spng_decode_image() error: %s\n", spng_strerror(r));
+		goto error;
+	} */
 
-	// set the individual row_pointers to point at the correct offsets of image_data
-	// And that is backwards because of opengl.
-	for (unsigned int i = 0; i < temp_height; i++)
-	{
-		row_pointers[temp_height - 1 - i] = image_data + i*rowbytes;
-	}
-	
-	// Let libpng do the rest.
-	png_read_image(png_ptr, row_pointers);
-	png_read_end(png_ptr, end_info);
+skip_encode:
+error:
 
-	bytesPerPixel = rowbytes/temp_width;
-
-	if(color_type == PNG_COLOR_TYPE_GRAY && palette)
-	{
-		uint8_t *image_data32bit = (uint8_t*)malloc(temp_height*temp_width*4);
-		for (unsigned int p = 0; p < temp_height * rowbytes * sizeof(png_byte); p+=bytesPerPixel)
-		{
-			png_byte ref = image_data[p];
-			
-			image_data32bit[p*4] = palette[ref].red;
-			image_data32bit[p*4 + 1] = palette[ref].green;
-			image_data32bit[p*4 + 2] = palette[ref].blue;
-			image_data32bit[p*4 + 3] = ref == 0 ? 0 : 255;
-		}
-		free(image_data);
-		image_data = image_data32bit;
-		bytesPerPixel = 4;
-	}
-
-	png_free(png_ptr, palette);
-
-	data = image_data;
-	width = temp_width;
-	height = temp_height;
-	
-
-	png_destroy_read_struct(&png_ptr, &info_ptr, &end_info);
-	free(row_pointers);
-	fclose(fp);
+	spng_ctx_free(ctx);
+	width = out_width;
+	height = ihdr.height;
+	data = out;
+	bytesPerPixel = ihdr.bit_depth/8;
 
 	return true;
 }

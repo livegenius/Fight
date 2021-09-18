@@ -22,25 +22,7 @@ include(glad)
 include(sol2)
 include(includes)
 if(AFGE_USE_SUBMODULES)
-	set(SKIP_INSTALL_ALL ON)
-	add_subdirectory(submodules/zlib)
-	set(ZLIB_INCLUDE_DIRS
-		"${CMAKE_CURRENT_SOURCE_DIR}/submodules/zlib"
-		"${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib"
-	)
-	set(ZLIB_LIBRARIES zlibstatic)
-
-	set(PNG_BUILD_ZLIB ON)
-	set(PNG_SHARED OFF)
-	set(PNG_EXECUTABLES OFF)
-	set(PNG_TESTS OFF)
-	add_subdirectory(submodules/libpng)
-	target_include_directories(png_static PUBLIC
-		"${CMAKE_CURRENT_SOURCE_DIR}/submodules/libpng"
-		"${CMAKE_CURRENT_BINARY_DIR}/submodules/libpng"
-	)
-	add_library(PNG::PNG ALIAS png_static)
-
+	add_subdirectory(submodules/spng-miniz)
 	add_subdirectory(submodules/glm)
 	add_subdirectory(submodules/SDL)
 	include(imgui)

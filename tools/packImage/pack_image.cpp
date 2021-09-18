@@ -165,7 +165,7 @@ int main(int argc, char **argv)
 				else
 				{
 					ImageMeta im {
-						std::make_unique<ImageData>(file.path().generic_string().c_str(), nullptr, true),
+						std::make_unique<ImageData>(file.path()),
 						file.path().filename().string()
 					};
 					if(im.data->data)
@@ -246,7 +246,7 @@ int main(int argc, char **argv)
 		
 		std::cout << "Writing file... ";
 		std::string pngO = filenameOut+"8.png";
-		atlas.image.WriteAsPng(pngO.c_str());
+		atlas.image.WriteRaw(pngO);
 		WriteVertexData(filenameOut+".vt1", nChunks8, images8bpp, chunkSize, width8, height8);
 		std::cout << "Done\n\n";
 	}
@@ -267,7 +267,7 @@ int main(int argc, char **argv)
 
 		std::cout << "Writing file... ";
 		std::string pngO = filenameOut+"32.png";
-		atlas.image.WriteAsPng(pngO.c_str());
+		atlas.image.WriteRaw(pngO);
 		WriteVertexData(filenameOut+".vt4", nChunks32, images32bpp, chunkSize, width32, height32);
 
 		std::cout << "Done\n\n";

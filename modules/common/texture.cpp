@@ -29,15 +29,10 @@ Texture::~Texture()
 		Unapply();
 }
 
-void Texture::LoadPng(std::filesystem::path imageFile, const texture_options options, std::filesystem::path paletteFile)
+void Texture::LoadPng(std::filesystem::path imageFile, const texture_options options)
 {
 	filename = imageFile.filename().string();
-
-	const char *palette = nullptr;
-	if(!paletteFile.empty())
-		palette = paletteFile.string().c_str();
-	
-	ImageData image(imageFile.string().c_str(), palette, options.linearAlpha);
+	ImageData image(imageFile);
 	Apply(options, image.bytesPerPixel, image.width, image.height, image.data);
 }
 
