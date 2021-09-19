@@ -32,7 +32,7 @@
 			"type": "cppvsdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/build/bin/PackImage.exe",
-			"args": ["data/char/vaki/vaki", "128,32", "-b", "--8bpp"],
+			"args": ["../srcImages/vaki", "128,32", "-b"],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}",
 			"environment": [],

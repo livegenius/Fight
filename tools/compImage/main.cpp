@@ -11,7 +11,7 @@ int main(int argc, char **argv)
 {
 	args::ArgumentParser parser("lzs3 image compressor.",
 	"Encodes a single image into a lz4-compressed s3tc texture format, thus lzs3. "
-	"The input has to be a PNG file.");
+	"The input has to be a PNG or RAW file.");
 	args::Positional<std::string> srcImage(parser, "FILE", "Path to the image.");
 	args::HelpFlag help(parser, "help", "Display this help menu.", {'h', "help"});
 	args::ValueFlag<std::string> outName(parser, "name", "Output filename. Defaults to [FILE].", {'o'});
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
 	std::filesystem::path filepath = srcImage.Get();
 
 	//Compress image
-	ImageData img(filepath.string().c_str());
+	ImageData img(filepath);
 
 	if(alphaCorrect && img.bytesPerPixel == 4)
 	{

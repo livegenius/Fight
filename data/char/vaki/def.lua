@@ -2,7 +2,8 @@
 
 graphics = {
 	{
-		image = "vaki8.png",
+		type = lzs3,
+		image = "vaki8.lzs3",
 		vertex = "vaki.vt1",
 	},
 	{

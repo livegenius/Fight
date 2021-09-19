@@ -131,7 +131,7 @@ int main(int argc, char **argv)
 			}
 			if(usedIds.count(id) > 0)
 			{
-				std::cerr << "Names.txt has dupe IDs. Stopping...\n";
+				std::cerr << "Names.txt has dupe IDs ("<<id<<"). Stopping...\n";
 				break;
 			}
 			usedIds.insert(id);
@@ -245,7 +245,7 @@ int main(int argc, char **argv)
 		}
 		
 		std::cout << "Writing file... ";
-		std::string pngO = filenameOut+"8.png";
+		std::string pngO = filenameOut+"8.raw";
 		atlas.image.WriteRaw(pngO);
 		WriteVertexData(filenameOut+".vt1", nChunks8, images8bpp, chunkSize, width8, height8);
 		std::cout << "Done\n\n";
@@ -266,7 +266,7 @@ int main(int argc, char **argv)
 			atlas.CopyToAtlas(im);
 
 		std::cout << "Writing file... ";
-		std::string pngO = filenameOut+"32.png";
+		std::string pngO = filenameOut+"32.raw";
 		atlas.image.WriteRaw(pngO);
 		WriteVertexData(filenameOut+".vt4", nChunks32, images32bpp, chunkSize, width32, height32);
 

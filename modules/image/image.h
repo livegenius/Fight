@@ -7,7 +7,6 @@ struct ImageData{
 	uint8_t *data;
 	uint32_t width;
 	uint32_t height;
-	uint32_t flag;
 	uint32_t bytesPerPixel;
 
 	ImageData();
@@ -20,6 +19,7 @@ struct ImageData{
 	Receives the path of the image and the palette file.
 	The palette path can be null.
 	*/
+	bool LoadRaw(std::filesystem::path image);
 	bool LoadFromPng(std::filesystem::path image);
 	bool WriteRaw(std::filesystem::path path) const;
 	std::size_t GetMemSize() const;

@@ -1,5 +1,6 @@
 #include "image.h"
 #include <spng.h>
+#include <cassert>
 #include <iostream>
 #include <fstream>
 #include <stdint.h>
@@ -7,18 +8,19 @@
 #include <inttypes.h>
 
 ImageData::ImageData():
-data(nullptr), width(0), height(0), flag(0), bytesPerPixel(0)
+data(nullptr), width(0), height(0), bytesPerPixel(0)
 {}
 
 ImageData::ImageData(uint32_t _width, uint32_t _height, uint32_t _bytesPerPixel):
-data(nullptr), width(_width), height(_height), flag(0), bytesPerPixel(_bytesPerPixel)
+data(nullptr), width(_width), height(_height), bytesPerPixel(_bytesPerPixel)
 {
 	data = (uint8_t*) malloc(width * height * bytesPerPixel * sizeof(uint8_t));
 }
 
 ImageData::ImageData(std::filesystem::path image): ImageData()
 {
-	LoadFromPng(image);
+	if(!LoadFromPng(image) && !LoadRaw(image))
+		std::cerr << image<<": invalid image file\n";
 }
 
 ImageData::~ImageData()
@@ -37,20 +39,43 @@ void ImageData::FreeData()
 	data = nullptr;
 }
 
+struct raw_header{
+	uint32_t w, h, bpp;
+};
+
 bool ImageData::WriteRaw(std::filesystem::path filename) const
 {
-	std::ofstream out(filename);
+	std::ofstream out(filename, std::ios_base::binary);
 	if(!out.is_open())
 		return false;
 	
-	struct meta{
-		uint32_t w, h, bpp;
-	} meta = {
+	raw_header meta = {
 		width, height, bytesPerPixel
 	};
 	uint32_t size = GetMemSize();
 	out.write((char*)&meta, sizeof(meta));
 	out.write((char*)data, size);
+	return true;
+}
+
+bool ImageData::LoadRaw(std::filesystem::path filename)
+{
+	FreeData();
+	std::ifstream in(filename, std::ios_base::binary);
+	if(!in.is_open())
+		return false;
+	
+	raw_header meta;
+	in.read((char*)&meta, sizeof(meta));
+	int size = meta.w*meta.h*meta.bpp;
+	if(size > 4096 * 4096 * 16)
+		return false;
+
+	width = meta.w;
+	height = meta.h;
+	bytesPerPixel = meta.bpp;
+	data = (uint8_t*)malloc(size);
+	in.read((char*)data, size);
 	return true;
 }
 
@@ -69,17 +94,16 @@ bool ImageData::LoadFromPng(std::filesystem::path filename)
 {
 	FreeData();
 	std::ifstream png(filename, std::ios_base::binary);
-	spng_ctx *ctx = NULL;
 	int r;
-	unsigned char *out = NULL;
 
 	if(png.fail())
 	{
 		std::cerr <<filename<<": error opening input file \n";
 		return false;
 	}
-
-	ctx = spng_ctx_new(0);
+	
+	std::unique_ptr<spng_ctx, decltype(&spng_ctx_free)> ctxObj(spng_ctx_new(0), &spng_ctx_free);
+	auto ctx = ctxObj.get();
 
 	if(ctx == NULL)
 	{
@@ -103,44 +127,34 @@ bool ImageData::LoadFromPng(std::filesystem::path filename)
 
 	if(r)
 	{
-		std::cerr <<filename<<": spng_get_ihdr() error: "<<spng_strerror(r)<<"\n";
+		//std::cerr <<filename<<": spng_get_ihdr() error: "<<spng_strerror(r)<<"\n";
+		//Probably not a PNG image.
 		return false;
 	}
-
-	const char *clr_type_str;
 
 	if(ihdr.color_type == SPNG_COLOR_TYPE_GRAYSCALE)
-		clr_type_str = "grayscale";
+		bytesPerPixel = 1;
 	else if(ihdr.color_type == SPNG_COLOR_TYPE_TRUECOLOR)
-		clr_type_str = "truecolor";
+		bytesPerPixel = 3;
 	else if(ihdr.color_type == SPNG_COLOR_TYPE_INDEXED)
-		clr_type_str = "indexed color";
+		bytesPerPixel = 1;
 	else if(ihdr.color_type == SPNG_COLOR_TYPE_GRAYSCALE_ALPHA)
-		clr_type_str = "grayscale with alpha";
+		bytesPerPixel = 2;
 	else
-		clr_type_str = "truecolor with alpha";
+		bytesPerPixel = 4; //RGBA
 
 
-	printf("width: %" PRIu32 "\nheight: %" PRIu32 "\n"
-		"bit depth: %" PRIu8 "\ncolor type: %" PRIu8 " - %s\n",
-		ihdr.width, ihdr.height,
-		ihdr.bit_depth, ihdr.color_type, clr_type_str);
-	printf("compression method: %" PRIu8 "\nfilter method: %" PRIu8 "\n"
-		"interlace method: %" PRIu8 "\n",
-		ihdr.compression_method, ihdr.filter_method,
-		ihdr.interlace_method);
-
-	struct spng_plte plte = {0};
-	r = spng_get_plte(ctx, &plte);
-
-	if(r && r != SPNG_ECHUNKAVAIL)
+	if(ihdr.bit_depth != 8)
 	{
-		printf("spng_get_plte() error: %s\n", spng_strerror(r));
-		return false;
+		printf("width: %" PRIu32 "\nheight: %" PRIu32 "\n"
+			"bit depth: %" PRIu8 "\ncolor type: %" PRIu8 "\n",
+			ihdr.width, ihdr.height,
+			ihdr.bit_depth, ihdr.color_type);
+		printf("compression method: %" PRIu8 "\nfilter method: %" PRIu8 "\n"
+			"interlace method: %" PRIu8 "\n",
+			ihdr.compression_method, ihdr.filter_method,
+			ihdr.interlace_method);
 	}
-
-	if(!r) printf("palette entries: %" PRIu32 "\n", plte.n_entries);
-
 
 	size_t out_size, out_width;
 
@@ -151,25 +165,26 @@ bool ImageData::LoadFromPng(std::filesystem::path filename)
 	int fmt = SPNG_FMT_PNG;
 
 	/* Pick another format to expand them */
-	if(ihdr.color_type == SPNG_COLOR_TYPE_INDEXED) fmt = SPNG_FMT_RGB8;
+	//if(ihdr.color_type == SPNG_COLOR_TYPE_INDEXED) fmt = SPNG_FMT_RGB8;
 
 	r = spng_decoded_image_size(ctx, fmt, &out_size);
 
 	if(r) return false;
 
-	out = (unsigned char*)malloc(out_size);
-	if(out == NULL) return false;
+	std::unique_ptr<uint8_t> out((unsigned char*)malloc(out_size));
+	if(out == nullptr) return false;
 
 	/* This is required to initialize for progressive decoding */
 	r = spng_decode_image(ctx, NULL, 0, fmt, SPNG_DECODE_PROGRESSIVE);
 	if(r)
 	{
 		printf("progressive spng_decode_image() error: %s\n", spng_strerror(r));
-		goto error;
+		return false;
 	}
 
 	/* ihdr.height will always be non-zero if spng_get_ihdr() succeeds */
 	out_width = out_size / ihdr.height;
+	assert((out_size / ihdr.height)/ihdr.width == bytesPerPixel);
 
 	struct spng_row_info row_info = {0};
 
@@ -179,7 +194,7 @@ bool ImageData::LoadFromPng(std::filesystem::path filename)
 		if(r) break;
 
 		//Decode upside down as usual.
-		r = spng_decode_row(ctx, out+out_size - out_width - row_info.row_num * out_width, out_width);
+		r = spng_decode_row(ctx, out.get()+out_size - out_width - row_info.row_num * out_width, out_width);
 	}
 	while(!r);
 
@@ -202,14 +217,9 @@ bool ImageData::LoadFromPng(std::filesystem::path filename)
 		goto error;
 	} */
 
-skip_encode:
-error:
-
-	spng_ctx_free(ctx);
-	width = out_width;
+	width = ihdr.width;
 	height = ihdr.height;
-	data = out;
-	bytesPerPixel = ihdr.bit_depth/8;
+	data = out.release();
 
 	return true;
 }
