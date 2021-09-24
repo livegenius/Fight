@@ -172,7 +172,7 @@ void Character::GotoSequence(int seq)
 	attack.Clear();
 	hitCount = 0;
 
-	seqPointer = &sequences.get()[currSeq];
+	seqPointer = &(*sequences)[currSeq];
 	landingFrame = seqPointer->props.landFrame;
 	flags &= ~noCollision; 
 	GotoFrame(0);
@@ -214,6 +214,14 @@ bool Character::Update()
 		if (root.y < floorPos) //Fixes a problem when you get hit under the floor.
 			root.y.value = floorPos.value;
 	}
+	if (hitstop > 0)
+	{
+		//Shake effect
+		--hitstop;
+		return true;
+	}
+	else
+		shaking = false;
 	if(!AdvanceFrame()) //Died
 		return false;
 
@@ -239,15 +247,6 @@ bool Character::Update()
 		(root.x < target->root.x && side == -1 || root.x > target->root.x && side == 1));
 
 	SeqFun();
-
-	if (hitstop > 0)
-	{
-		//Shake effect
-		--hitstop;
-		return true;
-	}
-	else
-		shaking = false;
 
 	if(friction &&((vel.x.value < 0 && accel.x.value < 0) || (vel.x.value > 0 && accel.x.value > 0))) //Pushback can't accelerate. Only slow down.
 	{
@@ -309,7 +308,13 @@ void Character::Input(input_deque &keyPresses, CommandInputs &cmd)
 		inputSide = -inputSide;
 
 	MotionData command;
-	auto &prop = framePointer->frameProp;
+	
+	auto fp = framePointer;
+	if(hurtSeq >= 0)
+	{
+		fp = &(*sequences)[hurtSeq].frames[0];
+	}
+	auto &prop = fp->frameProp;
 	auto flags = prop.flags;
 	
 	bool cancellable[2]; //Normal, special
@@ -341,7 +346,7 @@ void Character::Input(input_deque &keyPresses, CommandInputs &cmd)
 		currSeq
 	};
 
-	if(framePointer->frameProp.state == state::air)
+	if(fp->frameProp.state == state::air)
 		command = cmd.ProcessInput(keyPresses, "air", inputSide, info);
 	else
 		command = cmd.ProcessInput(keyPresses, "ground", inputSide, info);
@@ -551,7 +556,7 @@ void Player::SetTarget(Player &t)
 	charObj->target = target;
 }
 
-void Player::Update(HitboxRenderer &hr)
+void Player::Update(HitboxRenderer *hr)
 {
 	if(hasUpdateFunction)
 	{
@@ -563,12 +568,14 @@ void Player::Update(HitboxRenderer &hr)
 		}
 	}
 
-	charObj->Update();
+	if(charObj->Update() && hr)
+		charObj->SendHitboxData(*hr);
 	for(auto it = children.begin(); it != children.end();)
 	{
 		if((*it).Update())
 		{
-			//(*it)->SendHitboxData(hr);
+			if(hr)
+				(*it).SendHitboxData(*hr);
 			++it;
 		}
 		else
@@ -582,6 +589,8 @@ void Player::Update(HitboxRenderer &hr)
 		if((*it).Update())
 		{
 			children.push_back(std::move(*it));
+			if(hr)
+				(*it).SendHitboxData(*hr);
 			++it;
 		}
 		else

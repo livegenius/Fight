@@ -31,9 +31,11 @@ private:
 	Camera view{1.55};
 	int timer;
 
+	bool pause = false;
+	bool step = false;
 	BattleInterface interface;
 	Player player, player2;
-
+	bool drawBoxes = false;
 	SaveState state;
 
 public:

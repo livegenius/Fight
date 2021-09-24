@@ -118,7 +118,7 @@ public:
 	PlayerStateCopy GetStateCopy();
 
 	void SetTarget(Player &target);
-	void Update(HitboxRenderer &hr);
+	void Update(HitboxRenderer *hr);
 	int FillDrawList(DrawList &dl); //Returns player object index in the drawlist
 	void ProcessInput();
 	Point2d<FixedPoint> GetXYCoords();

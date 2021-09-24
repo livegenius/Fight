@@ -69,7 +69,7 @@ struct RenderOptions
 class Actor{
 	friend class Character;
 	friend class Player;
-	std::reference_wrapper<std::vector<Sequence>> sequences;
+	std::vector<Sequence> *sequences;
 
 protected:
 	std::reference_wrapper<std::vector<Actor>> actorList;

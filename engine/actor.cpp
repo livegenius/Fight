@@ -3,7 +3,7 @@
 
 Actor::Actor(std::vector<Sequence> &sequences, sol::state &lua, std::vector<Actor> &actorList) :
 lua(lua),
-sequences(sequences),
+sequences(&sequences),
 actorList(actorList)
 {
 	//userData = lua.create_table();
@@ -26,7 +26,7 @@ void Actor::GotoSequence(int seq)
 	hitCount = 0;
 	attack.Clear();
 
-	seqPointer = &sequences.get()[currSeq];
+	seqPointer = &(*sequences)[currSeq];
 	landingFrame = seqPointer->props.landFrame;
 	flags &= ~noCollision; 
 	GotoFrame(0);
@@ -242,7 +242,13 @@ bool Actor::Update()
 	}
 	if(frozen)
 		return true;
-	
+	if (hitstop > 0)
+	{
+		--hitstop;
+		return true;
+	}
+	else
+		shaking = false;
 	if(!AdvanceFrame()) //Died
 		return false;
 
@@ -253,13 +259,8 @@ bool Actor::Update()
 	}
 
 	SeqFun();
-	if (hitstop > 0)
-	{
-		--hitstop;
-		return true;
-	}
-	else
-		shaking = false;
+	
+	
 
 	if(friction) //Pushback can't accelerate. Only slow down.
 	{
@@ -320,7 +321,7 @@ std::pair<bool, Point2d<FixedPoint>> Actor::HitCollision(const Actor& hurt, cons
 
 Actor& Actor::SpawnChild(int sequence)
 {
-	Actor child(sequences, lua, actorList);
+	Actor child(*sequences, lua, actorList);
 	child.paletteIndex = paletteIndex;
 	child.GotoSequence(sequence);
 	actorList.get().push_back(std::move(child));

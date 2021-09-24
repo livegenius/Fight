@@ -177,16 +177,14 @@ void ButtonHandle(const SDL_ControllerButtonEvent &cbutton)
 
 
 
-void EventLoop(std::function<bool(const SDL_KeyboardEvent&)> keyHandler)
+void EventLoop(std::function<bool(const SDL_KeyboardEvent&)> keyHandler, bool wait)
 {
-	SDL_Event event;
-	while(SDL_PollEvent(&event))
-	{
+	const auto handleEvent = [&keyHandler](SDL_Event &event) -> bool { //Returns true to stop polling events.
 		switch(event.type)
 		{
 			case SDL_QUIT:
 				mainWindow->wantsToClose = true;
-				return;
+				return true;
 			case SDL_WINDOWEVENT:
 				switch(event.window.event)
 				{
@@ -197,10 +195,10 @@ void EventLoop(std::function<bool(const SDL_KeyboardEvent&)> keyHandler)
 				break;
 			case SDL_KEYDOWN:
 			case SDL_KEYUP:
-				if(event.key.repeat)
-					break;
-				if(!keyHandler(event.key)) //Didn't handle the key
-					KeyHandle(event.key);
+				if(keyHandler(event.key))
+					break; //Handled the key
+				else if(!event.key.repeat)
+					KeyHandle(event.key); //No repeats
 				break;
 			case SDL_CONTROLLERAXISMOTION:
 				AxisHandle(event.caxis);
@@ -210,5 +208,18 @@ void EventLoop(std::function<bool(const SDL_KeyboardEvent&)> keyHandler)
 				ButtonHandle(event.cbutton);
 				break;
 		}
+		return false;
+	};
+
+	SDL_Event event;
+	if(wait)
+	{
+		SDL_WaitEvent(&event);
+		handleEvent(event);
+	}
+	else while(SDL_PollEvent(&event))
+	{
+		if(handleEvent(event))
+			break;
 	}
 }

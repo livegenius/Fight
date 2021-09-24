@@ -169,8 +169,14 @@ int BattleScene::PlayLoop(bool replay)
 			std::cerr << "GL Error: 0x" << std::hex << err << "\n";
 		}
 		
-		EventLoop(keyHandler);
-
+		EventLoop(keyHandler, pause);
+		if(pause){
+			if(!step)
+				continue;
+			else
+				step = false;
+		}
+		
 		if(replay)
 		{
 			if(inputI >= inputSize)
@@ -199,8 +205,16 @@ int BattleScene::PlayLoop(bool replay)
 		players[0]->ProcessInput();
 		players[1]->ProcessInput();
 
-		players[0]->Update(hr);
-		players[1]->Update(hr);
+		if(drawBoxes)
+		{
+			players[0]->Update(&hr);
+			players[1]->Update(&hr);
+		}
+		else
+		{
+			players[0]->Update(nullptr);
+			players[1]->Update(nullptr);
+		}
 		
 		Player::Collision(player, player2);
 		drawList.Init(player, player2);
@@ -269,9 +283,12 @@ int BattleScene::PlayLoop(bool replay)
 		gfx.End();
 
 		//Draw boxes
-		/* hr.LoadHitboxVertices();
-		hr.Draw(); */
-		
+		if(drawBoxes)
+		{
+			hr.LoadHitboxVertices();
+			hr.Draw();
+		}
+				
 		//Draw HUD
 		SetModelView(glm::mat4(1));
 		vaoTexOnly.Bind();
@@ -352,6 +369,16 @@ bool BattleScene::KeyHandle(const SDL_KeyboardEvent &e)
 		break;
 	case SDL_SCANCODE_F2:
 		LoadState();
+		break;
+	case SDL_SCANCODE_H:
+		drawBoxes = !drawBoxes;
+		break;
+	case SDL_SCANCODE_P:
+		pause = !pause;
+		break;
+	case SDL_SCANCODE_SPACE:
+		if(pause)
+			step = true;
 		break;
 	default:
 		return false;

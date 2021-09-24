@@ -63,6 +63,6 @@ extern std::unordered_map<SDL_JoystickID, int> JoyInstanceIds;
 void InitControllers(std::vector<SDL_GameController*> &controllers);
 void SetupKeys(int offset); //Sets up and uses the callback to configure keys.
 void SetupJoy(int offset); //Sets up and uses the callback to configure keys.
-void EventLoop(std::function<bool(const SDL_KeyboardEvent&)> keyHandler);
+void EventLoop(std::function<bool(const SDL_KeyboardEvent&)> keyHandler, bool wait);
 
 #endif // RAW_INPUT_H_INCLUDED

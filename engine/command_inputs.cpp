@@ -330,6 +330,9 @@ motionBufferProcessing:
 				return false;
 			}
 			break;
+		
+		case '+':
+			break;
 
 		default:
 			std::bitset<32> x (lever);
@@ -339,6 +342,11 @@ motionBufferProcessing:
 
 		if(c < 0)
 			return true;
+		else if(c >= 1 && motion[c] == '+'){ //(A+B) A must be inputted with B or 1 frame after. Not commutative, obviously.
+			c -= 1 ;
+			frameCounter = 2;
+			goto motionBufferProcessing;
+		}
 
 		if(lastC != c)
 		{
