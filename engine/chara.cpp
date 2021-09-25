@@ -482,10 +482,6 @@ PlayerStateCopy Player::GetStateCopy()
 	copy.charObj.reset(p);
 	//copy.luaState.create();
 	copy.luaState = DeepCopy(lua["G"], sol::nil, lua);
-	
-
-	
-	std::cout <<std::endl;
 	return copy;
 }
 

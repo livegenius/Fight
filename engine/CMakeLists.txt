@@ -36,4 +36,8 @@ target_link_libraries(AFGEngine PRIVATE glm::glm)
 target_link_libraries(AFGEngine PRIVATE glad::glad)
 target_link_libraries(AFGEngine PRIVATE SDL2::SDL2 SDL2::SDL2main)
 
+if(WIN32)
+	target_link_libraries(AFGEngine PRIVATE winmm)
+endif()
+
 #install(TARGETS AFGEngine RUNTIME DESTINATION debug)

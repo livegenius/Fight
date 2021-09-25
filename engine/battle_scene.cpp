@@ -217,7 +217,9 @@ int BattleScene::PlayLoop(bool replay)
 		}
 		
 		Player::Collision(player, player2);
-		drawList.Init(player, player2);
+
+		/* SaveState();
+		LoadState(); */
 
 		//auto &&pos = players[1]->getXYCoords();
 		//pg.PushNormalHit(5, 256, 128);
@@ -229,6 +231,7 @@ int BattleScene::PlayLoop(bool replay)
 		
 		//Start rendering
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		drawList.Init(player, player2);
 		
 		//Should calculations be performed earlier? Watchout for this (Why?)
 		glm::mat4 viewMatrix = view.Calculate(players[0]->GetXYCoords(), players[1]->GetXYCoords());

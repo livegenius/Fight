@@ -10,6 +10,11 @@
 #include <SDL.h>
 #include <glad/glad.h>
 
+#ifdef _WIN32
+	#include <windows.h>
+	//#include <timeapi.h>
+#endif
+
 Window *mainWindow = nullptr;
 
 Window::Window() :
@@ -52,6 +57,11 @@ startClock(std::chrono::high_resolution_clock::now())
 
 	if(vsync)
 		SDL_GL_SetSwapInterval(1);
+	
+	#ifdef _WIN32
+		
+
+	#endif
 }
 
 Window::~Window()
@@ -60,10 +70,51 @@ Window::~Window()
 		SDL_GL_DeleteContext(glcontext);
 	SDL_DestroyWindow( window );
 	SDL_Quit();
+	
 }
 
+#if defined (_WIN32) && !defined(GENERIC_SLEEP)
+UINT GetMinTimer(){
+	TIMECAPS tc;
+	timeGetDevCaps(&tc, sizeof(tc));
+	return tc.wPeriodMin;
+};
+LONGLONG GetFreq(){
+	LARGE_INTEGER freq;
+	QueryPerformanceFrequency(&freq);
+	return freq.QuadPart;
+}
+auto frequency = GetFreq();
+UINT minTimer = GetMinTimer(); 
+DWORD startClockW = 0;
+LARGE_INTEGER startClockHr{};
 void Window::SleepUntilNextFrame()
 {
+	timeBeginPeriod(minTimer);
+	DWORD targetDur = targetSpf*1000;
+	LONGLONG targetCount = frequency*(targetSpf);
+	DWORD dur; 
+
+	auto now = timeGetTime();
+	if((dur = now - startClockW) < targetDur)
+	{
+		Sleep((targetDur-dur)-1);
+	}
+	LARGE_INTEGER ticks;
+	QueryPerformanceCounter(&ticks);
+	LONGLONG dif;
+	while((dif = ticks.QuadPart - startClockHr.QuadPart) <= targetCount)
+		QueryPerformanceCounter(&ticks); 
+
+	realSpf = (double)dif/(double)frequency;//(timeGetTime()-startClockW)*0.001;
+	QueryPerformanceCounter(&startClockHr);
+	startClockW = timeGetTime();
+	timeEndPeriod(minTimer);
+}
+#else
+void Window::SleepUntilNextFrame()
+{
+	constexpr double factor = 0.9; 
 	if(!vsync)
 	{
 		std::chrono::duration<double> targetDur(targetSpf);
@@ -80,11 +131,13 @@ void Window::SleepUntilNextFrame()
 			auto now = std::chrono::high_resolution_clock::now();
 			if((dur = now - startClock) < targetDur)
 			{
-				std::this_thread::sleep_for((targetDur-dur)*0.9);
+				std::this_thread::sleep_for((targetDur-dur)*factor);
 			}
 			while( (dur = std::chrono::high_resolution_clock::now() - startClock) <= targetDur); 
 		}
 		realSpf = dur.count();
+		/* if(realSpf > 0.0167)
+			factor *= 0.99; */
 	}
 	else
 	{
@@ -92,6 +145,7 @@ void Window::SleepUntilNextFrame()
 	}
 	startClock = std::chrono::high_resolution_clock::now();
 }
+#endif
 
 void Window::SwapBuffers()
 {
