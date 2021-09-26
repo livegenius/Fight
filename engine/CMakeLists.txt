@@ -30,6 +30,7 @@ target_link_libraries(AFGEngine PRIVATE
 	#External
 	sol2::sol2
 	enet
+	ggpo
 )
 
 #External

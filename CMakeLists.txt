@@ -26,6 +26,7 @@ if(AFGE_USE_SUBMODULES)
 	add_subdirectory(submodules/glm)
 	add_subdirectory(submodules/SDL)
 	add_subdirectory(submodules/enet)
+	add_subdirectory(submodules/ggpo)
 	include(imgui)
 
 	set(LZ4_BUILD_CLI OFF)
