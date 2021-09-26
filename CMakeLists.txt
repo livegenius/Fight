@@ -25,6 +25,7 @@ if(AFGE_USE_SUBMODULES)
 	add_subdirectory(submodules/spng-miniz)
 	add_subdirectory(submodules/glm)
 	add_subdirectory(submodules/SDL)
+	add_subdirectory(submodules/enet)
 	include(imgui)
 
 	set(LZ4_BUILD_CLI OFF)

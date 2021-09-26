@@ -9,7 +9,7 @@ target_sources(AFGEngine PRIVATE
 	command_inputs.cpp
 	hud.cpp
 	main.cpp
-	#netplay.cpp
+	netplay.cpp
 	raw_input.cpp
 	util.cpp
 	window.cpp
@@ -29,6 +29,7 @@ target_link_libraries(AFGEngine PRIVATE
 
 	#External
 	sol2::sol2
+	enet
 )
 
 #External
