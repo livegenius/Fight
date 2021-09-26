@@ -175,7 +175,30 @@ void ButtonHandle(const SDL_ControllerButtonEvent &cbutton)
 	}
 }
 
-
+bool PollShouldQuit()
+{
+	SDL_Event event;
+	while(SDL_PollEvent(&event))
+	{
+		switch(event.type)
+		{
+			case SDL_QUIT:
+				return true;
+			case SDL_WINDOWEVENT:
+				switch(event.window.event)
+				{
+					case SDL_WINDOWEVENT_SIZE_CHANGED:
+						mainWindow->UpdateViewport(event.window.data1, event.window.data2);
+						break;
+				}
+				break;
+			case SDL_KEYDOWN:
+				if(event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)
+					return true;
+		}
+	}
+	return false;
+}
 
 void EventLoop(std::function<bool(const SDL_KeyboardEvent&)> keyHandler, bool wait)
 {

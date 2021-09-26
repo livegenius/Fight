@@ -5,7 +5,7 @@
 #include "game_state.h"
 #include "raw_input.h"
 #include "netplay.h"
-#include <enet.h>
+#include <enet/enet.h>
 #include <fstream>
 #include <SDL_gamecontroller.h>
 
@@ -14,7 +14,6 @@ int gameState = GS_MENU;
 int main(int argc, char** argv)
 {
 	mainWindow = new Window();
-
 	//This should be in raw input. Should it?
 	std::ifstream keyfile("keyconf.bin", std::ifstream::in | std::ifstream::binary);
 	if(keyfile.is_open())
@@ -37,16 +36,23 @@ int main(int argc, char** argv)
 
 	bool playDemo = false;
 	int netState = 0;
+	ENetHost *local;
+	
 	if(argc > 1)
 	{
 		if(strcmp(argv[1],"playdemo")==0)
 			playDemo = true;
 		else
-			netState = net::NetplayArgs(argc, argv);
+			netState = net::NetplayArgs(argc, argv, local);
 		if(netState < net::Success)
+		{
+			if(netState)
+				enet_deinitialize();
 			return 0;
+		}		
 	}
 
+	
 	while(!mainWindow->wantsToClose)
 	{
 		try{

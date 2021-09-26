@@ -68,6 +68,14 @@ Window::~Window()
 	
 }
 
+void Window::ShowWindow(bool show)
+{
+	if(show)
+		SDL_ShowWindow(window);
+	else
+		SDL_HideWindow(window);
+}
+
 #if defined (_WIN32) && !defined(GENERIC_SLEEP)
 UINT GetMinTimer(){
 	TIMECAPS tc;

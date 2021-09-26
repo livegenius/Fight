@@ -27,6 +27,7 @@ public:
 	Window();
 	~Window();
 
+	void ShowWindow(bool show = true);
 	void SwapBuffers();
 	void ChangeFramerate();
 

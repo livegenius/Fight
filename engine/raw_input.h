@@ -60,6 +60,7 @@ extern SDL_Scancode modifiableSCKeys[buttonsN*2];
 extern JoyInputInfo modifiableJoyKeys[buttonsN*2];
 extern std::unordered_map<SDL_JoystickID, int> JoyInstanceIds;
 
+bool PollShouldQuit();
 void InitControllers(std::vector<SDL_GameController*> &controllers);
 void SetupKeys(int offset); //Sets up and uses the callback to configure keys.
 void SetupJoy(int offset); //Sets up and uses the callback to configure keys.
