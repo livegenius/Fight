@@ -2,7 +2,6 @@
 #define WINDOW_H_INCLUDED
 
 #include <SDL.h>
-#include <chrono>
 
 constexpr int internalWidth = 480;
 constexpr int internalHeight = 270;
@@ -22,7 +21,6 @@ private:
 	int frameRateChoice;
 	double targetSpf;
 	double realSpf;
-	std::chrono::time_point<std::chrono::high_resolution_clock> startClock; 
 
 	void SetupGl(SDL_Window *window);
 public:

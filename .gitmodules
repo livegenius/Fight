@@ -27,3 +27,6 @@
 [submodule "submodules/spng-miniz"]
 	path = submodules/spng-miniz
 	url = https://github.com/meifuku/spng-miniz.git
+[submodule "submodules/enet"]
+	path = submodules/enet
+	url = https://github.com/zpl-c/enet.git
