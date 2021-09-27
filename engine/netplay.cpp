@@ -127,7 +127,7 @@ bool Host(std::string portStr, ENetHost *&oServer)
 					enet_packet_destroy (event.packet);
 					ENetPacket * packet = enet_packet_create ("OK2", 3, ENET_PACKET_FLAG_RELIABLE);
 					enet_peer_send(event.peer, 1, packet);
-					enet_host_service(server,&event,500);
+					enet_host_service(server,&event,0);
 					return true;
 				}
 				enet_packet_destroy (event.packet);	

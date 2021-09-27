@@ -94,16 +94,17 @@ void Window::SleepUntilNextFrame()
 {
 	timeBeginPeriod(minTimer);
 	ULONGLONG targetCount = frequency*(targetSpf);
-	ULONGLONG dur; 
+	ULONGLONG dif; 
 
 	LARGE_INTEGER nowTicks;
 	QueryPerformanceCounter(&nowTicks);
-	if((dur = nowTicks.QuadPart - startClockHr.QuadPart) < targetCount)
+	if((dif = nowTicks.QuadPart - startClockHr.QuadPart) < targetCount)
 	{
-		Sleep(((targetCount-dur)/(frequency/1000))-1);
+		LONG sleepTime = ((targetCount-dif)/(frequency/1000))-1;
+		if(sleepTime>0)
+			Sleep(sleepTime);
 	}
-	
-	LONGLONG dif;
+
 	while((dif = nowTicks.QuadPart - startClockHr.QuadPart) < targetCount)
 		QueryPerformanceCounter(&nowTicks); 
 

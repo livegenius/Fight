@@ -44,12 +44,12 @@ int main(int argc, char** argv)
 		if(strcmp(argv[1],"playdemo")==0)
 			playDemo = true;
 		else
-			netState = net::NetplayArgs(argc, argv, local, address);
-		if(netState < net::Success)
 		{
-			if(netState)
-				enet_deinitialize();
-			return 0;
+			netState = net::NetplayArgs(argc, argv, local, address);
+			if(netState < net::Success)
+			{
+				mainWindow->wantsToClose = true;
+			}
 		}
 	}
 

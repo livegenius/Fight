@@ -23,7 +23,6 @@ struct State
 	std::unordered_map<int, ParticleGroup> particleGroups;
 	Camera view;
 	PlayerStateCopy p1, p2;
-
 	//SaveState():{}
 };
 
@@ -48,6 +47,7 @@ private:
 	Player* players[2];
 	GGPOPlayerHandle playerHandle[2];
 	GGPOSession *ggpo = nullptr;
+	glm::mat4 viewMatrix; //Camera view.
 
 public:
 	BattleScene(ENetHost *local);

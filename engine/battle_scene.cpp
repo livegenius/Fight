@@ -97,35 +97,6 @@ BattleScene::~BattleScene()
 	enet_host_destroy(local);
 }
 
-void BattleScene::AdvanceFrame()
-{
-	if(player.priority >= player2.priority){
-		players[0] = &player;
-		players[1] = &player2;
-	}else{
-		players[0] = &player2;
-		players[1] = &player;
-	}
-
-	Player::HitCollision(player, player2);
-	players[0]->ProcessInput();
-	players[1]->ProcessInput();
-
-	if(drawBoxes)
-	{
-		players[0]->Update(&hr);
-		players[1]->Update(&hr);
-	}
-	else
-	{
-		players[0]->Update(nullptr);
-		players[1]->Update(nullptr);
-	}
-	
-	Player::Collision(player, player2);
-	ggpo_advance_frame(ggpo);
-}
-
 int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 {
 	std::vector<uint32_t> inputs;
@@ -191,19 +162,19 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 
 	auto keyHandler = std::bind(&BattleScene::KeyHandle, this, std::placeholders::_1);
 	int32_t gameTicks = 0;
-	bool gameOver = false;
-	bool ready = true;
+	bool drawn = false;
 
 	if(local)
 	{
 		if(!SetupGgpo(playerId, address))
 		{
 			mainWindow->wantsToClose = true;
+			std::cerr << "Error setting ggpo up";
 			return 0;
 		}
 	}
 	
-	while(!gameOver && !mainWindow->wantsToClose)
+	while(!mainWindow->wantsToClose)
 	{
 		if(int err = glGetError())
 		{
@@ -221,15 +192,20 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		if(replay)
 		{
 			if(inputI >= inputSize)
+			{
+				mainWindow->wantsToClose = true;
 				break;
+			}
 			player.SendInput(inputs[inputI++]);
 			player2.SendInput(inputs[inputI++]);
+			AdvanceFrame();
 		}
 		else if(ggpo)
 		{
 			ggpo_idle(ggpo, 0);
 			unsigned int ginputs[2];
-			auto result = ggpo_add_local_input(ggpo, playerHandle[playerId], &keySend[playerId], sizeof(unsigned int));
+			//Grab p1 controller only. 
+			auto result = ggpo_add_local_input(ggpo, playerHandle[playerId], &keySend[0], sizeof(unsigned int));
 			if (GGPO_SUCCEEDED(result))
 			{
 				result = ggpo_synchronize_input(ggpo, (void *)ginputs, sizeof(unsigned int) * 2, nullptr);
@@ -238,7 +214,12 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 				player.SendInput(ginputs[0]);
 				player2.SendInput(ginputs[1]);
 				AdvanceFrame();
+				drawn = false;
 			}
+			if(drawn)
+				continue;
+			else
+				drawn = true;
 		}
 		else
 		{
@@ -249,23 +230,10 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			AdvanceFrame();
 		}
 		
-		//AdvanceFrame();
-
-		//auto &&pos = players[1]->getXYCoords();
-		//pg.PushNormalHit(5, 256, 128);
-
-		//Hud state update
-		//barHandler[B_P1Life].Resize(player.GetHealthRatio(), 1);
-		//barHandler[B_P2Life].Resize(player2.GetHealthRatio(), 1);
-		//VaoTexOnly.UpdateBuffer(hudId, GetHudData().data(), GetHudData().size()*sizeof(float));
-		
 		//Start rendering
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		drawList.Init(player, player2);
 		
-		//Should calculations be performed earlier? Watchout for this (Why?)
-		glm::mat4 viewMatrix = view.Calculate(player.GetXYCoords(), player2.GetXYCoords());
-
 		gfx.Begin();
 		//Draw stage quad
 		auto center = view.GetCameraCenterScale();
@@ -308,7 +276,6 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		SetModelView(viewMatrix);
 		for(auto &pg : particleGroups)
 		{
-			pg.second.Update();
 			pg.second.FillParticleVector(particles);
 			gfx.DrawParticles(particles, pg.first);
 		}
@@ -359,6 +326,40 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	}
 
 	return GS_WIN;
+}
+
+void BattleScene::AdvanceFrame()
+{
+	if(player.priority >= player2.priority){
+		players[0] = &player;
+		players[1] = &player2;
+	}else{
+		players[0] = &player2;
+		players[1] = &player;
+	}
+
+	Player::HitCollision(player, player2);
+	players[0]->ProcessInput();
+	players[1]->ProcessInput();
+
+	if(drawBoxes)
+	{
+		players[0]->Update(&hr);
+		players[1]->Update(&hr);
+	}
+	else
+	{
+		players[0]->Update(nullptr);
+		players[1]->Update(nullptr);
+	}
+	
+	Player::Collision(player, player2);
+	viewMatrix = view.Calculate(player.GetXYCoords(), player2.GetXYCoords());
+
+	for(auto &pg : particleGroups)
+		pg.second.Update();
+
+	ggpo_advance_frame(ggpo);
 }
 
 void BattleScene::SetModelView(glm::mat4& view)
