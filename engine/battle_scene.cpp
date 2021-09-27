@@ -105,9 +105,17 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	if(replay)
 	{
 		std::ifstream replayFile("replay", std::ios_base::binary);
-		replayFile.read((char*)&inputSize, sizeof(size_t));
-		inputs.resize(inputSize);
-		replayFile.read((char*)inputs.data(), sizeof(uint32_t)*inputSize);
+		if(!replayFile.is_open())
+		{
+			std::cout << "There's no replay file.";
+			mainWindow->wantsToClose = true;
+			return 0;
+		}
+		{
+			replayFile.read((char*)&inputSize, sizeof(size_t));
+			inputs.resize(inputSize);
+			replayFile.read((char*)inputs.data(), sizeof(uint32_t)*inputSize);
+		}
 	}
 	else
 		inputs.reserve(0x2000);
