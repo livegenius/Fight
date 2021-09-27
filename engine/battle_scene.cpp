@@ -54,7 +54,8 @@ unsigned int LoadPaletteTEMP()
 	return paletteGlId;
 }
 
-BattleScene::BattleScene(unsigned short _local):
+BattleScene::BattleScene(ENetHost *local):
+local(local),
 interface{rng, particleGroups, view},
 player(interface), player2(interface),
 uniforms("Common", 1)
@@ -87,12 +88,13 @@ uniforms("Common", 1)
 	glClearColor(1, 1, 1, 1.f); 
 	glClearDepth(1);
 
-	remotePort = _local;
+
 }
 
 BattleScene::~BattleScene()
 {
 	glDeleteTextures(1, &paletteId);
+	enet_host_destroy(local);
 }
 
 void BattleScene::AdvanceFrame()
@@ -192,9 +194,9 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	bool gameOver = false;
 	bool ready = true;
 
-	if(remotePort)
+	if(local)
 	{
-		if(!SetupGgpo(playerId, address, remotePort))
+		if(!SetupGgpo(playerId, address))
 		{
 			mainWindow->wantsToClose = true;
 			return 0;
@@ -418,7 +420,7 @@ bool BattleScene::KeyHandle(const SDL_KeyboardEvent &e)
 	return true;
 }
 
-bool BattleScene::SetupGgpo(int playerId, const std::string &address, unsigned short port)
+bool BattleScene::SetupGgpo(int playerId, const std::string &address)
 {
 	ready = false;
 	GGPOSessionCallbacks cb = { 0 };
@@ -438,10 +440,12 @@ bool BattleScene::SetupGgpo(int playerId, const std::string &address, unsigned s
 		LoadState(*state);
 		return true;
 	};
-	cb.save_game_state = [this](unsigned char **buffer, int*, int *checksum, int){
+	cb.save_game_state = [this](unsigned char **buffer, int* len, int *checksum, int){
 		auto state = new State();
 		SaveState(*state);
+		*len = sizeof(State); 
 		*buffer = (unsigned char*)state;
+		*checksum = 1;
 		return true;
 	};
 	cb.free_buffer     = [](void *buffer){State *state = (State *)buffer; delete state;};
@@ -474,7 +478,10 @@ bool BattleScene::SetupGgpo(int playerId, const std::string &address, unsigned s
 		}
 		return true;
 	};
-
+	if(ggpo_start_session(&ggpo, &cb, nullptr, 2, sizeof(uint32_t), local->socket) != GGPO_OK)
+	{
+		return false;
+	}
 	GGPOPlayer ggplayer[2];
 	for (int i = 0; i < 2; i++) {
 		auto &p = ggplayer[i];
@@ -486,18 +493,17 @@ bool BattleScene::SetupGgpo(int playerId, const std::string &address, unsigned s
 		else
 		{
 			p.type = GGPO_PLAYERTYPE_REMOTE;
-			strncpy_s(p.u.remote.ip_address, address.c_str(), 32);
-			p.u.remote.port = port;
+			enet_address_get_host_ip(&local->peers[0].address, p.u.remote.ip_address, 32);
+			p.u.remote.port = local->peers[0].address.port;
+			std::cout << "Remote port :"<< p.u.remote.port <<"\n";
+			std::cout << "Remote address :"<< p.u.remote.ip_address <<"\n";
 		}
-		
+
 		ggpo_add_player(ggpo, &p, &h);
 		
 	}
 
-	if(ggpo_start_session(&ggpo, &cb, nullptr, 2, sizeof(uint32_t), port) != GGPO_OK)
-	{
-		return false;
-	}
+	
 	ggpo_set_disconnect_timeout(ggpo, 3000);
 	ggpo_set_disconnect_notify_start(ggpo, 1000);
 

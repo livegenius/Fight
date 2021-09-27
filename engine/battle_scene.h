@@ -13,8 +13,8 @@
 #include <glm/mat4x4.hpp>
 #include <SDL_events.h>
 #include <ggponet.h>
-/* #include <enet/enet.h>
-#undef interface */
+#include <enet/enet.h>
+#undef interface
 
 
 struct State
@@ -30,7 +30,7 @@ struct State
 class BattleScene
 {
 private:
-	unsigned short remotePort;
+	ENetHost *local;
 	XorShift32 rng;
 	std::unordered_map<int, ParticleGroup> particleGroups;
 	Camera view{1.55};
@@ -50,7 +50,7 @@ private:
 	GGPOSession *ggpo = nullptr;
 
 public:
-	BattleScene(unsigned short local);
+	BattleScene(ENetHost *local);
 	~BattleScene();
 	void SaveState(State &state);
 	void LoadState(State &state);
@@ -70,7 +70,7 @@ private:
 	void SetModelView(glm::mat4 &&view);
 	bool KeyHandle(const SDL_KeyboardEvent &e); //Returns false if it doesn't handle the event.
 	void AdvanceFrame();
-	bool SetupGgpo(int playerId, const std::string &address, unsigned short port);
+	bool SetupGgpo(int playerId, const std::string &address);
 };
 
 #endif /* BATTLE_SCENE_H_GUARD */

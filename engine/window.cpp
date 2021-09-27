@@ -93,8 +93,8 @@ LARGE_INTEGER startClockHr{};
 void Window::SleepUntilNextFrame()
 {
 	timeBeginPeriod(minTimer);
-	LONGLONG targetCount = frequency*(targetSpf);
-	LONGLONG dur; 
+	ULONGLONG targetCount = frequency*(targetSpf);
+	ULONGLONG dur; 
 
 	LARGE_INTEGER nowTicks;
 	QueryPerformanceCounter(&nowTicks);
