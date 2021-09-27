@@ -11,6 +11,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <ggponet.h>
 
 #include <glad/glad.h> //Palette loading only. Will remove.
 #include <glm/gtc/type_ptr.hpp> //Uniform matrix load.
@@ -53,7 +54,7 @@ unsigned int LoadPaletteTEMP()
 	return paletteGlId;
 }
 
-BattleScene::BattleScene():
+BattleScene::BattleScene(unsigned short _local):
 interface{rng, particleGroups, view},
 player(interface), player2(interface),
 uniforms("Common", 1)
@@ -86,7 +87,7 @@ uniforms("Common", 1)
 	glClearColor(1, 1, 1, 1.f); 
 	glClearDepth(1);
 
-
+	remotePort = _local;
 }
 
 BattleScene::~BattleScene()
@@ -94,7 +95,36 @@ BattleScene::~BattleScene()
 	glDeleteTextures(1, &paletteId);
 }
 
-int BattleScene::PlayLoop(bool replay)
+void BattleScene::AdvanceFrame()
+{
+	if(player.priority >= player2.priority){
+		players[0] = &player;
+		players[1] = &player2;
+	}else{
+		players[0] = &player2;
+		players[1] = &player;
+	}
+
+	Player::HitCollision(player, player2);
+	players[0]->ProcessInput();
+	players[1]->ProcessInput();
+
+	if(drawBoxes)
+	{
+		players[0]->Update(&hr);
+		players[1]->Update(&hr);
+	}
+	else
+	{
+		players[0]->Update(nullptr);
+		players[1]->Update(nullptr);
+	}
+	
+	Player::Collision(player, player2);
+	ggpo_advance_frame(ggpo);
+}
+
+int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 {
 	std::vector<uint32_t> inputs;
 	size_t inputSize;
@@ -130,11 +160,9 @@ int BattleScene::PlayLoop(bool replay)
 	
 	//For rendering purposes only.
 	std::vector<float> hitboxData;
-	HitboxRenderer hr;
-
+	
 	GfxHandler gfx;
 	int playerGfx = gfx.LoadGfxFromDef("data/char/vaki/def.lua");
-	//std::function<void(glm::mat4&)> setView = std::bind(static_cast<void(BattleScene::*)(glm::mat4&)>(&BattleScene::SetModelView), this, std::placeholders::_1);
 	Stage stage(gfx, "data/bg/bg.lua", [&](glm::mat4& a){SetModelView(a);});
 	gfx.LoadingDone();
 
@@ -147,12 +175,13 @@ int BattleScene::PlayLoop(bool replay)
 	player2.SetTarget(player);
 	player.priority = 1;
 
-	Player* players[2];
+	players[0] = &player;
+	players[1] = &player2;
 
 	vaoTexOnly.Bind();
 
 	std::vector<Particle> particles;
-	Player::DrawList drawList;
+	
 	for(int i = ParticleGroup::START; i < ParticleGroup::END; ++i)
 		particleGroups.insert({i, {rng, i}});
 
@@ -161,6 +190,16 @@ int BattleScene::PlayLoop(bool replay)
 	auto keyHandler = std::bind(&BattleScene::KeyHandle, this, std::placeholders::_1);
 	int32_t gameTicks = 0;
 	bool gameOver = false;
+	bool ready = true;
+
+	if(remotePort)
+	{
+		if(!SetupGgpo(playerId, address, remotePort))
+		{
+			mainWindow->wantsToClose = true;
+			return 0;
+		}
+	}
 	
 	while(!gameOver && !mainWindow->wantsToClose)
 	{
@@ -184,42 +223,31 @@ int BattleScene::PlayLoop(bool replay)
 			player.SendInput(inputs[inputI++]);
 			player2.SendInput(inputs[inputI++]);
 		}
+		else if(ggpo)
+		{
+			ggpo_idle(ggpo, 0);
+			unsigned int ginputs[2];
+			auto result = ggpo_add_local_input(ggpo, playerHandle[playerId], &keySend[playerId], sizeof(unsigned int));
+			if (GGPO_SUCCEEDED(result))
+			{
+				result = ggpo_synchronize_input(ggpo, (void *)ginputs, sizeof(unsigned int) * 2, nullptr);
+				inputs.push_back(ginputs[0]);
+				inputs.push_back(ginputs[1]);
+				player.SendInput(ginputs[0]);
+				player2.SendInput(ginputs[1]);
+				AdvanceFrame();
+			}
+		}
 		else
 		{
 			inputs.push_back(keySend[0]);
 			inputs.push_back(keySend[1]);
-			
 			player.SendInput(keySend[0]);
 			player2.SendInput(keySend[1]);
+			AdvanceFrame();
 		}
 		
-		if(player.priority >= player2.priority){
-			players[0] = &player;
-			players[1] = &player2;
-		}else{
-			players[0] = &player2;
-			players[1] = &player;
-		}
-
-		Player::HitCollision(player, player2);
-		players[0]->ProcessInput();
-		players[1]->ProcessInput();
-
-		if(drawBoxes)
-		{
-			players[0]->Update(&hr);
-			players[1]->Update(&hr);
-		}
-		else
-		{
-			players[0]->Update(nullptr);
-			players[1]->Update(nullptr);
-		}
-		
-		Player::Collision(player, player2);
-
-		/* SaveState();
-		LoadState(); */
+		//AdvanceFrame();
 
 		//auto &&pos = players[1]->getXYCoords();
 		//pg.PushNormalHit(5, 256, 128);
@@ -234,7 +262,7 @@ int BattleScene::PlayLoop(bool replay)
 		drawList.Init(player, player2);
 		
 		//Should calculations be performed earlier? Watchout for this (Why?)
-		glm::mat4 viewMatrix = view.Calculate(players[0]->GetXYCoords(), players[1]->GetXYCoords());
+		glm::mat4 viewMatrix = view.Calculate(player.GetXYCoords(), player2.GetXYCoords());
 
 		gfx.Begin();
 		//Draw stage quad
@@ -341,8 +369,9 @@ void BattleScene::SetModelView(glm::mat4&& view)
 	uniforms.SetData(glm::value_ptr(projection*view));
 }
 
-void BattleScene::SaveState()
+void BattleScene::SaveState(State &state)
 {
+	//TODO Add inputIterator to state
 	state.rng = rng;
 	state.particleGroups = particleGroups;
 	state.p1 = player.GetStateCopy();
@@ -350,8 +379,8 @@ void BattleScene::SaveState()
 	state.view = view;
 }
 
-void BattleScene::LoadState()
-{
+void BattleScene::LoadState(State &state)
+{	
 	if(!state.p1.charObj) //There are no saves.
 		return;
 	rng = state.rng;
@@ -367,12 +396,12 @@ bool BattleScene::KeyHandle(const SDL_KeyboardEvent &e)
 		return false;
 
 	switch (e.keysym.scancode){
-	case SDL_SCANCODE_F1: 
+/* 	case SDL_SCANCODE_F1: 
 		SaveState();
 		break;
 	case SDL_SCANCODE_F2:
 		LoadState();
-		break;
+		break; */
 	case SDL_SCANCODE_H:
 		drawBoxes = !drawBoxes;
 		break;
@@ -386,5 +415,91 @@ bool BattleScene::KeyHandle(const SDL_KeyboardEvent &e)
 	default:
 		return false;
 	}
+	return true;
+}
+
+bool BattleScene::SetupGgpo(int playerId, const std::string &address, unsigned short port)
+{
+	ready = false;
+	GGPOSessionCallbacks cb = { 0 };
+	cb.begin_game      = [](const char*){return true;};
+	cb.advance_frame   = [this](int)->bool{
+		unsigned int ginputs[2];
+		ggpo_synchronize_input(ggpo, (void *)ginputs, sizeof(unsigned int) * 2, nullptr);
+		/* inputs.push_back(ginputs[0]);
+		inputs.push_back(ginputs[1]); */
+		player.SendInput(ginputs[0]);
+		player2.SendInput(ginputs[1]);
+		AdvanceFrame();
+		return true;
+	};
+	cb.load_game_state = [this](unsigned char *buffer, int){
+		State *state = (State *)buffer;
+		LoadState(*state);
+		return true;
+	};
+	cb.save_game_state = [this](unsigned char **buffer, int*, int *checksum, int){
+		auto state = new State();
+		SaveState(*state);
+		*buffer = (unsigned char*)state;
+		return true;
+	};
+	cb.free_buffer     = [](void *buffer){State *state = (State *)buffer; delete state;};
+	cb.log_game_state  = [](char *, unsigned char *, int){return false;}; 
+	cb.on_event        = [this](GGPOEvent *info)
+	{
+		int progress;
+		switch (info->code) {
+		case GGPO_EVENTCODE_CONNECTED_TO_PEER:
+		case GGPO_EVENTCODE_SYNCHRONIZING_WITH_PEER:
+		case GGPO_EVENTCODE_SYNCHRONIZED_WITH_PEER:
+			break; //Don't care.
+		case GGPO_EVENTCODE_RUNNING:
+			ready = true;
+			break;
+		case GGPO_EVENTCODE_CONNECTION_INTERRUPTED:
+			std::cout<<info->u.connection_interrupted.player << ": "<<info->u.connection_interrupted.disconnect_timeout<<"\n";
+			break;
+		case GGPO_EVENTCODE_CONNECTION_RESUMED:
+			std::cout<<info->u.connection_resumed.player << ": resumed\n";
+			break;
+		case GGPO_EVENTCODE_DISCONNECTED_FROM_PEER:
+			std::cout<<info->u.disconnected.player<<": disconnected\n";
+			mainWindow->wantsToClose = true;
+			break;
+		case GGPO_EVENTCODE_TIMESYNC:
+			for(int i = 0; i < info->u.timesync.frames_ahead; ++i)
+				mainWindow->SleepUntilNextFrame();
+			break;
+		}
+		return true;
+	};
+
+	GGPOPlayer ggplayer[2];
+	for (int i = 0; i < 2; i++) {
+		auto &p = ggplayer[i];
+		auto &h = playerHandle[i];
+		p.size = sizeof(GGPOPlayer);
+		p.player_num = i + 1;
+		if(i == playerId)
+			p.type = GGPO_PLAYERTYPE_LOCAL;
+		else
+		{
+			p.type = GGPO_PLAYERTYPE_REMOTE;
+			strncpy_s(p.u.remote.ip_address, address.c_str(), 32);
+			p.u.remote.port = port;
+		}
+		
+		ggpo_add_player(ggpo, &p, &h);
+		
+	}
+
+	if(ggpo_start_session(&ggpo, &cb, nullptr, 2, sizeof(uint32_t), port) != GGPO_OK)
+	{
+		return false;
+	}
+	ggpo_set_disconnect_timeout(ggpo, 3000);
+	ggpo_set_disconnect_notify_start(ggpo, 1000);
+
 	return true;
 }

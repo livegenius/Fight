@@ -12,8 +12,12 @@
 #include <ubo.h>
 #include <glm/mat4x4.hpp>
 #include <SDL_events.h>
+#include <ggponet.h>
+/* #include <enet/enet.h>
+#undef interface */
 
-struct SaveState
+
+struct State
 {
 	XorShift32 rng;
 	std::unordered_map<int, ParticleGroup> particleGroups;
@@ -26,6 +30,7 @@ struct SaveState
 class BattleScene
 {
 private:
+	unsigned short remotePort;
 	XorShift32 rng;
 	std::unordered_map<int, ParticleGroup> particleGroups;
 	Camera view{1.55};
@@ -33,18 +38,24 @@ private:
 
 	bool pause = false;
 	bool step = false;
+	bool ready = true;
 	BattleInterface interface;
 	Player player, player2;
 	bool drawBoxes = false;
-	SaveState state;
+
+	HitboxRenderer hr;
+	Player::DrawList drawList;
+	Player* players[2];
+	GGPOPlayerHandle playerHandle[2];
+	GGPOSession *ggpo = nullptr;
 
 public:
-	BattleScene();
+	BattleScene(unsigned short local);
 	~BattleScene();
-	void SaveState();
-	void LoadState();
+	void SaveState(State &state);
+	void LoadState(State &state);
 
-	int PlayLoop(bool replay = false);
+	int PlayLoop(bool replay, int playerId, const std::string &address);
 
 private:
 	std::vector<Texture> activeTextures;
@@ -58,6 +69,8 @@ private:
 	void SetModelView(glm::mat4 &view);
 	void SetModelView(glm::mat4 &&view);
 	bool KeyHandle(const SDL_KeyboardEvent &e); //Returns false if it doesn't handle the event.
+	void AdvanceFrame();
+	bool SetupGgpo(int playerId, const std::string &address, unsigned short port);
 };
 
 #endif /* BATTLE_SCENE_H_GUARD */

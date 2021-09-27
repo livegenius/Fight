@@ -4,10 +4,11 @@
 #include <chrono>
 #include <deque>
 #include <mutex>
+#include <string>
 #include <enet/enet.h>
 
-bool Host(std::string portStr, ENetHost *oHost);
-bool Join(std::string addressStr, std::string portStr, ENetHost *oClient);
+bool Host(std::string portStr, ENetHost *&oHost);
+bool Join(std::string addressStr, std::string portStr, ENetHost *&oClient);
 
 namespace net {
 
@@ -20,7 +21,7 @@ enum Result{
 	Joining,
 };
 
-Result NetplayArgs(int argc, char** argv, ENetHost *local);
+Result NetplayArgs(int argc, char** argv, ENetHost *&local, std::string &address);
 
 };
 

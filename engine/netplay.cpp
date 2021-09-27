@@ -14,7 +14,7 @@
 
 namespace net {
 
-Result NetplayArgs(int argc, char** argv, ENetHost *local)
+Result NetplayArgs(int argc, char** argv, ENetHost *&local, std::string &address_)
 {
 		if (enet_initialize() != 0) {
 			std::cerr << "An error occurred while initializing ENet.\n";
@@ -32,6 +32,7 @@ Result NetplayArgs(int argc, char** argv, ENetHost *local)
 			std::cout << "Joining " << address << ":" << port << "...\n";
 			
 			success = Join(address, port, local);
+			address_ = std::move(address);
 		}
 		else if(argc == 2)
 		{
@@ -42,9 +43,6 @@ Result NetplayArgs(int argc, char** argv, ENetHost *local)
 				return NeedsQuit;
 			host = true;
 		}
-
-		if(local)
-			enet_host_destroy(local);
 
 		if(success)
 		{
@@ -74,7 +72,7 @@ Result NetplayArgs(int argc, char** argv, ENetHost *local)
 
 }
 
-bool Host(std::string portStr, ENetHost *oServer)
+bool Host(std::string portStr, ENetHost *&oServer)
 {
 	unsigned short port = 0;
 	try
@@ -97,6 +95,7 @@ bool Host(std::string portStr, ENetHost *oServer)
 	if(!server)
 		return false;
 	oServer = server;
+	std::cout << "Hosting at "<<server->address.host<<":"<<server->address.port<<"\n";
 
 	ENetEvent event;
 	int tick = 0;
@@ -115,19 +114,20 @@ bool Host(std::string portStr, ENetHost *oServer)
 			{
 			case ENET_EVENT_TYPE_CONNECT:
 			{
-				printf ("A new client connected from %x:%u.\n", 
-						event.peer -> address.host,
-						event.peer -> address.port);
+				std::cout<<"A new client connected from "<<
+						event.peer -> address.host<<":"<<
+						event.peer -> address.port<<"\n";
 				break;
 			}
 			case ENET_EVENT_TYPE_RECEIVE:
 			{
 				if(event.packet->dataLength >= 3 && strncmp((const char*)event.packet->data, "OK1",3)==0)
 				{
-					std::cout << "Received OK\n";
+					std::cout << "Received OK1 from "<<event.peer -> address.host<<":"<<event.peer->address.port<<"\n";
 					enet_packet_destroy (event.packet);
 					ENetPacket * packet = enet_packet_create ("OK2", 3, ENET_PACKET_FLAG_RELIABLE);
-					enet_peer_send(event.peer, 0, packet);
+					enet_peer_send(event.peer, 1, packet);
+					enet_host_service(server,&event,500);
 					return true;
 				}
 				enet_packet_destroy (event.packet);	
@@ -148,7 +148,7 @@ bool Host(std::string portStr, ENetHost *oServer)
 	}
 }
 
-bool Join(std::string addressStr, std::string portStr, ENetHost *oClient)
+bool Join(std::string addressStr, std::string portStr, ENetHost *&oClient)
 {
 	unsigned short port = 0;
 
@@ -188,9 +188,9 @@ bool Join(std::string addressStr, std::string portStr, ENetHost *oClient)
 	{
 		if (enet_host_service (client, &event, 1000) > 0 && event.type ==  ENET_EVENT_TYPE_CONNECT)
 		{
-			printf ("A new client connected from %x:%u.\n", 
-					event.peer -> address.host,
-					event.peer -> address.port);
+			std::cout<<"A new client connected from "<< 
+					event.peer -> address.host<<":"<<
+					event.peer -> address.port<<"\n";
 			/* Store any relevant client information here. */
 			//event.peer -> data = "Client information";
 			goto success;
@@ -202,20 +202,23 @@ bool Join(std::string addressStr, std::string portStr, ENetHost *oClient)
 success:
 	ENetPacket * packet = enet_packet_create ("OK1", 3, ENET_PACKET_FLAG_RELIABLE);
 	enet_peer_send (peer, 0, packet);
-	enet_host_flush(client);
-
+	std::cout <<"I am "<<client->address.host<<"\n";
 	while (enet_host_service (client, &event, 3000) > 0)
 	{
 		if(event.type == ENET_EVENT_TYPE_RECEIVE)
 		{
 			if(event.packet->dataLength >= 3 && strncmp((const char*)event.packet->data, "OK2",3)==0)
 			{
-				std::cout << "Received OK\n";
+				std::cout << "Received OK2\n";
 				enet_packet_destroy (event.packet);
 				return true;
 			}
 			enet_packet_destroy (event.packet);
 			break;
+		}
+		else{
+			auto e = event.type;
+			std::cout << e; 
 		}
 	}
 

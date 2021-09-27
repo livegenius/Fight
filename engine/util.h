@@ -4,7 +4,8 @@
 #include <string>
 #include <vector>
 
-//Hopefully gone by then
+#undef DrawText //Windows namespace pollution
 int DrawText(std::string text, std::vector<float> &arr, float x, float y); 
+
 
 #endif // UTIL_H_INCLUDED

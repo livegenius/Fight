@@ -70,8 +70,7 @@ struct Sequence
 
 bool LoadSequences(std::vector<Sequence> &sequences, std::filesystem::path charfile, sol::state &lua);
 
-namespace flag
-{
+namespace flag{
 	enum //frame-dependent bit-mask flags
 	{
 		canMove = 0x1,
@@ -81,8 +80,7 @@ namespace flag
 	};
 }
 
-namespace jump
-{
+namespace jump{
 	enum
 	{
 		none = 0,
@@ -92,13 +90,15 @@ namespace jump
 	};
 }
 
-enum state
-{
-	stand,
-	crouch,
-	air,
-	otg,
-};
+namespace state{
+	enum
+	{
+		stand,
+		crouch,
+		air,
+		otg,
+	};
+}
 
 #endif /* FRAMEDATA_H_GUARD */
 

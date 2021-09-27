@@ -36,22 +36,33 @@ int main(int argc, char** argv)
 
 	bool playDemo = false;
 	int netState = 0;
-	ENetHost *local;
+	ENetHost *local = nullptr;
+	std::string address;
 	
 	if(argc > 1)
 	{
 		if(strcmp(argv[1],"playdemo")==0)
 			playDemo = true;
 		else
-			netState = net::NetplayArgs(argc, argv, local);
-		if(netState < net::Success)
 		{
-			if(netState)
-				enet_deinitialize();
-			return 0;
-		}		
+			netState = net::NetplayArgs(argc, argv, local, address);
+			if(netState < net::Success)
+			{
+				if(netState)
+					enet_deinitialize();
+				return 0;
+			}
+		}
 	}
 
+	auto port = 0;
+	if(local)
+	{
+		if(netState == net::Hosting)
+			port = local->peers[0].address.port;
+		port = local->address.port;
+		enet_host_destroy(local);
+	}
 	
 	while(!mainWindow->wantsToClose)
 	{
@@ -65,8 +76,11 @@ int main(int argc, char** argv)
 				case GS_WIN:
 				//break;
 				case GS_PLAY: {
-					BattleScene bs;
-					gameState = bs.PlayLoop(playDemo);
+					int playerId = 0;
+					if(netState == net::Joining)
+						playerId = 1;
+					BattleScene bs(port);
+					gameState = bs.PlayLoop(playDemo, playerId, address);
 					break;
 				}
 			}
