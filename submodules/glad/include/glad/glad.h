@@ -2129,6 +2129,7 @@ GLAPI PFNGLSECONDARYCOLORP3UIVPROC glad_glSecondaryColorP3uiv;
 GLAPI int GLAD_GL_EXT_texture_compression_s3tc;
 #endif
 
+
 #ifdef __cplusplus
 }
 #endif

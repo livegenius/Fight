@@ -10,7 +10,7 @@
 			"type": "cppvsdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/build/bin/AFGEngine.exe",
-			"args": ["127.0.0.1", "7000"],
+			//"args": ["127.0.0.1", "7000"],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}",
 			"environment": [],

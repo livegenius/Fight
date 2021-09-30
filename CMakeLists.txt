@@ -27,7 +27,7 @@ if(AFGE_USE_SUBMODULES)
 	add_subdirectory(submodules/SDL)
 	add_subdirectory(submodules/enet)
 	add_subdirectory(submodules/ggpo)
-	include(imgui)
+	
 
 	set(LZ4_BUILD_CLI OFF)
 	set(LZ4_BUILD_LEGACY_LZ4C OFF)
@@ -46,11 +46,9 @@ add_subdirectory(modules)
 add_subdirectory(engine)
 
 if(AFGE_BUILD_TOOLS)
-	if(NOT AFGE_USE_SUBMODULES)
-		find_package(imgui CONFIG REQUIRED)
-	endif()
 	add_subdirectory(submodules/squish) 
 	#Not supported by non-submodule build
+	include(imgui) #We use a special branch branch.
 	add_subdirectory(submodules/nfd) 
 
 	add_subdirectory(tools)

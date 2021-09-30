@@ -266,6 +266,7 @@ function s5a (actor)
 		hitdef.hitStop = histopTbl.weak
 		hitdef.blockStun = 14
 		hitdef.damage = 300
+		hitdef.attackFlags = g.hit.hitsAir
 	end
 end
 
@@ -276,6 +277,7 @@ function s5b (actor)
 		hitdef.hitStop = histopTbl.medium
 		hitdef.blockStun = 17
 		hitdef.damage = 700
+		hitdef.attackFlags = g.hit.hitsAir
 	end
 end
 
@@ -287,6 +289,7 @@ function s5c (actor)
 		hitdef.blockStun = 20
 		hitdef.damage = 1400
 		hitdef.shakeTime = 12
+		hitdef.attackFlags = g.hit.hitsAir
 	end
 end
 
@@ -321,6 +324,7 @@ function s2c (actor)
 		hitdef.blockStun = 20
 		hitdef.damage = 1200
 		hitdef.shakeTime = 12
+		hitdef.attackFlags = g.hit.hitsStand | g.hit.hitsAir
 	end
 end
 
@@ -334,6 +338,7 @@ function s4c (actor)
 		hitdef.blockStun = 17
 		hitdef.damage = 500
 		hitdef.shakeTime = 12
+		hitdef.attackFlags = g.hit.hitsAir
 	end
 end
 
@@ -374,6 +379,7 @@ function sjc (actor)
 		hitdef.blockStun = 20
 		hitdef.damage = 1000
 		hitdef.shakeTime = 12
+		hitdef.attackFlags = g.hit.hitsCrouch
 	end
 end
 
@@ -387,7 +393,6 @@ function s3c (actor)
 		hitdef.blockStun = 20
 		hitdef.damage = 700
 		hitdef.shakeTime = 8
-		hitdef.attackFlags = g.hit.hitsAir
 	end
 end
 

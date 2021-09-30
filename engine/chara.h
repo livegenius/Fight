@@ -69,7 +69,6 @@ struct PlayerStateCopy
 	std::unique_ptr<Character> charObj;
 	std::vector<Actor> children;
 	Character* target;
-	input_deque keyBufOrig;
 	input_deque keyBufDelayed;
 	unsigned int lastKey[2]{};
 	int priority;
@@ -89,8 +88,6 @@ private:
 	Character* target = nullptr;
 	Player* pTarget = nullptr;
 
-	int delay = 0;
-	input_deque keyBufOrig;
 	input_deque keyBufDelayed;
 	unsigned int lastKey[2]{};
 	CommandInputs cmd;
@@ -123,7 +120,6 @@ public:
 	void ProcessInput();
 	Point2d<FixedPoint> GetXYCoords();
 	float GetHealthRatio();
-	void SetDelay(int delay);
 	void SendInput(int key);
 
 	static void HitCollision(Player &blue, Player &red); //Checks hit/hurt box collision and sets flags accordingly.

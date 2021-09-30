@@ -379,7 +379,6 @@ void Character::Input(input_deque &keyPresses, CommandInputs &cmd)
 
 Player::Player(BattleInterface& scene):
 scene(scene),
-keyBufOrig(max_input_size, 0),
 keyBufDelayed(max_input_size, 0)
 {
 	//updateList.push_back((Actor*)this);
@@ -392,7 +391,6 @@ Player::~Player()
 
 Player::Player(int side, std::string charFile, BattleInterface& scene, int paletteSlot):
 scene(scene),
-keyBufOrig(max_input_size, 0),
 keyBufDelayed(max_input_size, 0)
 {
 	Load(side, charFile, paletteSlot);
@@ -426,7 +424,6 @@ void Player::SetState(PlayerStateCopy &state)
 	*charObj = *state.charObj;
 	children = state.children;
 	target = state.target;
-	keyBufOrig = state.keyBufOrig;
 	keyBufDelayed = state.keyBufDelayed;
 	lastKey[0] = state.lastKey[0];
 	lastKey[1] = state.lastKey[1];
@@ -474,7 +471,6 @@ PlayerStateCopy Player::GetStateCopy()
 		nullptr,
 		children,
 		target,
-		keyBufOrig,
 		keyBufDelayed,
 		{lastKey[0], lastKey[1]},
 		priority
@@ -630,18 +626,10 @@ float Player::GetHealthRatio()
 	return charObj->health * (1.f / 10000.f);
 }
 
-void Player::SetDelay(int _delay)
-{
-	if(_delay >= 0)
-		delay = _delay;
-}
-
 void Player::SendInput(int key)
 {
-	keyBufOrig.pop_back();
-	keyBufOrig.push_front(key);
 	keyBufDelayed.pop_back();
-	keyBufDelayed.push_front(keyBufOrig[delay]);
+	keyBufDelayed.push_front(key);
 }
 
 void Player::HitCollision(Player &bluePlayer, Player &redPlayer)

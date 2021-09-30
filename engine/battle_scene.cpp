@@ -498,7 +498,10 @@ bool BattleScene::SetupGgpo(int playerId, const std::string &address)
 		p.size = sizeof(GGPOPlayer);
 		p.player_num = i + 1;
 		if(i == playerId)
+		{
 			p.type = GGPO_PLAYERTYPE_LOCAL;
+			ggpo_set_frame_delay(ggpo, h, 1);
+		}
 		else
 		{
 			p.type = GGPO_PLAYERTYPE_REMOTE;
