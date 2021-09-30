@@ -41,5 +41,4 @@ entering an IP address and the port, separated by spaces, not a colon.
 
 Clone the repo, init the submodules, run cmake with your preferred settings and build.
 Set AFGE_BUILD_TOOLS to true if you want to build the developer tools.
-The software is meant to be cross platform, but I haven't tried compiling it for linux yet.
-It may work with some changes.
+It can be compiled for Linux, but it hasn't been tested thoroughly.
