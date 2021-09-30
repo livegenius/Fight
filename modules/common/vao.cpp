@@ -1,6 +1,7 @@
 #include "vao.h"
 #include <glad/glad.h>
 #include <iostream>
+#include <cstring>
 
 Vao::Vao(AttribType _type, unsigned int _usage, size_t eboSize):
 type(_type), usage(_usage), loaded(false), stride(0), totalSize(0), eboSize(eboSize),
