@@ -150,14 +150,12 @@ bool Host(std::string portStr, ENetHost *&oServer)
 
 bool Join(std::string addressStr, std::string portStr, ENetHost *&oClient)
 {
-	unsigned short port = 0;
-
 	ENetAddress address;
 	try
 	{
 		if(enet_address_set_host(&address, addressStr.c_str()) < 0)
 			return false;
-		address.port = port = std::stoi(portStr);
+		address.port = std::stoi(portStr);
 	}
 	catch (const std::exception& e)
 	{
