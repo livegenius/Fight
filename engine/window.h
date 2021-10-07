@@ -14,8 +14,7 @@ public:
 	
 private:
 	bool fullscreen;
-	bool vsync;
-	bool busyWait;
+	bool uncapped;
 	SDL_Window* window;
 
 	int frameRateChoice;
@@ -24,7 +23,7 @@ private:
 
 	void SetupGl(SDL_Window *window);
 public:
-	Window();
+	Window(bool vsync = false);
 	~Window();
 
 	void ShowWindow(bool show = true);

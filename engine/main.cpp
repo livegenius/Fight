@@ -11,9 +11,42 @@
 
 int gameState = GS_MENU;
 
+unsigned char x = 0;
+void AudioCb (void *userdata, Uint8 * stream, int len)
+{
+
+}
+
+void Audio()
+{
+	int n = SDL_GetNumAudioDevices(0);
+	for(int i =0; i < n; i++)
+	{
+		std::cout << SDL_GetAudioDeviceName(i, 0) <<"\n";
+	}
+	
+	SDL_AudioSpec obtained;
+	SDL_AudioSpec desired;
+	desired.freq = 4096*2;
+	desired.format = AUDIO_U8;
+	desired.channels = 1;
+	desired.samples = 512;
+	desired.callback = AudioCb;
+	SDL_AudioDeviceID dev = SDL_OpenAudioDevice(nullptr, 0, &desired, &obtained, SDL_AUDIO_ALLOW_SAMPLES_CHANGE);
+	if(dev == 0)
+	{
+		std::cerr << "No audio device: "<< SDL_GetError() <<"\n";
+		return;
+	}
+	SDL_PauseAudioDevice(dev, 0);
+	SDL_CloseAudioDevice(dev);
+}
+
 int main(int argc, char** argv)
 {
 	mainWindow = new Window();
+	//udio();
+	return 0;
 	//This should be in raw input. Should it?
 	std::ifstream keyfile("keyconf.bin", std::ifstream::in | std::ifstream::binary);
 	if(keyfile.is_open())

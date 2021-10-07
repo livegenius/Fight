@@ -18,19 +18,18 @@
 
 Window *mainWindow = nullptr;
 
-Window::Window() :
+Window::Window(bool vsync) :
 wantsToClose(false),
 fullscreen(false),
-vsync(false),
-busyWait(false),
+uncapped(false),
 window(nullptr),
 frameRateChoice(0),
 targetSpf(0.01666),
 realSpf(0)
 {
-	if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER))
+	if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER|SDL_INIT_AUDIO))
 	{
-		std::cerr << SDL_GetError();
+		std::cerr << SDL_GetError() <<"\n";
 		throw std::runtime_error("Couldn't init SDL.");
 	}
 	
@@ -117,26 +116,17 @@ std::chrono::time_point<std::chrono::high_resolution_clock> startClock(std::chro
 void Window::SleepUntilNextFrame()
 {
 	constexpr double factor = 0.9; 
-	if(!vsync)
+	if(!uncapped)
 	{
 		std::chrono::duration<double> targetDur(targetSpf);
 		std::chrono::duration<double> dur; 
-		if(busyWait) //Sleepless wait.
+		auto now = std::chrono::high_resolution_clock::now();
+		if((dur = now - startClock) < targetDur)
 		{
-			while( (dur = std::chrono::high_resolution_clock::now() - startClock) <= targetDur)
-			{
-				
-			}
+			std::this_thread::sleep_for((targetDur-dur)*factor);
 		}
-		else
-		{
-			auto now = std::chrono::high_resolution_clock::now();
-			if((dur = now - startClock) < targetDur)
-			{
-				std::this_thread::sleep_for((targetDur-dur)*factor);
-			}
-			while( (dur = std::chrono::high_resolution_clock::now() - startClock) <= targetDur); 
-		}
+		while( (dur = std::chrono::high_resolution_clock::now() - startClock) <= targetDur); 
+	
 		realSpf = dur.count();
 	}
 	else
