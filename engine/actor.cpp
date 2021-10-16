@@ -385,7 +385,7 @@ void Actor::DeclareActorLua(sol::state &lua)
 		"untech", &HitDef::untech, 
 		"blockStun", &HitDef::blockstun,
 		"priority", &HitDef::priority, 
-		"soundFx", &HitDef::soundFx, 
+		"sound", &HitDef::hitSound, 
 		"hitFx", &HitDef::hitFx,
 		"SetVectors", &HitDef::SetVectors,
 		"shakeTime", &HitDef::shakeTime
@@ -463,20 +463,6 @@ HitDef::Vector HitDef::getVectorTableFromTable(const sol::table &t)
 
 void HitDef::Clear()
 {
-	attackFlags = 0;
-	damage = 0;
-	guardDamage = 0;
-	correction = 0;
-	correctionType = 0;
-	meterGain = 0;
-	hitStop = 0;
-	blockStop = -1;
-	untech = 0;
-	blockstun = 0; //Untech and block
-	priority = 0;
-	soundFx = 0;
-	hitFx = 0;
-	shakeTime = 0;
-	vectorTables.clear();
+	*this = {};
 }
 

@@ -3,7 +3,7 @@ add_executable(AFGEngine)
 target_include_directories(AFGEngine PRIVATE ".")
 target_sources(AFGEngine PRIVATE
 	resource.rc
-	#audio.cpp
+	audio.cpp
 	camera.cpp
 	chara.cpp
 	command_inputs.cpp
@@ -34,12 +34,16 @@ target_link_libraries(AFGEngine PRIVATE
 )
 
 #External
-target_link_libraries(AFGEngine PRIVATE glm::glm)
-target_link_libraries(AFGEngine PRIVATE glad::glad)
-target_link_libraries(AFGEngine PRIVATE SDL2::SDL2 SDL2::SDL2main)
+target_link_libraries(AFGEngine PRIVATE
+	glm::glm
+	glad::glad
+	SDL2::SDL2 SDL2::SDL2main
+	soloud
+)
 
 if(WIN32)
 	target_link_libraries(AFGEngine PRIVATE winmm)
+	target_compile_definitions(AFGEngine PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
 endif()
 
 #install(TARGETS AFGEngine RUNTIME DESTINATION debug)

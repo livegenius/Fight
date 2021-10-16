@@ -22,6 +22,7 @@ setView(setViewFun)
 		std::cerr << err.what() << std::endl;
 		throw std::runtime_error("Lua syntax error.");
 	}
+	
 	defId = gfx.LoadGfxFromLua(lua, file.parent_path());
 
 	//try{
@@ -29,6 +30,10 @@ setView(setViewFun)
 		width = stage["width"];
 		height = stage["height"];
 		globalScale = stage["scale"].get_or(1.f);
+		sol::optional<std::string> musicOpt = stage["music"];
+		if(musicOpt)
+			musicName = musicOpt.value();
+
 		sol::table layersT = stage["layers"];
 		for(auto &layerEntry : layersT)
 		{

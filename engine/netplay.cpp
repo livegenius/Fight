@@ -5,7 +5,6 @@
 #include <enet/enet.h>
 
 #include "netplay.h"
-#include "main.h"
 #include "raw_input.h"
 
 namespace net {

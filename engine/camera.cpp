@@ -97,11 +97,9 @@ glm::mat4 Camera::Calculate(Point2d<FixedPoint> p1, Point2d<FixedPoint> p2)
 	
 	if(rightmost > distToScroll + centerTarget.x)
 	{
+		centerTarget.x = rightmost-distToScroll;
 		if(leftmost < -distToScroll + centerTarget.x)
 			centerTarget.x.value = p1.x.value + (dif.x.value);
-		else
-		centerTarget.x = rightmost-distToScroll;
-
 	}
 	else if(leftmost < -distToScroll + centerTarget.x)
 		centerTarget.x = leftmost+distToScroll;

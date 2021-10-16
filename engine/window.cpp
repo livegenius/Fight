@@ -11,6 +11,7 @@
 //#define GENERIC_SLEEP
 #if defined (_WIN32) && !defined(GENERIC_SLEEP)
 	#include <windows.h>
+	#include <timeapi.h>
 #else
 	#include <thread>
 	#include <chrono>
@@ -27,7 +28,7 @@ frameRateChoice(0),
 targetSpf(0.01666),
 realSpf(0)
 {
-	if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER|SDL_INIT_AUDIO))
+	if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER))
 	{
 		std::cerr << SDL_GetError() <<"\n";
 		throw std::runtime_error("Couldn't init SDL.");

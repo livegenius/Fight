@@ -35,6 +35,7 @@ private:
 	Camera view{1.55};
 	int timer;
 
+	int32_t gameTicks = 0;
 	bool pause = false;
 	bool step = false;
 	bool ready = true;
@@ -42,6 +43,7 @@ private:
 	Player player, player2;
 	bool drawBoxes = false;
 
+	SoundEffects sfx;
 	HitboxRenderer hr;
 	Player::DrawList drawList;
 	Player* players[2];

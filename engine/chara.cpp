@@ -3,7 +3,7 @@
 #include <fstream>
 #include <string>
 #include <iostream>
-
+#include <limits>
 #include <glad/glad.h>	//Transform
 
 #include "chara.h"
@@ -12,7 +12,7 @@
 Character::Character(FixedPoint xPos, int side, BattleInterface& scene, sol::state &lua, std::vector<Sequence> &sequences, std::vector<Actor> &actorList) :
 Actor(sequences, lua, actorList),
 touchedWall(0),
-scene(scene)
+scene(&scene)
 {
 	root.x = xPos;
 	root.y = floorPos;
@@ -24,7 +24,7 @@ scene(scene)
 
 void Character::BoundaryCollision()
 {
-	Camera &currView = scene.get().view;
+	Camera &currView = scene->view;
 	const FixedPoint wallOffset(10);
 	touchedWall = 0;
 
@@ -51,7 +51,8 @@ void Character::BoundaryCollision()
 		GotoSequence(lua.get()["_seqTable"][bounceVector.sequenceName].get_or(-1));
 		touchedWall = 0;
 		hitstop = 6;
-		scene.get().view.SetShakeTime(12);
+		scene->view.SetShakeTime(12);
+		scene->sfx.PlaySound("wallBounce");
 	}
 	else if (touchedWall == target->touchedWall) //Someone already has the wall.
 		touchedWall = 0;
@@ -60,6 +61,7 @@ void Character::BoundaryCollision()
 
 int Character::ResolveHit(int keypress, Actor *hitter)
 {
+	int retType = hitType::hurt;
 	HitDef *hitData = &hitter->attack;
 	keypress = SanitizeKey(keypress);
 	hitstop = hitData->hitStop;
@@ -95,6 +97,8 @@ int Character::ResolveHit(int keypress, Actor *hitter)
 			blocked	= true;
 			blockFlag = true;
 			blockTime = hitData->blockstun;
+			scene->sfx.PlaySound("block");
+			retType = hitType::blocked;
 		}
 	}
 	else
@@ -131,19 +135,20 @@ int Character::ResolveHit(int keypress, Actor *hitter)
 		}
 	}
 
-	if (blocked)
-		return hitType::blocked;
-	else
+	if(!blocked)
 	{
-		scene.get().view.SetShakeTime(hitData->shakeTime);
+		scene->view.SetShakeTime(hitData->shakeTime);
 		health -= hitData->damage;
+		if(!hitData->hitSound.empty())
+			scene->sfx.PlaySound(hitData->hitSound);
 		if(framePointer->frameProp.chType > 0)
 		{
 			hitstop = hitstop*2 + 2 + 5*(framePointer->frameProp.state == state::air);
+			scene->sfx.PlaySound("counter");
 			return hitType::counter;
 		}
-		return hitType::hurt;
 	}
+	return retType;
 }
 
 void Character::Translate(Point2d<FixedPoint> amount)
@@ -237,7 +242,8 @@ bool Character::Update()
 			accel.y.value = bounceVector.yAccel*speedMultiplier;
 			pushTimer = bounceVector.maxPushBackTime;
 			GotoSequence(lua.get()["_seqTable"][bounceVector.sequenceName].get_or(-1));
-			scene.get().view.SetShakeTime(12);
+			scene->view.SetShakeTime(12);
+			scene->sfx.PlaySound("bounce");
 		}
 		else
 			GotoFrame(landingFrame);
@@ -496,6 +502,13 @@ bool Player::ScriptSetup()
 	key["right"] = key::buf::RIGHT;
 	key["any"] = key::buf::UP | key::buf::DOWN | key::buf::LEFT | key::buf::RIGHT;
 
+	global.set_function("RandomInt", [this](uint64_t min, uint32_t max){
+		return min + scene.rng.GetU()/(std::numeric_limits<uint32_t>::max() / (max - min + 1) + 1);
+	});
+	global.set_function("Random", [this](double min, double max) -> double{
+		return (double)scene.rng.GetU()/(double)std::numeric_limits<uint32_t>::max() * (max-min) + min;
+	});
+	global.set_function("PlaySound", [this](std::string audioString){scene.sfx.PlaySound(audioString);});
 	global.set_function("DamageTarget", [this](int amount){target->health -= amount;});
 	global.set_function("ParticlesNormalRel", [this](int amount, float x, float y){
 		scene.particles[ParticleGroup::redSpark].PushNormalHit(amount, (float)charObj->root.x+x*charObj->side, float(charObj->root.y)+y);

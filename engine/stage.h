@@ -31,6 +31,7 @@ class Stage
 		std::vector <element> elements;
 	};
 
+	
 	std::vector<layer> layers;
 	int height, width;
 	float globalScale;
@@ -48,6 +49,7 @@ class Stage
 
 public:
 	int defId;
+	std::string musicName;
 
 	Stage(GfxHandler &gfx, std::filesystem::path file, std::function <void(glm::mat4&)> setViewFun);
 	std::pair<int,int> GetDimensions();

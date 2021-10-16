@@ -35,7 +35,7 @@ private:
 	int blockTime = 0;
 	int pushTimer = 0; //Counts down the pushback time.
 
-	std::reference_wrapper<BattleInterface> scene;
+	BattleInterface* scene;
 	
 	bool interruptible = false;
 	bool mustTurnAround = false;

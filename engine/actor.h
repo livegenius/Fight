@@ -34,9 +34,9 @@ struct HitDef
 	int untech = 0;
 	int blockstun = 0; //Untech and block
 	int priority = 0;
-	int soundFx = 0;
 	int hitFx = 0;
 	int shakeTime;
+	std::string hitSound;
 
 	void Clear();
 	void SetVectors(int state, sol::table onHit, sol::table onBlock);

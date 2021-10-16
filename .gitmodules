@@ -33,3 +33,6 @@
 [submodule "submodules/ggpo"]
 	path = submodules/ggpo
 	url = https://github.com/meifuku/ggpo.git
+[submodule "submodules/soloud"]
+	path = submodules/soloud
+	url = https://github.com/meifuku/soloud.git

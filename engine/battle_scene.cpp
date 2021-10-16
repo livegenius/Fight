@@ -16,6 +16,8 @@
 #include <glad/glad.h> //Palette loading only. Will remove.
 #include <glm/gtc/type_ptr.hpp> //Uniform matrix load.
 
+#include "audio.h"
+
 enum //TODO: Remove
 {
 	T_FONT
@@ -55,8 +57,9 @@ unsigned int LoadPaletteTEMP()
 }
 
 BattleScene::BattleScene(ENetHost *local):
+sfx(gameTicks),
 local(local),
-interface{rng, particleGroups, view},
+interface{rng, particleGroups, view, sfx},
 player(interface), player2(interface),
 uniforms("Common", 1)
 {
@@ -88,7 +91,7 @@ uniforms("Common", 1)
 	glClearColor(1, 1, 1, 1.f); 
 	glClearDepth(1);
 
-
+	
 }
 
 BattleScene::~BattleScene()
@@ -99,6 +102,7 @@ BattleScene::~BattleScene()
 
 int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 {
+	SoLoud::Wav music;
 	std::vector<uint32_t> inputs;
 	size_t inputSize;
 	size_t inputI = 0;
@@ -141,12 +145,36 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	
 	//For rendering purposes only.
 	std::vector<float> hitboxData;
+
+	
+	sfx.LoadFromDef("data/sfx/sfx.lua");
 	
 	GfxHandler gfx;
-	int playerGfx = gfx.LoadGfxFromDef("data/char/vaki/def.lua");
-	Stage stage(gfx, "data/bg/bg.lua", [&](glm::mat4& a){SetModelView(a);});
+	gfx.LoadGfxFromDef("data/char/vaki/def.lua");
+	std::string stageLuaFile("data/stage/");
+	
+	{//TODO
+		sol::state lua;
+		lua.script_file("data/stage/stages.lua");
+		sol::table selectedStage = lua["stageList"]["testStage"];
+		stageLuaFile.append(selectedStage["lua"]);
+
+		lua.script_file("data/bgm/bgm.lua");
+		sol::table bgmEntry = lua["bgm"][selectedStage["bgm"]];
+		std::string bgmFile = "data/bgm/";
+		bgmFile.append(bgmEntry["file"]);
+		
+		music.setLooping(true);
+		music.setLoopPoint(bgmEntry["loop"].get_or(0.0));
+		music.load(bgmFile.c_str());
+		auto h = soloud->play(music);
+		soloud->setProtectVoice(h, true);
+	}
+
+	Stage stage(gfx, stageLuaFile, [&](glm::mat4& a){SetModelView(a);});
 	gfx.LoadingDone();
 
+	
 	uniforms.Bind(hr.sSimple.program);
 	uniforms.Bind(gfx.indexedS.program);
 	uniforms.Bind(gfx.rectS.program);
@@ -169,7 +197,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	defaultS.Use();
 
 	auto keyHandler = std::bind(&BattleScene::KeyHandle, this, std::placeholders::_1);
-	int32_t gameTicks = 0;
+	
 	bool drawn = false;
 
 	if(local)

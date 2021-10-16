@@ -166,6 +166,17 @@ function A_spawnPosRel(actor, seq, x, y, flags, side)
 	ball.flags = flags
 	return ball
 end
+
+function hurtSound(actor)
+	if(actor.totalSubframeCount == 0) then
+		local chance = g.Random(0,1)
+		if(chance < 0.5) then
+			local str = "vaki/hurt"..g.RandomInt(1,10)
+			g.PlaySound(str)
+		end
+	end
+end
+
 --Standing only
 function turnAround()
 	g.TurnAround(15)
@@ -267,6 +278,7 @@ function s5a (actor)
 		hitdef.blockStun = 14
 		hitdef.damage = 300
 		hitdef.attackFlags = g.hit.hitsAir
+		hitdef.sound = "punchWeak"
 	end
 end
 
@@ -278,6 +290,7 @@ function s5b (actor)
 		hitdef.blockStun = 17
 		hitdef.damage = 700
 		hitdef.attackFlags = g.hit.hitsAir
+		hitdef.sound = "kickMedium"
 	end
 end
 
@@ -290,6 +303,12 @@ function s5c (actor)
 		hitdef.damage = 1400
 		hitdef.shakeTime = 12
 		hitdef.attackFlags = g.hit.hitsAir
+		hitdef.sound = "kickStrong"
+	elseif(actor.currentFrame == 27 and actor.subframeCount == 0) then
+		local chance = g.Random(0,1)
+		if(chance < 0.75) then
+			g.PlaySound("vaki/076")
+		end
 	end
 end
 
@@ -301,6 +320,7 @@ function s2a (actor)
 		hitdef.blockStun = 14
 		hitdef.damage = 350
 		hitdef.attackFlags = g.hit.hitsStand
+		hitdef.sound = "punchWeak"
 	end
 end
 
@@ -311,6 +331,7 @@ function s2b (actor)
 		hitdef.hitStop = histopTbl.weakest
 		hitdef.blockStun = 14
 		hitdef.damage = 250
+		hitdef.sound = "slash"
 	end
 end
 
@@ -325,6 +346,7 @@ function s2c (actor)
 		hitdef.damage = 1200
 		hitdef.shakeTime = 12
 		hitdef.attackFlags = g.hit.hitsStand | g.hit.hitsAir
+		hitdef.sound = "kickStrong"
 	end
 end
 
@@ -339,6 +361,7 @@ function s4c (actor)
 		hitdef.damage = 500
 		hitdef.shakeTime = 12
 		hitdef.attackFlags = g.hit.hitsAir
+		hitdef.sound = "punchStrong"
 	end
 end
 
@@ -352,6 +375,7 @@ function sja (actor)
 		hitdef.hitStop = histopTbl.weak
 		hitdef.blockStun = 14
 		hitdef.damage = 300
+		hitdef.sound = "punchWeak"
 	end
 end
 
@@ -365,6 +389,7 @@ function sjb (actor)
 		hitdef.hitStop = histopTbl.medium
 		hitdef.blockStun = 17
 		hitdef.damage = 700
+		hitdef.sound = "kickMedium"
 	end
 end
 
@@ -380,6 +405,7 @@ function sjc (actor)
 		hitdef.damage = 1000
 		hitdef.shakeTime = 12
 		hitdef.attackFlags = g.hit.hitsCrouch
+		hitdef.sound = "punchStrong"
 	end
 end
 
@@ -393,6 +419,7 @@ function s3c (actor)
 		hitdef.blockStun = 20
 		hitdef.damage = 700
 		hitdef.shakeTime = 8
+		hitdef.sound = "punchStrong"
 	end
 end
 
@@ -409,6 +436,7 @@ function sgthrow(actor)
 			end
 			g.SetPriority(1)
 			actor:GotoFrame(13)
+			g.PlaySound("kickWeak")
 		end
 	end
 end
@@ -426,6 +454,7 @@ local t_s623a = {
 		hitdef.damage = 700
 		hitdef.shakeTime = 4
 		hitdef.attackFlags = g.hit.wallBounce | g.hit.hitsAir | g.hit.disableCollision
+		hitdef.sound = "slash"
 	end
 }
 function s623a (actor)
@@ -444,6 +473,7 @@ function s623b (actor)
 		hitdef.hitStop = histopTbl.weakest
 		hitdef.blockStun = 17
 		hitdef.damage = 200
+		hitdef.sound = "punchMedium"
 	elseif(frame == 14 and actor.subframeCount == 0) then
 		local hitdef = actor.hitDef
 		hitdef:SetVectors(s.stand, v.down, v.block1)
@@ -453,6 +483,7 @@ function s623b (actor)
 		hitdef.blockStun = 14
 		hitdef.damage = 500
 		hitdef.shakeTime = 8
+		hitdef.sound = "punchStrong"
 	elseif(frame == 19 and actor.subframeCount == 0) then
 		local hitdef = actor.hitDef
 		hitdef:SetVectors(s.stand, v.slam, v.block3)
@@ -461,6 +492,7 @@ function s623b (actor)
 		hitdef.hitStop = histopTbl.strong
 		hitdef.blockStun = 20
 		hitdef.damage = 500
+		hitdef.sound = "kickStrong"
 		hitdef.attackFlags = g.hit.bounce
 	end
 end
@@ -473,6 +505,7 @@ function s236c(actor)
 		hd.damage = 100
 		hd.blockStun = 14
 		hd.hitStop = histopTbl.medium
+		hd.sound = "burn"
 	end
 end
 
@@ -484,6 +517,7 @@ function s236a(actor)
 		hd.damage = 100
 		hd.blockStun = 14
 		hd.hitStop = histopTbl.medium
+		hd.sound = "burn"
 	end
 end
 
@@ -491,6 +525,7 @@ function s214a(actor)
 	local f = actor.currentFrame
 	if(f == 4 and actor.subframeCount == 0) then
 		A_spawnPosRel(actor, 177, 40, 0)
+		
 	end
 end
 
@@ -504,6 +539,7 @@ function sChargedTsuki(actor)
 		hd.hitStop = histopTbl.weak
 		hd.blockStun = 14
 		hd.damage = 230
+		hd.sound = "burn"
 	end
 end
 
