@@ -1,7 +1,6 @@
 #include "camera.h"
 #include "window.h"
 
-#include <glad/glad.h>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/vec3.hpp>
 

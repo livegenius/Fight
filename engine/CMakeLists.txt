@@ -16,7 +16,7 @@ target_sources(Fight PRIVATE
 	battle_scene.cpp
 	framedata.cpp
 	actor.cpp
-	hitbox_renderer.cpp
+	#hitbox_renderer.cpp
 	stage.cpp
 )
 
@@ -25,7 +25,7 @@ target_link_libraries(Fight PRIVATE
 	FixedPoint
 	Geometry
 	Image
-	Common
+	Graphics
 
 	#External
 	sol2::sol2
@@ -36,7 +36,6 @@ target_link_libraries(Fight PRIVATE
 #External
 target_link_libraries(Fight PRIVATE
 	glm::glm
-	glad::glad
 	SDL2::SDL2 SDL2::SDL2main
 	soloud
 )
@@ -45,5 +44,6 @@ if(WIN32)
 	target_link_libraries(Fight PRIVATE winmm)
 	target_compile_definitions(Fight PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
 endif()
+
 
 #install(TARGETS Fight RUNTIME DESTINATION debug)

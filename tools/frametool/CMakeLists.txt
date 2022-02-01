@@ -15,7 +15,7 @@ target_link_libraries(Frametool PRIVATE
 	SDL2::SDL2main
 	imgui::imgui
 	nfd
-	Common
+	Graphics
 )
 
 target_sources(Frametool PRIVATE

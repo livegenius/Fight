@@ -15,4 +15,6 @@ target_include_directories(Image PUBLIC image)
 target_link_libraries(Image PUBLIC spng)
 
 #Common graphics handlers.
-add_subdirectory(common)
+add_subdirectory(graphics)
+
+
