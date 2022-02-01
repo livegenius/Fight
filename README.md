@@ -31,11 +31,11 @@ entering an IP address and the port, separated by spaces, not a colon.
 
 ### Example ###
 
-> AFGEngine.exe playdemo
+> Fight.exe playdemo
 > 
-> AFGEngine.exe 7000
+> Fight.exe 7000
 > 
-> AFGEngine.exe 127.0.0.1 7000
+> Fight.exe 127.0.0.1 7000
 
 ## Compiling ##
 

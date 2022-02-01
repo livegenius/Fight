@@ -9,12 +9,12 @@ BEGIN
     BLOCK "040904B0"
     BEGIN
       VALUE "CompanyName", ""
-      VALUE "FileDescription", "Another fighting game engine."
+      VALUE "FileDescription", "Fighting game"
       VALUE "FileVersion", "0.0"
-      VALUE "InternalName", "AFGEngine"
-      VALUE "LegalCopyright", "Copyright (C) 2021"
-      VALUE "OriginalFilename", "AFGEngine.exe"
-      VALUE "ProductName", "AFGEngine"
+      VALUE "InternalName", "Fight"
+      VALUE "LegalCopyright", "Copyright (C) 2022"
+      VALUE "OriginalFilename", "Fight.exe"
+      VALUE "ProductName", "Fight"
       VALUE "ProductVersion", "Alpha"
     END
   END

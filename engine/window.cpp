@@ -42,7 +42,7 @@ realSpf(0)
 
 	assert(!fullscreen);
 	window = SDL_CreateWindow(
-		"Another Fighting Game Engine",
+		"Fighting game",
 		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, internalWidth*2, internalHeight*2,
 		SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE);
 

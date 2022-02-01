@@ -22,8 +22,7 @@
 #build artifacts
 /build/
 /static/
-/release/
-AFGEngine.exe
+/rel/
 compile_commands.json
 
 

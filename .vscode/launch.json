@@ -6,10 +6,10 @@
 	"configurations": [
 
 		{
-			"name": "AFGE",
+			"name": "Engine",
 			"type": "cppvsdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/build/bin/AFGEngine.exe",
+			"program": "${workspaceFolder}/build/bin/Fight.exe",
 			//"args": ["127.0.0.1", "7000"],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}",

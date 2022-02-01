@@ -1,7 +1,7 @@
-add_executable(AFGEngine)
+add_executable(Fight)
 
-target_include_directories(AFGEngine PRIVATE ".")
-target_sources(AFGEngine PRIVATE
+target_include_directories(Fight PRIVATE ".")
+target_sources(Fight PRIVATE
 	resource.rc
 	audio.cpp
 	camera.cpp
@@ -20,7 +20,7 @@ target_sources(AFGEngine PRIVATE
 	stage.cpp
 )
 
-target_link_libraries(AFGEngine PRIVATE
+target_link_libraries(Fight PRIVATE
 	#Internal
 	FixedPoint
 	Geometry
@@ -34,7 +34,7 @@ target_link_libraries(AFGEngine PRIVATE
 )
 
 #External
-target_link_libraries(AFGEngine PRIVATE
+target_link_libraries(Fight PRIVATE
 	glm::glm
 	glad::glad
 	SDL2::SDL2 SDL2::SDL2main
@@ -42,8 +42,8 @@ target_link_libraries(AFGEngine PRIVATE
 )
 
 if(WIN32)
-	target_link_libraries(AFGEngine PRIVATE winmm)
-	target_compile_definitions(AFGEngine PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+	target_link_libraries(Fight PRIVATE winmm)
+	target_compile_definitions(Fight PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
 endif()
 
-#install(TARGETS AFGEngine RUNTIME DESTINATION debug)
+#install(TARGETS Fight RUNTIME DESTINATION debug)

@@ -556,5 +556,3 @@ end
 	player.userData = {}
 	print(player.userData)
 end ]]
-
-print("V.Akiha script initialized")
