@@ -14,7 +14,7 @@ target_compile_definitions(Image PRIVATE LIB_PNG_WARN=0)
 target_include_directories(Image PUBLIC image)
 target_link_libraries(Image PUBLIC spng)
 
-#Common graphics handlers.
-add_subdirectory(graphics)
+#Common windowing and graphics handlers.
+add_subdirectory(common)
 
 

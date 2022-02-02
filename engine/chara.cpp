@@ -4,7 +4,6 @@
 #include <string>
 #include <iostream>
 #include <limits>
-#include <glad/glad.h>	//Transform
 
 #include "chara.h"
 #include "raw_input.h" //Used only by Character::ResolveHit

@@ -1,6 +1,7 @@
 #ifndef BATTLE_SCENE_H_GUARD
 #define BATTLE_SCENE_H_GUARD
 
+#include "hitbox_renderer.h"
 #include "battle_interface.h"
 #include "chara.h"
 #include "camera.h"

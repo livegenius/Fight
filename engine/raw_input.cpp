@@ -184,14 +184,6 @@ bool PollShouldQuit()
 		{
 			case SDL_QUIT:
 				return true;
-			case SDL_WINDOWEVENT:
-				switch(event.window.event)
-				{
-					case SDL_WINDOWEVENT_SIZE_CHANGED:
-						mainWindow->UpdateViewport(event.window.data1, event.window.data2);
-						break;
-				}
-				break;
 			case SDL_KEYDOWN:
 				if(event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)
 					return true;
@@ -203,19 +195,13 @@ bool PollShouldQuit()
 void EventLoop(std::function<bool(const SDL_KeyboardEvent&)> keyHandler, bool wait)
 {
 	const auto handleEvent = [&keyHandler](SDL_Event &event) -> bool { //Returns true to stop polling events.
+		if(mainWindow->HandleEvents(event))
+			return true;
 		switch(event.type)
 		{
 			case SDL_QUIT:
 				mainWindow->wantsToClose = true;
 				return true;
-			case SDL_WINDOWEVENT:
-				switch(event.window.event)
-				{
-					case SDL_WINDOWEVENT_SIZE_CHANGED:
-						mainWindow->UpdateViewport(event.window.data1, event.window.data2);
-						break;
-				}
-				break;
 			case SDL_KEYDOWN:
 			case SDL_KEYUP:
 				if(keyHandler(event.key))

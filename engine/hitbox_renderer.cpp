@@ -3,7 +3,7 @@
 constexpr int maxBoxes = 33;
 
 HitboxRenderer::HitboxRenderer():
-vGeometry(Vao::F3F3, GL_STREAM_DRAW, maxBoxes*5*sizeof(uint16_t)),
+vGeometry(Vao::F3F3, 0/* GL_STREAM_DRAW */, maxBoxes*5*sizeof(uint16_t)),
 quadsToDraw(0)
 {
 	sSimple.LoadShader("data/simple.vert", "data/simple.frag");
@@ -14,7 +14,7 @@ quadsToDraw(0)
 	vGeometry.Load();
 
 	//Bit dangerous to have this here but I don't think it'll be used anywhere else.
-	glPrimitiveRestartIndex(0xFFFF);
+	//glPrimitiveRestartIndex(0xFFFF);
 	zOrder = 0;
 }
 
@@ -22,7 +22,7 @@ void HitboxRenderer::Draw()
 {
 	if(quadsToDraw > 0)
 	{
-		glEnable(GL_PRIMITIVE_RESTART);
+/* 		glEnable(GL_PRIMITIVE_RESTART);
 		glEnable(GL_DEPTH_TEST);
 		sSimple.Use();
 		vGeometry.Bind();
@@ -31,7 +31,7 @@ void HitboxRenderer::Draw()
 		glUniform1f(lAlphaS, 0.4f);
 		glDrawElements(GL_TRIANGLE_FAN, quadsToDraw, GL_UNSIGNED_SHORT, nullptr);
 		glDisable(GL_DEPTH_TEST);
-		glDisable(GL_PRIMITIVE_RESTART);
+		glDisable(GL_PRIMITIVE_RESTART); */
 	}
 }
 

@@ -103,7 +103,7 @@ void Stage::Draw(glm::mat4 &view, centerScale camera)
 		float TexureScaling = (internalWidth*camera.scale)/width;
 		float parallaxFactor = 1.f + layer.xParallax*((width/((float)internalWidth*camera.scale)) - 1.f);
 
-		if(blendMode != layer.mode)
+/* 		if(blendMode != layer.mode)
 		{
 			blendMode = layer.mode;
 			if(layer.mode == 1)
@@ -111,7 +111,7 @@ void Stage::Draw(glm::mat4 &view, centerScale camera)
 			else
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}
-
+ */
 		auto parallaxedView = glm::translate(glm::scale(
 			glm::translate(glm::mat4(1.f),glm::vec3((camera.x*2+wRange)*(1.f-layer.xParallax), (camera.y*2)*(1.f-layer.yParallax), 0.f)),
 			glm::vec3(TexureScaling*parallaxFactor, TexureScaling*parallaxFactor, 1.f)

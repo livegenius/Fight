@@ -3,7 +3,7 @@
 #include "util.h"
 #include "raw_input.h"
 #include "window.h"
-#include "hitbox_renderer.h"
+
 #include "game_state.h"
 #include "stage.h"
 #include <gfx_handler.h>
@@ -13,7 +13,6 @@
 #include <vector>
 #include <ggponet.h>
 
-#include <glad/glad.h> //Palette loading only. Will remove.
 #include <glm/gtc/type_ptr.hpp> //Uniform matrix load.
 
 #include "audio.h"
@@ -41,9 +40,9 @@ unsigned int LoadPaletteTEMP()
 	pltefile.open("data/palettes/col2.act", std::ifstream::in | std::ifstream::binary);
 	pltefile.read((char*)(palette+256*3), 256*3);
 
-	GLuint paletteGlId;
+	unsigned int paletteGlId = 0;
 
-	glGenTextures(1, &paletteGlId);
+/* 	glGenTextures(1, &paletteGlId);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, paletteGlId);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
@@ -51,7 +50,7 @@ unsigned int LoadPaletteTEMP()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 2, 0, GL_RGB, GL_UNSIGNED_BYTE, palette);
-	glActiveTexture(GL_TEXTURE0);
+	glActiveTexture(GL_TEXTURE0); */
 
 	return paletteGlId;
 }
@@ -85,18 +84,18 @@ uniforms("Common", 1)
 	/* projection = glm::perspective<float>(90, (float)internalWidth/(float)internalHeight, 1, 32767);
 	projection = glm::rotate(projection, 0.3f, glm::vec3(0.f,1.f,0.f));
 	projection = glm::translate(projection, glm::vec3(-internalWidth/2.f,-internalHeight/2.f,-200)); */
-	glEnable(GL_BLEND);
+/* 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	glClearColor(1, 1, 1, 1.f); 
-	glClearDepth(1);
+	glClearDepth(1); */
 
 	
 }
 
 BattleScene::~BattleScene()
 {
-	glDeleteTextures(1, &paletteId);
+	//glDeleteTextures(1, &paletteId);
 	enet_host_destroy(local);
 }
 
@@ -133,7 +132,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	int stageId, textId;
 	std::vector<float> textVertData;
 	textVertData.resize(24*80);
-	Vao vaoTexOnly(Vao::F2F2, GL_DYNAMIC_DRAW);
+	Vao vaoTexOnly(Vao::F2F2, 0 /* GL_DYNAMIC_DRAW */);
 	{
 		hud.Load("data/hud/hud.lua", vaoTexOnly);
 		textId = vaoTexOnly.Prepare(sizeof(float)*textVertData.size(), nullptr);
@@ -212,11 +211,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	
 	while(!mainWindow->wantsToClose)
 	{
-		if(int err = glGetError())
-		{
-			std::cerr << "GL Error: 0x" << std::hex << err << "\n";
-		}
-		
+
 		EventLoop(keyHandler, pause);
 		if(pause){
 			if(!step)
@@ -267,6 +262,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		}
 		
 		//Start rendering
+/* 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		drawList.Init(player, player2);
 		
@@ -297,6 +293,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		auto invertedView = glm::translate(glm::scale(viewMatrix, glm::vec3(1,-1,1)), glm::vec3(0,-64,0));
 
 		//Draw player reflection?
+
 		gfx.SetMulColor(1, 1, 1, 0.2);
 		draw(drawList.v[p1Pos], invertedView);
 		draw(drawList.v[p2Pos], invertedView);
@@ -332,8 +329,8 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 
 		//Draw lifebars.
 		glBindTexture(GL_TEXTURE_2D, hud.texture.id);
-		/* hud.ResizeBarId(0, (gameTicks%120)/119.f);
-		hud.ResizeBarId(1, (gameTicks%240)/239.f); */
+		// hud.ResizeBarId(0, (gameTicks%120)/119.f);
+		// hud.ResizeBarId(1, (gameTicks%240)/239.f);
 		hud.ResizeBarId(2, player.GetHealthRatio());
 		hud.ResizeBarId(3, player2.GetHealthRatio());
 		hud.Draw();
@@ -346,7 +343,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		int count = DrawText(timerString.str(), textVertData, 2, 10);
 		vaoTexOnly.UpdateBuffer(textId, textVertData.data());
 		vaoTexOnly.Draw(textId);
-
+ */
 		//End drawing.
 		++gameTicks;
 		mainWindow->SwapBuffers();

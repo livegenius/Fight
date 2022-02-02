@@ -16,7 +16,7 @@ target_sources(Fight PRIVATE
 	battle_scene.cpp
 	framedata.cpp
 	actor.cpp
-	#hitbox_renderer.cpp
+	hitbox_renderer.cpp
 	stage.cpp
 )
 
@@ -25,7 +25,7 @@ target_link_libraries(Fight PRIVATE
 	FixedPoint
 	Geometry
 	Image
-	Graphics
+	Common
 
 	#External
 	sol2::sol2

@@ -1,27 +1,25 @@
 #ifndef WINDOW_H_INCLUDED
 #define WINDOW_H_INCLUDED
 
+#include <memory>
 #include <SDL.h>
-
-constexpr int internalWidth = 480;
-constexpr int internalHeight = 270;
+#include "renderer.h"
 
 class Window
 {
 public:
-	SDL_GLContext glcontext = nullptr;
 	bool wantsToClose;
 	
 private:
 	bool fullscreen;
 	bool uncapped;
 	SDL_Window* window;
+	std::unique_ptr<Renderer> renderer;
 
 	int frameRateChoice;
 	double targetSpf;
 	double realSpf;
 
-	void SetupGl(SDL_Window *window);
 public:
 	Window(bool vsync = false);
 	~Window();
@@ -29,12 +27,13 @@ public:
 	void ShowWindow(bool show = true);
 	void SwapBuffers();
 	void ChangeFramerate();
+	bool HandleEvents(SDL_Event event);
 
 	//Sleeps until it's time to process the next frame.
 	void SleepUntilNextFrame();
 
 	double GetSpf();
-	void UpdateViewport(float width, float height);
+	
 };
 
 extern Window *mainWindow;
