@@ -1,8 +1,6 @@
 #include "window.h"
 #include "raw_input.h"
-#include <shader.h>
 
-#include <assert.h>
 #include <iostream>
 
 //#define GENERIC_SLEEP
@@ -21,10 +19,10 @@ wantsToClose(false),
 fullscreen(false),
 uncapped(false),
 window(nullptr),
-renderer(Renderer::NewRenderer()),
 frameRateChoice(0),
 targetSpf(0.01666),
-realSpf(0)
+realSpf(0),
+renderer(Renderer::NewRenderer())
 {
 	if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER))
 	{
@@ -39,7 +37,9 @@ realSpf(0)
 		flags |= SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI;
 	#endif
 
-	assert(!fullscreen);
+	if(fullscreen)
+		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+
 	window = SDL_CreateWindow(
 		"Fighting game",
 		SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, internalWidth*2, internalHeight*2, flags);

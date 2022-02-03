@@ -5,7 +5,8 @@
 
 
 
-GfxHandler::GfxHandler():
+GfxHandler::GfxHandler(Renderer *renderer_):
+renderer(*renderer_),
 vertices(Vao::F2F2_short, 0/* GL_STATIC_DRAW */)
 {
 	rectS.LoadShader("data/def.vert", "data/defRect.frag");
@@ -55,6 +56,8 @@ int GfxHandler::LoadGfxFromLua(sol::state &lua, std::filesystem::path workingDir
 
 	int mapId = idMapList.size();
 	idMapList.push_back({});
+
+	std::vector<Renderer::LoadTextureInfo> infos;
 	for(const auto &entry : graphics)
 	{
 		sol::table arr = entry.second;
@@ -63,20 +66,22 @@ int GfxHandler::LoadGfxFromLua(sol::state &lua, std::filesystem::path workingDir
 		int type = arr["type"].get_or(0);
 		bool filter = arr["filter"].get_or(false);
 
-		Texture texture;
-		texture_options opt;
-		opt.repeat = true;
+		infos.push_back({});
+		Renderer::LoadTextureInfo &info = infos.back();
+		info.path = workingDir/imageFile;
+		info.repeat = true;
 		if(filter)
-			opt.linearFilter = true;
+			info.linearFilter = true;
 		
 		if(type == 1)
-			texture.LoadLzs3(workingDir/imageFile, opt);
+			info.type = Renderer::TextureType::lzs3;
 		else
-			texture.LoadPng(workingDir/imageFile, opt);
+			info.type = Renderer::TextureType::png;
 
-		textures.push_back(std::move(texture));
-		LoadToVao(workingDir/vertexFile, mapId, textures.size()-1);
+		LoadToVao(workingDir/vertexFile, mapId, infos.size()-1);
 	}
+
+	textureHandles = renderer.LoadTextures(infos);
 	return mapId;
 }
 

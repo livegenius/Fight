@@ -38,6 +38,8 @@ if(Vulkan_FOUND)
 		<vulkan/vulkan_raii.hpp>
 	)
 
+	target_compile_definitions(Vulkan::Vulkan INTERFACE VULKAN_HPP_NO_CONSTRUCTORS)
+
 elseif(AFGE_RENDERER STREQUAL "vulkan")
 	message(FATAL_ERROR "The renderer is set to Vulkan, but CMake is not able to find Vulkan. Set AFGE_RENDERER to opengl or any.")
 endif()

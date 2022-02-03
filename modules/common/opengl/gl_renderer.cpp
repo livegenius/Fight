@@ -32,6 +32,13 @@ bool OpenglRenderer::Init(SDL_Window *window_, int syncMode)
 	int width, height;
 	SDL_GetWindowSize(window, &width, &height);
 	UpdateViewport(width, height);
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glClearColor(1, 1, 1, 1.f); 
+	glClearDepth(1); 
+
 	return true;
 }
 

@@ -3,7 +3,7 @@
 #include "raw_input.h"
 #include "window.h"
 #include "game_state.h"
-#include "raw_input.h"
+
 #include "netplay.h"
 #include <enet/enet.h>
 #include <fstream>
@@ -13,30 +13,6 @@ int gameState = GS_MENU;
 
 int main(int argc, char** argv)
 {
-	mainWindow = new Window();
-	soloud = new SoLoud::Soloud;
-	soloud->init();
-	
-	//This should be in raw input. Should it?
-	std::ifstream keyfile("keyconf.bin", std::ifstream::in | std::ifstream::binary);
-	if(keyfile.is_open())
-	{
-		keyfile.read((char*)modifiableSCKeys, sizeof(modifiableSCKeys));
-		keyfile.close();
-	}
-	
- 	keyfile.open("joyconf.bin", std::ifstream::in | std::ifstream::binary);
-	if(keyfile.is_open())
-	{
-		keyfile.read((char*)modifiableJoyKeys, sizeof(modifiableJoyKeys));
-		keyfile.close();
-	}
-	else
-		memset(modifiableJoyKeys, -1, sizeof(modifiableJoyKeys));
-
-	std::vector<SDL_GameController*> controllers;
-	InitControllers(controllers);
-
 	bool playDemo = false;
 	int netState = 0;
 	ENetHost *local = nullptr;
@@ -51,12 +27,39 @@ int main(int argc, char** argv)
 			netState = net::NetplayArgs(argc, argv, local, address);
 			if(netState < net::Success)
 			{
-				mainWindow->wantsToClose = true;
+				std::cerr << "No dice.";
+				if(netState == net::FailedNeedsCleanup)
+					enet_deinitialize();
+				return 0;
 			}
 		}
 	}
 
+	mainWindow = new Window();
+	soloud = new SoLoud::Soloud;
+	soloud->init();
 	
+	//TODO: Move
+		std::ifstream keyfile("keyconf.bin", std::ifstream::in | std::ifstream::binary);
+		if(keyfile.is_open())
+		{
+			keyfile.read((char*)modifiableSCKeys, sizeof(modifiableSCKeys));
+			keyfile.close();
+		}
+		
+		keyfile.open("joyconf.bin", std::ifstream::in | std::ifstream::binary);
+		if(keyfile.is_open())
+		{
+			keyfile.read((char*)modifiableJoyKeys, sizeof(modifiableJoyKeys));
+			keyfile.close();
+		}
+		else
+			memset(modifiableJoyKeys, -1, sizeof(modifiableJoyKeys));
+
+		std::vector<SDL_GameController*> controllers;
+		InitControllers(controllers);
+	
+
 	while(!mainWindow->wantsToClose)
 	{
 		try{

@@ -1,9 +1,11 @@
 #ifndef GFX_HANDLER_H_GUARD
 #define GFX_HANDLER_H_GUARD
 
+#include <renderer.h>
+
 #include "particle.h"
 #include "vao.h"
-#include "texture.h"
+
 #include <shader.h>
 #include <vector>
 #include <unordered_map>
@@ -25,6 +27,8 @@ private:
 		int textureIndex;
 	};
 
+	Renderer &renderer;
+
 	std::vector<std::unique_ptr<VertexData4[]>> tempVDContainer;
 	Vao vertices;
 
@@ -32,7 +36,7 @@ private:
 	//Maps virtual id to real id;
 	std::vector<std::unordered_map<int, spriteIdMeta>> idMapList;
 	
-	std::vector<Texture> textures;
+	std::vector<int> textureHandles;
 	
 	
 	int boundTexture = -1;
@@ -57,7 +61,7 @@ public:
 
 	Shader indexedS, rectS, particleS;
 
-	GfxHandler();
+	GfxHandler(Renderer*);
 	~GfxHandler();
 
 	//Returns the id that identifies the def file

@@ -17,11 +17,6 @@
 
 #include "audio.h"
 
-enum //TODO: Remove
-{
-	T_FONT
-};
-
 //TODO: Load from lua
 const char *texNames[] ={
 	"data/hud/font.lzs3"
@@ -59,8 +54,7 @@ BattleScene::BattleScene(ENetHost *local):
 sfx(gameTicks),
 local(local),
 interface{rng, particleGroups, view, sfx},
-player(interface), player2(interface),
-uniforms("Common", 1)
+player(interface), player2(interface)
 {
 	{ //Loads font texture. TODO: Remove
 		Texture texture;
@@ -72,25 +66,14 @@ uniforms("Common", 1)
 	
 	paletteId = LoadPaletteTEMP();
 
-	defaultS.LoadShader("data/def.vert", "data/def.frag");
-	defaultS.Use();	
-
-	//Bind transform matrix uniforms.
-	uniforms.Init(sizeof(float)*16);
-	uniforms.Bind(defaultS.program);
+	/* defaultS.LoadShader("data/def.vert", "data/def.frag");
+	defaultS.Use();	 */
 
 	projection = glm::ortho<float>(0, internalWidth, 0, internalHeight, -32768, 32767);
 	//projection = glm::ortho<float>(-internalWidth*0.5, internalWidth*1.5, -internalHeight*0.5, internalHeight*1.5, -32768, 32767);
 	/* projection = glm::perspective<float>(90, (float)internalWidth/(float)internalHeight, 1, 32767);
 	projection = glm::rotate(projection, 0.3f, glm::vec3(0.f,1.f,0.f));
 	projection = glm::translate(projection, glm::vec3(-internalWidth/2.f,-internalHeight/2.f,-200)); */
-/* 	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	glClearColor(1, 1, 1, 1.f); 
-	glClearDepth(1); */
-
-	
 }
 
 BattleScene::~BattleScene()
@@ -148,11 +131,11 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	
 	sfx.LoadFromDef("data/sfx/sfx.lua");
 	
-	GfxHandler gfx;
+	GfxHandler gfx(mainWindow->renderer.get());
 	gfx.LoadGfxFromDef("data/char/vaki/def.lua");
 	std::string stageLuaFile("data/stage/");
 	
-	{//TODO
+	{//TODO: music shit
 		sol::state lua;
 		lua.script_file("data/stage/stages.lua");
 		sol::table selectedStage = lua["stageList"]["testStage"];
@@ -173,12 +156,6 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	Stage stage(gfx, stageLuaFile, [&](glm::mat4& a){SetModelView(a);});
 	gfx.LoadingDone();
 
-	
-	uniforms.Bind(hr.sSimple.program);
-	uniforms.Bind(gfx.indexedS.program);
-	uniforms.Bind(gfx.rectS.program);
-	uniforms.Bind(gfx.particleS.program);
-	
 	player.SetTarget(player2);
 	player2.SetTarget(player);
 	player.priority = 1;
@@ -193,7 +170,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	for(int i = ParticleGroup::START; i < ParticleGroup::END; ++i)
 		particleGroups.insert({i, {rng, i}});
 
-	defaultS.Use();
+	//defaultS.Use();
 
 	auto keyHandler = std::bind(&BattleScene::KeyHandle, this, std::placeholders::_1);
 	
@@ -262,15 +239,14 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		}
 		
 		//Start rendering
-/* 
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		drawList.Init(player, player2);
+//		drawList.Init(player, player2);
 		
 		gfx.Begin();
 		//Draw stage quad
 		auto center = view.GetCameraCenterScale();
 		stage.Draw(viewMatrix, center);
 
+/*
 		int p1Pos = players[1]->FillDrawList(drawList);
 		int p2Pos = players[0]->FillDrawList(drawList);
 
@@ -339,7 +315,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		timerString.seekp(0);
 		timerString << "SFP: " << mainWindow->GetSpf() << " FPS: " << 1/mainWindow->GetSpf()<<"      Entities:"<<drawList.v.size()<<
 			"   Particles:"<<particles.size()<<"  ";
-		glBindTexture(GL_TEXTURE_2D, activeTextures[T_FONT].id);
+		glBindTexture(GL_TEXTURE_2D, activeTextures[0].id);
 		int count = DrawText(timerString.str(), textVertData, 2, 10);
 		vaoTexOnly.UpdateBuffer(textId, textVertData.data());
 		vaoTexOnly.Draw(textId);
@@ -397,12 +373,12 @@ void BattleScene::AdvanceFrame()
 
 void BattleScene::SetModelView(glm::mat4& view)
 {
-	uniforms.SetData(glm::value_ptr(projection*view));
+	//uniforms.SetData(glm::value_ptr(projection*view));
 }
 
 void BattleScene::SetModelView(glm::mat4&& view)
 {
-	uniforms.SetData(glm::value_ptr(projection*view));
+	//uniforms.SetData(glm::value_ptr(projection*view));
 }
 
 void BattleScene::SaveState(State &state)

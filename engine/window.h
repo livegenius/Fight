@@ -14,13 +14,14 @@ private:
 	bool fullscreen;
 	bool uncapped;
 	SDL_Window* window;
-	std::unique_ptr<Renderer> renderer;
 
 	int frameRateChoice;
 	double targetSpf;
 	double realSpf;
 
 public:
+	std::unique_ptr<Renderer> renderer;
+	
 	Window(bool vsync = false);
 	~Window();
 

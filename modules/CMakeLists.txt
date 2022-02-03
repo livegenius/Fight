@@ -12,7 +12,7 @@ add_library(Image SHARED image/image.cpp)
 set_target_properties(Image PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
 target_compile_definitions(Image PRIVATE LIB_PNG_WARN=0)
 target_include_directories(Image PUBLIC image)
-target_link_libraries(Image PUBLIC spng)
+target_link_libraries(Image PUBLIC spng lz4_static)
 
 #Common windowing and graphics handlers.
 add_subdirectory(common)

@@ -18,6 +18,7 @@ if(WITH_VULKAN)
 	target_link_libraries(Common PUBLIC Vulkan::Vulkan vk-bootstrap::vk-bootstrap vma-hpp)
 	target_sources(Common PRIVATE
 		vulkan/vk_renderer.cpp
+		vulkan/allocation.cpp
 	)
 endif()
 if(WITH_OPENGL)
@@ -40,5 +41,5 @@ target_sources(Common PRIVATE
 	xorshift.cpp
 )
 
-target_link_libraries(Common PUBLIC Image lz4_static SDL2::SDL2)
+target_link_libraries(Common PUBLIC Image SDL2::SDL2)
 target_link_libraries(Common PUBLIC sol2::sol2)

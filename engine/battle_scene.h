@@ -1,6 +1,8 @@
 #ifndef BATTLE_SCENE_H_GUARD
 #define BATTLE_SCENE_H_GUARD
 
+#include <renderer.h>
+
 #include "hitbox_renderer.h"
 #include "battle_interface.h"
 #include "chara.h"
@@ -45,7 +47,7 @@ private:
 	bool drawBoxes = false;
 
 	SoundEffects sfx;
-	HitboxRenderer hr;
+		
 	Player::DrawList drawList;
 	Player* players[2];
 	GGPOPlayerHandle playerHandle[2];
@@ -64,9 +66,8 @@ private:
 	std::vector<Texture> activeTextures;
 
 	//Renderer stuff
+	HitboxRenderer hr;
 	glm::mat4 projection;
-	Ubo uniforms;
-	Shader defaultS;
 	unsigned int paletteId;
 
 	void SetModelView(glm::mat4 &view);

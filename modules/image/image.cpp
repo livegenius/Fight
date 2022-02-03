@@ -7,6 +7,22 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#include <lz4.h>
+
+void* ImageData::defaultAllocator(size_t size)
+{
+	return new char[size];
+}
+
+void ImageData::defaultDeallocator(void** data)
+{
+	if(data)
+	{
+		delete [](char*)*data;
+		*data = nullptr;
+	}
+}
+
 ImageData::ImageData():
 data(nullptr), width(0), height(0), bytesPerPixel(0)
 {}
@@ -17,9 +33,9 @@ data(nullptr), width(_width), height(_height), bytesPerPixel(_bytesPerPixel)
 	data = (uint8_t*) malloc(width * height * bytesPerPixel * sizeof(uint8_t));
 }
 
-ImageData::ImageData(std::filesystem::path image): ImageData()
+ImageData::ImageData(std::filesystem::path image, Allocation alloc): ImageData()
 {
-	if(!LoadFromPng(image) && !LoadRaw(image))
+	if(!LoadLzs3(image, alloc) && !LoadPng(image, alloc) && !LoadRaw(image, alloc))
 		std::cerr << image<<": invalid image file\n";
 }
 
@@ -58,27 +74,6 @@ bool ImageData::WriteRaw(std::filesystem::path filename) const
 	return true;
 }
 
-bool ImageData::LoadRaw(std::filesystem::path filename)
-{
-	FreeData();
-	std::ifstream in(filename, std::ios_base::binary);
-	if(!in.is_open())
-		return false;
-	
-	raw_header meta;
-	in.read((char*)&meta, sizeof(meta));
-	int size = meta.w*meta.h*meta.bpp;
-	if(size > 4096 * 4096 * 16)
-		return false;
-
-	width = meta.w;
-	height = meta.h;
-	bytesPerPixel = meta.bpp;
-	data = (uint8_t*)malloc(size);
-	in.read((char*)data, size);
-	return true;
-}
-
 int SpngStreamRead(spng_ctx *ctx, void *user, void *dest, size_t length)
 {
 	auto *file = (std::ifstream*)user;
@@ -90,9 +85,12 @@ int SpngStreamRead(spng_ctx *ctx, void *user, void *dest, size_t length)
 	return 0;
 }
 
-bool ImageData::LoadFromPng(std::filesystem::path filename)
+bool ImageData::LoadPng(std::filesystem::path filename, Allocation alloc)
 {
 	FreeData();
+	if(alloc.ptr == nullptr)
+		alloc.ptr = reinterpret_cast<void**>(&data);
+	
 	std::ifstream png(filename, std::ios_base::binary);
 	int r;
 
@@ -171,8 +169,7 @@ bool ImageData::LoadFromPng(std::filesystem::path filename)
 
 	if(r) return false;
 
-	std::unique_ptr<uint8_t> out((unsigned char*)malloc(out_size));
-	if(out == nullptr) return false;
+	
 
 	/* This is required to initialize for progressive decoding */
 	r = spng_decode_image(ctx, NULL, 0, fmt, SPNG_DECODE_PROGRESSIVE);
@@ -188,13 +185,16 @@ bool ImageData::LoadFromPng(std::filesystem::path filename)
 
 	struct spng_row_info row_info = {0};
 
+	*alloc.ptr = alloc.allocate(out_size);
+	if(*alloc.ptr == nullptr) return false;
+
 	do
 	{
 		r = spng_get_row_info(ctx, &row_info);
 		if(r) break;
 
 		//Decode upside down as usual.
-		r = spng_decode_row(ctx, out.get()+out_size - out_width - row_info.row_num * out_width, out_width);
+		r = spng_decode_row(ctx, (uint8_t*)*alloc.ptr+out_size - out_width - row_info.row_num * out_width, out_width);
 	}
 	while(!r);
 
@@ -206,6 +206,8 @@ bool ImageData::LoadFromPng(std::filesystem::path filename)
 			printf("last pass: %d, scanline: %" PRIu32 "\n", row_info.pass, row_info.scanline_idx);
 		else
 			printf("last row: %" PRIu32 "\n", row_info.row_num);
+		alloc.deallocate(alloc.ptr);
+		return false;
 	}
 
 	/* Alternatively you can decode the image in one go,
@@ -219,8 +221,77 @@ bool ImageData::LoadFromPng(std::filesystem::path filename)
 
 	width = ihdr.width;
 	height = ihdr.height;
-	data = out.release();
-
 	return true;
 }
 
+
+bool ImageData::LoadRaw(std::filesystem::path filename, Allocation alloc)
+{
+	FreeData();
+	if(alloc.ptr == nullptr)
+		alloc.ptr = reinterpret_cast<void**>(&data);
+
+	std::ifstream in(filename, std::ios_base::binary);
+	if(!in.is_open())
+		return false;
+	
+	raw_header meta;
+	in.read((char*)&meta, sizeof(meta));
+	int size = meta.w*meta.h*meta.bpp;
+	if(size > 4096 * 4096 * 16)
+		return false;
+
+	width = meta.w;
+	height = meta.h;
+	bytesPerPixel = meta.bpp;
+	*alloc.ptr = alloc.allocate(size); //(uint8_t*)malloc(size);
+	in.read((char*)*alloc.ptr, size);
+	if(in.fail())
+	{
+		alloc.deallocate(alloc.ptr);
+		return false;
+	}
+	return true;
+}
+
+bool ImageData::LoadLzs3(std::filesystem::path imageFile, Allocation alloc)
+{
+	FreeData();
+	if(alloc.ptr == nullptr)
+		alloc.ptr = reinterpret_cast<void**>(&data);
+
+	std::ifstream file(imageFile, std::ios::binary);
+	if(!file.is_open())
+	{
+		std::cerr<< "Couldn't open image " << imageFile.string()<<"\n";
+		return false;
+	}
+
+	struct{
+		uint32_t type;
+		uint32_t size;
+		uint32_t cSize;
+		uint16_t w,h;
+	} meta{};
+	file.read((char*)&meta, sizeof(meta));
+	*alloc.ptr = alloc.allocate(meta.size);
+	auto cData = std::make_unique<char[]>(meta.cSize);
+	file.read(cData.get(), meta.cSize);
+
+	int decompSize = LZ4_decompress_safe(cData.get(), (char*)*alloc.ptr, meta.cSize, meta.size);
+	if(decompSize < 0 || decompSize != meta.size)
+	{
+		alloc.deallocate(alloc.ptr);
+		std::cerr << "Texture::LoadLzs3: Error while decompressing LZ4 - " << imageFile.filename()<< "\n";
+		return false;
+	}
+
+	constexpr uint32_t nonS3tcFlag = 0x1000;
+	bytesPerPixel = meta.size/(meta.w*meta.h);
+	compressed = !(meta.type & nonS3tcFlag);
+
+	width = meta.w;
+	height = meta.h;
+
+	return true;
+}	
