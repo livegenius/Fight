@@ -81,7 +81,7 @@ int GfxHandler::LoadGfxFromLua(sol::state &lua, std::filesystem::path workingDir
 		LoadToVao(workingDir/vertexFile, mapId, infos.size()-1);
 	}
 
-	textureHandles = renderer.LoadTextures(infos);
+textureHandles = renderer.LoadTextures(infos);
 	return mapId;
 }
 
@@ -157,7 +157,7 @@ void GfxHandler::Draw(int id, int defId, int _paletteSlot)
 			boundTexture = meta.textureIndex;
 			//glBindTexture(GL_TEXTURE_2D, textures[boundTexture].id);
 		}
-		int nextProgram = textures[boundTexture].is8bpp;
+		int nextProgram = 0;//textures[boundTexture].is8bpp;
 		if(boundProgram != nextProgram)
 		{
 			boundProgram = nextProgram;

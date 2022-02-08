@@ -11,6 +11,7 @@ AllocatedImage::AllocatedImage(AllocatedImage&& old)
 	allocation = std::move(old.allocation);
 	allocator = old.allocator;
 	old.allocator = nullptr;
+
 }
 
 void AllocatedImage::Allocate(const vma::Allocator &allocator_, const vk::ImageCreateInfo imageInfo, const vma::MemoryUsage memUsage, const vk::MemoryPropertyFlags flags)
@@ -20,7 +21,7 @@ void AllocatedImage::Allocate(const vma::Allocator &allocator_, const vk::ImageC
 	allocInfo.requiredFlags = flags;
 	Destroy();
 	allocator = &allocator_;
-	allocator->createImage(&imageInfo, &allocInfo, &image, &allocation, nullptr);
+	assert(allocator->createImage(&imageInfo, &allocInfo, &image, &allocation, nullptr) == vk::Result::eSuccess);
 }
 
 void AllocatedImage::Destroy()
@@ -63,7 +64,7 @@ void AllocatedBuffer::Allocate(const vma::Allocator &allocator_, vk::DeviceSize 
 
 	Destroy();
 	allocator = &allocator_;
-	allocator->createBuffer(&bufferInfo, &allocInfo, &buffer, &allocation, nullptr);
+	assert(allocator->createBuffer(&bufferInfo, &allocInfo, &buffer, &allocation, nullptr) == vk::Result::eSuccess);
 }
 
 void AllocatedBuffer::Destroy()

@@ -29,8 +29,17 @@ public:
 		bool linearFilter = false;
 		bool rectangle = false;
 	};
-
 	virtual std::vector<int> LoadTextures(std::vector<LoadTextureInfo>&) = 0;
+
+	enum BufferFlags{
+		VertexStatic,
+		TransferSrc, //Must provide oldBuffer.
+	};
+	virtual int NewBuffer(size_t size, BufferFlags, int oldBuffer = -1) = 0; 
+	virtual void DestroyBuffer(int handle) = 0;
+	virtual void* MapBuffer(int handle) = 0;
+	virtual void UnmapBuffer(int handle) = 0;
+	virtual void TransferBuffer(int src, int dst, size_t size) = 0;
 };
 
 

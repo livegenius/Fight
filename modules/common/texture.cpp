@@ -1,6 +1,6 @@
 #include "texture.h"
+#include <lz4.h>
 #include <image.h>
-
 
 #include <fstream>
 #include <iostream>

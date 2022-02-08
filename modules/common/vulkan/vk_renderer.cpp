@@ -434,10 +434,15 @@ void VulkanRenderer::Draw(int imageIndex)
 
 std::vector<int> VulkanRenderer::LoadTextures(std::vector<LoadTextureInfo>& infos)
 {
-	const vk::Format format = vk::Format::eR8G8B8A8Srgb;
 	std::vector<int> returns(infos.size());
 	std::vector<AllocatedBuffer> stagingBuffers(infos.size());
 	textures.reserve(textures.size()+infos.size());
+
+	struct TextureWRef{
+		size_t texture;
+		int stagingIndex;
+	};
+	std::vector<TextureWRef> newTextures;
 
 	//std::vector<AllocatedBuffer>
 	for(int i = 0; i < infos.size(); ++i)
@@ -465,7 +470,7 @@ std::vector<int> VulkanRenderer::LoadTextures(std::vector<LoadTextureInfo>& info
 			throw std::runtime_error("Texture can't be loaded");
 		}
 
-		vk::Extent3D extent = {image.width, image.height, 0};
+		vk::Extent3D extent = {image.width, image.height, 1};
 		vk::Format format;
 		if(image.bytesPerPixel == 1)
 			format = vk::Format::eR8Uint;
@@ -501,24 +506,26 @@ std::vector<int> VulkanRenderer::LoadTextures(std::vector<LoadTextureInfo>& info
 			}
 		};
 
-		textures.emplace(mapCounter, Texture{
+		textures.emplace(textureMapCounter, Texture{
 			.buf = std::move(buf),
 			.view = {device, viewInfo},
 			.extent = extent,
 			.format = format,
-			.stagingBufferRef = &stagingBuffer
 		});
 
-		returns[i] = mapCounter;
-		mapCounter++;
+		newTextures.push_back({textureMapCounter, i});
+
+		returns[i] = textureMapCounter;
+		textureMapCounter++;
 	}
 
 	ExecuteCommand([&](vk::CommandBuffer cmd) {
 
 		std::vector<vk::ImageMemoryBarrier> barriers;
 		
-		for(const auto &[_, texture] : textures)
+		for(const auto &ref : newTextures)
 		{
+			const auto &texture = textures.at(ref.texture);
 			barriers.push_back(vk::ImageMemoryBarrier{
 				.srcAccessMask = vk::AccessFlagBits::eNoneKHR,
 				.dstAccessMask = vk::AccessFlagBits::eTransferWrite,
@@ -538,8 +545,9 @@ std::vector<int> VulkanRenderer::LoadTextures(std::vector<LoadTextureInfo>& info
 		cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, 0, nullptr, 0, nullptr, barriers.size(), barriers.data());
 		barriers.clear();
 
-		for(const auto &[_, texture] : textures)
+		for(const auto &ref : newTextures)
 		{
+			const auto &texture = textures.at(ref.texture);
 			vk::BufferImageCopy copyRegion = {
 				.imageSubresource{
 					.aspectMask = vk::ImageAspectFlagBits::eColor,
@@ -550,7 +558,7 @@ std::vector<int> VulkanRenderer::LoadTextures(std::vector<LoadTextureInfo>& info
 				.imageExtent = texture.extent
 			};
 			//copy the buffer into the image
-			cmd.copyBufferToImage(texture.stagingBufferRef->buffer, texture.buf.image, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
+			cmd.copyBufferToImage(stagingBuffers[ref.stagingIndex].buffer, texture.buf.image, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
 			barriers.push_back(vk::ImageMemoryBarrier{
 				.srcAccessMask = vk::AccessFlagBits::eTransferWrite,
 				.dstAccessMask = vk::AccessFlagBits::eShaderRead,
@@ -589,4 +597,52 @@ void VulkanRenderer::ExecuteCommand(std::function<void(vk::CommandBuffer)>&& fun
 		throw std::runtime_error("Timeout on execute single command");
 	device.resetFences(*upload.fence);
 	upload.cmdPool.reset();
+}
+
+int VulkanRenderer::NewBuffer(size_t size, BufferFlags interfaceFlags, int oldBuffer)
+{
+	vk::BufferUsageFlags flags;
+	vma::MemoryUsage vmaFlags;
+
+	switch(interfaceFlags)
+	{
+		case VertexStatic:
+			flags = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
+			vmaFlags = vma::MemoryUsage::eGpuOnly;
+			break;
+		case TransferSrc:
+			flags = vk::BufferUsageFlagBits::eTransferSrc;
+			vmaFlags = vma::MemoryUsage::eCpuOnly;
+			assert(oldBuffer != -1);
+			break;
+	}
+	buffers.emplace(bufferMapCounter, Buffer{{allocator, size, flags, vmaFlags}, interfaceFlags});
+	bufferMapCounter++;
+	return bufferMapCounter-1;
+}
+
+void VulkanRenderer::DestroyBuffer(int handle)
+{
+	buffers.erase(handle);
+}
+
+void* VulkanRenderer::MapBuffer(int handle)
+{
+	return buffers[handle].buf.Map();
+}
+
+void VulkanRenderer::UnmapBuffer(int handle)
+{
+	buffers[handle].buf.Unmap();
+}
+
+void VulkanRenderer::TransferBuffer(int src, int dst, size_t size)
+{
+	ExecuteCommand([&](vk::CommandBuffer cmd) {
+		vk::BufferCopy copy;
+		copy.dstOffset = 0;
+		copy.srcOffset = 0;
+		copy.size = size;
+		cmd.copyBuffer(buffers[src].buf.buffer, buffers[dst].buf.buffer, 1, &copy);
+	});
 }

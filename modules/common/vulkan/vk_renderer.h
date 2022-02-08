@@ -69,16 +69,21 @@ private:
 	std::array<PerFrameData, bufferedFrames> frames;
 	size_t currentFrame = 0;
 
-	size_t mapCounter = 0;
-
+	size_t textureMapCounter = 0;
+	size_t bufferMapCounter = 0;
 	struct Texture{
 		AllocatedImage buf;
 		vk::raii::ImageView view;
 		vk::Extent3D extent;
 		vk::Format format;
-		AllocatedBuffer* stagingBufferRef;
+	};
+	struct Buffer{
+		AllocatedBuffer buf;
+		BufferFlags flags;
+		bool locked = false;
 	};
 	std::unordered_map<size_t, Texture> textures;
+	std::unordered_map<size_t, Buffer> buffers;
 
 private:
 	void RecreateSwapchain();
@@ -100,6 +105,11 @@ public:
 	bool HandleEvents(SDL_Event);
 
 	std::vector<int> LoadTextures(std::vector<LoadTextureInfo>&);
+	int NewBuffer(size_t size, BufferFlags, int oldBuffer = -1);
+	void DestroyBuffer(int handle);
+	void* MapBuffer(int handle);
+	void UnmapBuffer(int handle);
+	void TransferBuffer(int src, int dst, size_t size);
 	
 };
 

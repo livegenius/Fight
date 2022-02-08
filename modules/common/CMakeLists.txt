@@ -19,6 +19,8 @@ if(WITH_VULKAN)
 	target_sources(Common PRIVATE
 		vulkan/vk_renderer.cpp
 		vulkan/allocation.cpp
+		vulkan/pipeline_builder.cpp
+		vulkan/pipelines.cpp
 	)
 endif()
 if(WITH_OPENGL)
@@ -30,6 +32,7 @@ endif()
 target_include_directories(Common PUBLIC ".")
 target_sources(Common PRIVATE
 	renderer.cpp
+	vertex_buffer.cpp
 
 	shader.cpp
 	texture.cpp
