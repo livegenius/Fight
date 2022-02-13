@@ -9,6 +9,7 @@
 /data/images/src/
 /data/hud/src/
 /data/bg/src/
+/data/spirv/
 
 #clangd
 .cache/
@@ -24,5 +25,3 @@
 /static/
 /rel/
 compile_commands.json
-
-

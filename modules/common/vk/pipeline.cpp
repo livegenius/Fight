@@ -1,9 +1,11 @@
-#include "pipeline_builder.h"
+#include "pipeline.h"
+#include "renderer.h"
 #include <fstream>
 
-PipelineBuilder::PipelineBuilder(vk::RenderPass renderPass, std::vector<vk::PipelineShaderStageCreateInfo> shaderStages)
+Pipeline::Pipeline(vk::raii::Device *device, Renderer* renderer):
+device(device),
+renderer(renderer)
 {
-	//vk::PipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 	vertexInputInfo = vk::PipelineVertexInputStateCreateInfo{
 		.vertexBindingDescriptionCount = 0,
 		.pVertexBindingDescriptions = nullptr, // Optional
@@ -108,46 +110,58 @@ PipelineBuilder::PipelineBuilder(vk::RenderPass renderPass, std::vector<vk::Pipe
 		.pColorBlendState = &colorBlending,
 		.pDynamicState = &dynamics, // Optional
 		//.layout = *pipelineLayout,
-		.renderPass = renderPass,
+		
 		.subpass = 0,
 		.basePipelineHandle = VK_NULL_HANDLE, // Optional
 		.basePipelineIndex = -1, // Optional
 	};
-
-	SetShaderStages(std::move(shaderStages));
 }
 
-void PipelineBuilder::SetShaderStages(std::vector<vk::PipelineShaderStageCreateInfo> _shaderStages)
+Pipeline& Pipeline::SetShaders(path vertex, path fragment)
 {
-	shaderStages = std::move(_shaderStages);
-	pipelineInfo.pStages = shaderStages.data();
-	pipelineInfo.stageCount = shaderStages.size();
-}
-
-std::pair<vk::raii::PipelineLayout, vk::raii::Pipeline> PipelineBuilder::Build(vk::raii::Device &device)
-{
-	vk::raii::PipelineLayout layout = {device, pipelineLayoutInfo};
-	pipelineInfo.layout = *layout;
-	vk::raii::Pipeline graphicsPipeline = {device, nullptr, pipelineInfo};
-	return {std::move(layout), std::move(graphicsPipeline)};
-}
-
-vk::raii::ShaderModule CreateShaderModule(vk::raii::Device &device, const std::string filename) {
-	std::ifstream file(filename, std::ios::ate | std::ios::binary);
-	if (!file.is_open()) {
-		throw std::runtime_error("Failed to open shader files!");
-	}
-	size_t fileSize = (size_t) file.tellg();
-	std::vector<uint32_t> buffer((fileSize + sizeof(uint32_t) - 1)/sizeof(uint32_t));
-	file.seekg(0);
-	file.read((char*)buffer.data(), fileSize);
-	file.close();
-
-	vk::ShaderModuleCreateInfo createInfo{
-		.codeSize = buffer.size()*sizeof(uint32_t),
-		.pCode = buffer.data(),
+	shaderStages.clear();
+	shaderModules.clear();
+	path shaders[]{vertex, fragment};
+	vk::ShaderStageFlagBits shaderStageFlags[]{
+		vk::ShaderStageFlagBits::eVertex,
+		vk::ShaderStageFlagBits::eFragment
 	};
 
-	vk::raii::ShaderModule shaderModule(device, createInfo);
-	return shaderModule;
+	for(int i = 0; i < 2; ++i)
+	{
+		path& shader = shaders[i];
+		if(shader.empty())
+			continue;
+		std::ifstream file(shader, std::ios::ate | std::ios::binary);
+		if (!file.is_open()) {
+			throw std::runtime_error("Failed to open shader files!");
+		}
+		size_t fileSize = (size_t) file.tellg();
+		std::vector<uint32_t> buffer((fileSize + sizeof(uint32_t) - 1)/sizeof(uint32_t));
+		file.seekg(0);
+		file.read((char*)buffer.data(), fileSize);
+		file.close();
+
+		vk::ShaderModuleCreateInfo createInfo{
+			.codeSize = buffer.size()*sizeof(uint32_t),
+			.pCode = buffer.data(),
+		};
+
+		shaderModules.emplace_back(*device, createInfo);
+		shaderStages.push_back({
+			.stage = shaderStageFlags[i],
+			.module = *shaderModules.back(),
+			.pName = "main",
+		});
+	}
+
+	pipelineInfo.pStages = shaderStages.data();
+	pipelineInfo.stageCount = shaderStages.size();
+	return *this;
 }
+
+int Pipeline::Build()
+{
+	return renderer->RegisterPipelines(pipelineInfo, pipelineLayoutInfo);
+}
+

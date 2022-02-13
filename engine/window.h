@@ -3,7 +3,7 @@
 
 #include <memory>
 #include <SDL.h>
-#include "renderer.h"
+#include "vk/renderer.h"
 
 class Window
 {
@@ -20,7 +20,7 @@ private:
 	double realSpf;
 
 public:
-	std::unique_ptr<Renderer> renderer;
+	Renderer renderer;
 	
 	Window(bool vsync = false);
 	~Window();

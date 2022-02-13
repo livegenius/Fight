@@ -1,28 +1,23 @@
 #include "gfx_handler.h"
+#include "vk/pipeline.h"
 #include <iostream>
 #include <sol/sol.hpp>
 #include <fstream>
 
-
+constexpr unsigned int vertexStride = 4 * sizeof(short);
 
 GfxHandler::GfxHandler(Renderer *renderer_):
 renderer(*renderer_),
-vertices(Vao::F2F2_short, 0/* GL_STATIC_DRAW */)
+vertices(renderer_)
 {
-	rectS.LoadShader("data/def.vert", "data/defRect.frag");
+	auto pipeline = renderer.NewPipeline();
+	pipeline.SetShaders("data/spirv/shader.vert.bin", "data/spirv/shader.frag.bin");
+
+	/* rectS.LoadShader("data/def.vert", "data/defRect.frag");
 	indexedS.LoadShader("data/def.vert", "data/palette.frag");
 	particleS.LoadShader("data/particle.vert", "data/defRect.frag");
-	particleS.Use();
-	//glUniform4f(particleS.GetLoc("mulColor"),1,1,1,1); 
-	indexedS.Use();
-	//Set texture unit indexes
-	//glUniform1i(indexedS.GetLoc("tex0"), 0 ); 
-	//glUniform1i(indexedS.GetLoc("palette"), 1 );
-	paletteSlotL = indexedS.GetLoc("paletteSlot");
-	indexedMulColorL = indexedS.GetLoc("mulColor");
-	rectS.Use();
-	rectMulColorL = rectS.GetLoc("mulColor");
-	SetMulColor(1, 1, 1, 1); //TODO: Fix this
+	rectS.Use(); */
+	//SetMulColor(1, 1, 1, 1); //TODO: Fix this
 }
 
 GfxHandler::~GfxHandler()
@@ -78,14 +73,14 @@ int GfxHandler::LoadGfxFromLua(sol::state &lua, std::filesystem::path workingDir
 		else
 			info.type = Renderer::TextureType::png;
 
-		LoadToVao(workingDir/vertexFile, mapId, infos.size()-1);
+		LoadToVertexBuffer(workingDir/vertexFile, mapId, infos.size()-1);
 	}
 
 textureHandles = renderer.LoadTextures(infos);
 	return mapId;
 }
 
-void GfxHandler::LoadToVao(std::filesystem::path file, int mapId, int textureIndex)
+void GfxHandler::LoadToVertexBuffer(std::filesystem::path file, int mapId, int textureIndex)
 {
 	int nSprites, nChunks;
 	std::ifstream vertexFile(file, std::ios_base::binary);
@@ -108,7 +103,7 @@ void GfxHandler::LoadToVao(std::filesystem::path file, int mapId, int textureInd
 		uint16_t virtualId;
 		vertexFile.read((char*)&virtualId, sizeof(virtualId));
 
-		int trueId = vertices.Prepare(size*6*((int)chunksPerSprite[i]), tempVDContainer[vdStart].get()+6*chunkCount);
+		int trueId = vertices.Prepare(size*6*((int)chunksPerSprite[i]), vertexStride, tempVDContainer[vdStart].get()+6*chunkCount);
 		chunkCount += chunksPerSprite[i];
 
 		idMapList[mapId].insert({virtualId, {trueId, textureIndex}});
@@ -122,7 +117,7 @@ void GfxHandler::LoadingDone()
 	vertices.Load();
 	tempVDContainer.clear();
 	loaded = true;
-/* 	glGenBuffers(1, &particleBuffer);
+/*	glGenBuffers(1, &particleBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, particleBuffer);
 	glBufferData(GL_ARRAY_BUFFER, particleAttributeSize, nullptr, GL_STREAM_DRAW);
 	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, nullptr);
@@ -210,9 +205,9 @@ void GfxHandler::DrawParticles(std::vector<Particle> &data, int id, int defId)
 
 void GfxHandler::SetMulColor(float r, float g, float b, float a)
 {
-	rectS.Use();
+	//rectS.Use();
 	//glUniform4f(rectMulColorL, r,g,b,a);
-	indexedS.Use();
+	//indexedS.Use();
 	//glUniform4f(indexedMulColorL, r,g,b,a);
 	boundProgram = -1;
 }

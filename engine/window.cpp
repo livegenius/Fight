@@ -21,8 +21,7 @@ uncapped(false),
 window(nullptr),
 frameRateChoice(0),
 targetSpf(0.01666),
-realSpf(0),
-renderer(Renderer::NewRenderer())
+realSpf(0)
 {
 	if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_GAMECONTROLLER))
 	{
@@ -30,12 +29,7 @@ renderer(Renderer::NewRenderer())
 		throw std::runtime_error("Couldn't init SDL.");
 	}
 
-	uint32_t flags = SDL_WINDOW_RESIZABLE;
-	#if defined (OPENGL_RENDERER)
-		flags |= SDL_WINDOW_OPENGL;
-	#elif defined (VULKAN_RENDERER)
-		flags |= SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI;
-	#endif
+	uint32_t flags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_VULKAN | SDL_WINDOW_ALLOW_HIGHDPI;
 
 	if(fullscreen)
 		flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
@@ -51,7 +45,7 @@ renderer(Renderer::NewRenderer())
 		throw std::runtime_error("Couldn't create window.");
 	}
 
-	renderer->Init(window, vsync);
+	renderer.Init(window, vsync);
 }
 
 Window::~Window()
@@ -132,7 +126,7 @@ void Window::SleepUntilNextFrame()
 
 void Window::SwapBuffers()
 {
-	renderer->Submit();
+	renderer.Submit();
 }
 
 double Window::GetSpf()
@@ -158,5 +152,5 @@ void Window::ChangeFramerate()
 
 bool Window::HandleEvents(SDL_Event event)
 {
-	return renderer->HandleEvents(event);
+	return renderer.HandleEvents(event);
 }

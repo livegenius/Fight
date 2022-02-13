@@ -3,13 +3,18 @@
 
 #include <vulkan/vulkan_raii.hpp>
 #include <tuple>
-#include <vector>
+#include <filesystem>
 
-class PipelineBuilder
+class Renderer;
+class Pipeline
 {
-	private:
-		std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
-	public:
+private:
+	using path = std::filesystem::path;
+	std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
+	std::vector<vk::raii::ShaderModule> shaderModules;
+	vk::raii::Device* device;
+	Renderer* renderer;
+public:
 	vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly;
 	vk::Viewport viewport;
@@ -26,13 +31,11 @@ class PipelineBuilder
 	vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
 	vk::GraphicsPipelineCreateInfo pipelineInfo;
 
-	PipelineBuilder(vk::RenderPass renderPass = VK_NULL_HANDLE, std::vector<vk::PipelineShaderStageCreateInfo> shaderStages = {});
+	Pipeline(vk::raii::Device *device, Renderer* renderer);
 	
-	void SetShaderStages(std::vector<vk::PipelineShaderStageCreateInfo> shaderStages);
+	Pipeline& SetShaders(path vertex, path fragment);
+	int Build();
 	
-	std::pair<vk::raii::PipelineLayout, vk::raii::Pipeline> Build(vk::raii::Device &device);
 };
-
-vk::raii::ShaderModule CreateShaderModule(vk::raii::Device &device, const std::string filename);
 
 #endif /* PIPELINE_BUILDER_H_GUARD */

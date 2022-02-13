@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <cstdint>
-#include "renderer.h"
+#include "vk/renderer.h"
 
 //More like builder/indexer, but w/e
 class VertexBuffer
@@ -21,8 +21,8 @@ private:
 	};
 
 	int bufferHandle;
-	size_t totalSize;
-	size_t eboSize;
+	size_t totalSize = 0;
+	size_t eboSize = 0;
 	std::vector<memPtr> dataPointers;
 
 public:

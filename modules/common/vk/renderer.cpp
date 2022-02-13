@@ -1,12 +1,14 @@
-#include "vk_renderer.h"
+#include "renderer.h"
+#include "pipeline.h"
 #include <VkBootstrap.h>
 #include <SDL_vulkan.h>
 #include <iostream>
 #include <image.h>
+#include <fstream>
 
-size_t VulkanRenderer::uniformBufferAligment = 0;
+size_t Renderer::uniformBufferAligment = 0;
 
-bool VulkanRenderer::Init(SDL_Window *window_, int syncMode)
+bool Renderer::Init(SDL_Window *window_, int syncMode)
 {
 	window = window_;
 	vkb::InstanceBuilder ib;
@@ -107,7 +109,12 @@ bool VulkanRenderer::Init(SDL_Window *window_, int syncMode)
 	return true;
 }
 
-void VulkanRenderer::CreateSwapchain()
+Renderer::~Renderer()
+{
+	device.waitIdle();
+}
+
+void Renderer::CreateSwapchain()
 {
 	if(SDL_GetWindowFlags(window) & SDL_WINDOW_MINIMIZED)
 	{
@@ -185,7 +192,7 @@ void VulkanRenderer::CreateSwapchain()
 	shouldDraw = true;
 }
 
-void VulkanRenderer::CreateRenderPass()
+void Renderer::CreateRenderPass()
 {
 	vk::AttachmentDescription colorAttachment{
 		.format = swapchain.format,
@@ -262,7 +269,7 @@ void VulkanRenderer::CreateRenderPass()
 }	
 
 
-void VulkanRenderer::CreateFramebuffers()
+void Renderer::CreateFramebuffers()
 {
 	swapchain.framebuffers.clear();
 	if(shouldDraw)
@@ -285,7 +292,7 @@ void VulkanRenderer::CreateFramebuffers()
 	}
 }
 
-void VulkanRenderer::CreateCommandPool()
+void Renderer::CreateCommandPool()
 {
 	vk::CommandPoolCreateInfo poolInfo{
 		.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer, // Optional
@@ -311,7 +318,7 @@ void VulkanRenderer::CreateCommandPool()
 	upload.cmd = std::move(vk::raii::CommandBuffers(device, allocInfo).front());
 }
 
-void VulkanRenderer::CreateSyncStructs()
+void Renderer::CreateSyncStructs()
 {
 	vk::SemaphoreCreateInfo semaphoreInfo;
 	vk::FenceCreateInfo fenceInfo{.flags = vk::FenceCreateFlagBits::eSignaled};
@@ -324,7 +331,7 @@ void VulkanRenderer::CreateSyncStructs()
 	upload.fence = {device, vk::FenceCreateInfo{}}; 
 }
 
-bool VulkanRenderer::HandleEvents(SDL_Event event)
+bool Renderer::HandleEvents(SDL_Event event)
 {
 	switch(event.type)
 	{
@@ -340,14 +347,14 @@ bool VulkanRenderer::HandleEvents(SDL_Event event)
 	return false;
 }
 
-void VulkanRenderer::RecreateSwapchain()
+void Renderer::RecreateSwapchain()
 {
 	device.waitIdle();
 	CreateSwapchain();
 	CreateFramebuffers();
 }
 
-void VulkanRenderer::Submit()
+void Renderer::Submit()
 {
 	const auto &inFlightFence = *frames[currentFrame].inFlightFence;
 	const auto &imageAvailableSemaphore = *frames[currentFrame].imageAvailableSemaphore;
@@ -400,7 +407,7 @@ void VulkanRenderer::Submit()
 	currentFrame = (currentFrame + 1) % bufferedFrames;
 }
 
-void VulkanRenderer::Draw(int imageIndex)
+void Renderer::Draw(int imageIndex)
 {
 	auto &cmd = cmds[currentFrame];
 	cmd.reset();
@@ -432,7 +439,7 @@ void VulkanRenderer::Draw(int imageIndex)
 	cmd.end();
 }
 
-std::vector<int> VulkanRenderer::LoadTextures(std::vector<LoadTextureInfo>& infos)
+std::vector<int> Renderer::LoadTextures(std::vector<LoadTextureInfo>& infos)
 {
 	std::vector<int> returns(infos.size());
 	std::vector<AllocatedBuffer> stagingBuffers(infos.size());
@@ -581,7 +588,7 @@ std::vector<int> VulkanRenderer::LoadTextures(std::vector<LoadTextureInfo>& info
 	return returns;
 }
 
-void VulkanRenderer::ExecuteCommand(std::function<void(vk::CommandBuffer)>&& function)
+void Renderer::ExecuteCommand(std::function<void(vk::CommandBuffer)>&& function)
 {
 	auto& cmd = *upload.cmd;
 	cmd.begin({.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
@@ -599,7 +606,7 @@ void VulkanRenderer::ExecuteCommand(std::function<void(vk::CommandBuffer)>&& fun
 	upload.cmdPool.reset();
 }
 
-int VulkanRenderer::NewBuffer(size_t size, BufferFlags interfaceFlags, int oldBuffer)
+int Renderer::NewBuffer(size_t size, BufferFlags interfaceFlags, int oldBuffer)
 {
 	vk::BufferUsageFlags flags;
 	vma::MemoryUsage vmaFlags;
@@ -621,22 +628,22 @@ int VulkanRenderer::NewBuffer(size_t size, BufferFlags interfaceFlags, int oldBu
 	return bufferMapCounter-1;
 }
 
-void VulkanRenderer::DestroyBuffer(int handle)
+void Renderer::DestroyBuffer(int handle)
 {
 	buffers.erase(handle);
 }
 
-void* VulkanRenderer::MapBuffer(int handle)
+void* Renderer::MapBuffer(int handle)
 {
 	return buffers[handle].buf.Map();
 }
 
-void VulkanRenderer::UnmapBuffer(int handle)
+void Renderer::UnmapBuffer(int handle)
 {
 	buffers[handle].buf.Unmap();
 }
 
-void VulkanRenderer::TransferBuffer(int src, int dst, size_t size)
+void Renderer::TransferBuffer(int src, int dst, size_t size)
 {
 	ExecuteCommand([&](vk::CommandBuffer cmd) {
 		vk::BufferCopy copy;
@@ -645,4 +652,22 @@ void VulkanRenderer::TransferBuffer(int src, int dst, size_t size)
 		copy.size = size;
 		cmd.copyBuffer(buffers[src].buf.buffer, buffers[dst].buf.buffer, 1, &copy);
 	});
+}
+
+Pipeline Renderer::NewPipeline()
+{
+	return {&device, this};
+}
+
+int Renderer::RegisterPipelines(vk::GraphicsPipelineCreateInfo& pipelineInfo, vk::PipelineLayoutCreateInfo& pipelineLayoutInfo)
+{
+	vk::raii::PipelineLayout layout = {device, pipelineLayoutInfo};
+	pipelineInfo.layout = *layout;
+	pipelineInfo.renderPass = *renderPass;
+	vk::raii::Pipeline graphicsPipeline = {device, nullptr, pipelineInfo};
+	pipelineInfo.basePipelineHandle = *graphicsPipeline;
+
+	//TODO:
+	//return {std::move(layout), std::move(graphicsPipeline)};
+	return 0;
 }

@@ -1,10 +1,10 @@
 #ifndef GFX_HANDLER_H_GUARD
 #define GFX_HANDLER_H_GUARD
 
-#include <renderer.h>
+#include "vk/renderer.h"
 
 #include "particle.h"
-#include "vao.h"
+#include "vertex_buffer.h"
 
 #include <shader.h>
 #include <vector>
@@ -30,25 +30,20 @@ private:
 	Renderer &renderer;
 
 	std::vector<std::unique_ptr<VertexData4[]>> tempVDContainer;
-	Vao vertices;
+	VertexBuffer vertices;
 
 	//One for each def load.
 	//Maps virtual id to real id;
 	std::vector<std::unordered_map<int, spriteIdMeta>> idMapList;
-	
 	std::vector<int> textureHandles;
-	
 	
 	int boundTexture = -1;
 	int boundProgram = -1;
-	int indexedMulColorL;
-	int rectMulColorL;
 	int paletteSlot = -1;
-	int paletteSlotL;
 	
 	bool loaded = false;
 
-	void LoadToVao(std::filesystem::path file, int mapId, int textureIndex);
+	void LoadToVertexBuffer(std::filesystem::path file, int mapId, int textureIndex);
 
 	static constexpr int stride = sizeof(float)*6;
 	static constexpr int maxParticles = 512;
@@ -58,7 +53,7 @@ private:
 	unsigned int particleBuffer;
 
 public:
-
+	int indexedP;
 	Shader indexedS, rectS, particleS;
 
 	GfxHandler(Renderer*);

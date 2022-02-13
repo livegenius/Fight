@@ -131,7 +131,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	
 	sfx.LoadFromDef("data/sfx/sfx.lua");
 	
-	GfxHandler gfx(mainWindow->renderer.get());
+	GfxHandler gfx(&mainWindow->renderer);
 	gfx.LoadGfxFromDef("data/char/vaki/def.lua");
 	std::string stageLuaFile("data/stage/");
 	

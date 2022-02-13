@@ -1,17 +1,39 @@
 #ifndef VK_CONTEXT_H_GUARD
 #define VK_CONTEXT_H_GUARD
 
-#include "../renderer.h"
 #include <unordered_map>
 #include <SDL.h>
 #include <vulkan/vulkan_raii.hpp>
+#include <filesystem>
 #include "allocation.h"
+#include "pipeline.h"
 
-class VulkanRenderer : public Renderer
+constexpr int internalWidth = 480;
+constexpr int internalHeight = 270;
+
+class Renderer
 {
 public:
 	static constexpr size_t bufferedFrames = 2;
 	static size_t uniformBufferAligment;
+
+	enum TextureType{
+		png,
+		lzs3,
+	};
+
+	struct LoadTextureInfo{
+		std::filesystem::path path;
+		TextureType type;
+		bool repeat = false;
+		bool linearFilter = false;
+		bool rectangle = false;
+	};
+
+	enum BufferFlags{
+		VertexStatic,
+		TransferSrc, //Must provide oldBuffer.
+	};
 
 private:
 	SDL_Window *window = nullptr;
@@ -97,8 +119,8 @@ private:
 	void ExecuteCommand(std::function<void(vk::CommandBuffer)>&& function);
 
 public:
-	//VulkanRenderer();
-	~VulkanRenderer();
+	//Renderer();
+	~Renderer();
 
 	bool Init(SDL_Window *, int syncMode);
 	void Submit();
@@ -110,7 +132,11 @@ public:
 	void* MapBuffer(int handle);
 	void UnmapBuffer(int handle);
 	void TransferBuffer(int src, int dst, size_t size);
-	
+	Pipeline NewPipeline();
+
+public:
+	//Not in the public interface:
+	int RegisterPipelines(vk::GraphicsPipelineCreateInfo&, vk::PipelineLayoutCreateInfo&);
 };
 
 #endif /* VK_CONTEXT_H_GUARD */
