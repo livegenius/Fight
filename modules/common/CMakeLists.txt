@@ -1,6 +1,5 @@
 add_library(Common STATIC)
 
-
 target_include_directories(Common PUBLIC vk)
 target_link_libraries(Common PUBLIC Vulkan::Vulkan vk-bootstrap::vk-bootstrap vma-hpp)
 target_sources(Common PRIVATE
@@ -31,4 +30,4 @@ compile_shader(Common
 	SOURCES
 		shader/shader.vert
 		shader/shader.frag
-)
+) 

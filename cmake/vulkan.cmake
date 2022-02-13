@@ -1,15 +1,14 @@
 find_package(Vulkan REQUIRED COMPONENTS glslc)
 
-message(STATUS "Vulkan supported.")
-
 file(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/data/spirv)
 find_program(glslc_executable NAMES glslc HINTS Vulkan::glslc)
 function(compile_shader target)
 	cmake_parse_arguments(PARSE_ARGV 1 arg "" "FORMAT" "SOURCES")
 	foreach(source ${arg_SOURCES})
 		get_filename_component(filename ${source} NAME)
+		set(outFilePath "${PROJECT_SOURCE_DIR}/data/spirv/${filename}.${arg_FORMAT}")
 		add_custom_command(
-			OUTPUT ${source}.${arg_FORMAT}
+			OUTPUT ${outFilePath}
 			DEPENDS ${source}
 			DEPFILE ${source}.d
 			COMMAND
@@ -18,10 +17,10 @@ function(compile_shader target)
 				--target-env=vulkan1.2
 				$<$<BOOL:${arg_FORMAT}>:-mfmt=${arg_FORMAT}>
 				-MD -MF ${source}.d
-				-o ${PROJECT_SOURCE_DIR}/data/spirv/${filename}.${arg_FORMAT}
+				-o ${outFilePath}
 				${CMAKE_CURRENT_SOURCE_DIR}/${source}
 		)
-		target_sources(${target} PRIVATE ${source}.${arg_FORMAT})
+		target_sources(${target} PRIVATE ${outFilePath})
 	endforeach()
 endfunction()
 

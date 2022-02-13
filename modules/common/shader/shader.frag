@@ -9,5 +9,6 @@ layout(location = 0) out vec4 oColor;
 void main(void)
 {
 	//vec4 color = texture(tex0, iTexCoord/textureSize(tex0,0))*mulColor;
-	oColor = vec4(1);//color;
+	oColor = vec4(1);//color; 
 }
+
