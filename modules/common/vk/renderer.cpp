@@ -1,5 +1,4 @@
 #include "renderer.h"
-#include "pipeline.h"
 #include <VkBootstrap.h>
 #include <SDL_vulkan.h>
 #include <iostream>
@@ -105,7 +104,6 @@ bool Renderer::Init(SDL_Window *window_, int syncMode)
 	CreateFramebuffers();
 	CreateCommandPool();
 	CreateSyncStructs();
-
 	return true;
 }
 
@@ -308,6 +306,18 @@ void Renderer::CreateCommandPool()
 	};
 	cmds = std::move(vk::raii::CommandBuffers(device, allocInfo));
 
+	//Secondary commands pools
+	for(int i = 0; i < externalDrawThreads; ++i)
+	{
+		secondaryCommandPools.emplace_back(device, poolInfo);
+		vk::CommandBufferAllocateInfo allocInfo{
+			.commandPool = *secondaryCommandPools.back(),
+			.level = vk::CommandBufferLevel::eSecondary,
+			.commandBufferCount = bufferedFrames,
+		};
+		secondaryCmds[i] = std::move(vk::raii::CommandBuffers(device, allocInfo));
+	}
+
 	//Upload commands
 	upload.cmdPool = {device, {.queueFamilyIndex = indices.graphics}};
 	allocInfo = {
@@ -354,60 +364,64 @@ void Renderer::RecreateSwapchain()
 	CreateFramebuffers();
 }
 
-void Renderer::Submit()
+bool Renderer::Acquire()
 {
 	const auto &inFlightFence = *frames[currentFrame].inFlightFence;
 	const auto &imageAvailableSemaphore = *frames[currentFrame].imageAvailableSemaphore;
-	const auto &renderFinishedSemaphore = *frames[currentFrame].renderFinishedSemaphore;
 
 	if(!shouldDraw)
-		return;
+		return false;
 	if(device.waitForFences(inFlightFence, VK_TRUE, UINT64_MAX) == vk::Result::eTimeout)
-		return;
+		return false;
 
-	uint32_t imageIndex;
 	vk::Result imageCode;
 
 	try{
 		std::tie(imageCode, imageIndex) = swapchain.handle.acquireNextImage(UINT64_MAX, imageAvailableSemaphore);
-
-		//Draw(imageIndex);
-		vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
-		vk::SubmitInfo submitInfo{
-			.waitSemaphoreCount = 1,
-			.pWaitSemaphores = &imageAvailableSemaphore,
-			.pWaitDstStageMask = waitStages,
-			.commandBufferCount = 1,
-			.pCommandBuffers = &*cmds[currentFrame],
-			.signalSemaphoreCount = 1,
-			.pSignalSemaphores = &renderFinishedSemaphore
-		};
-
-		Draw(imageIndex);
+		BeginDrawing(imageIndex);
 		device.resetFences(inFlightFence);
-		
-		qGraphics.submit(submitInfo, inFlightFence);
-
-		vk::PresentInfoKHR presentInfo{
-			.waitSemaphoreCount = 1,
-			.pWaitSemaphores = &renderFinishedSemaphore,
-			.swapchainCount = 1,
-			.pSwapchains = &*swapchain.handle,
-			.pImageIndices = &imageIndex,
-			.pResults = nullptr, // Optional
-		};
-		vk::Result presentCode = qPresent.presentKHR(presentInfo);
 	}
 	catch(vk::OutOfDateKHRError e)
 	{
 		RecreateSwapchain();
+		return false;
 	}
+	return true;	
+}
 
-	//vkQueueWaitIdle(lDevice.qPresent);
+void Renderer::Submit()
+{
+	if(!shouldDraw)
+		return;
+	EndDrawing(imageIndex);
+	const auto &inFlightFence = *frames[currentFrame].inFlightFence;
+	const auto &imageAvailableSemaphore = *frames[currentFrame].imageAvailableSemaphore;
+	const auto &renderFinishedSemaphore = *frames[currentFrame].renderFinishedSemaphore;
+	vk::PipelineStageFlags waitStages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
+	vk::SubmitInfo submitInfo{
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores = &imageAvailableSemaphore,
+		.pWaitDstStageMask = waitStages,
+		.commandBufferCount = 1,
+		.pCommandBuffers = &*cmds[currentFrame],
+		.signalSemaphoreCount = 1,
+		.pSignalSemaphores = &renderFinishedSemaphore
+	};
+	qGraphics.submit(submitInfo, inFlightFence);
+
+	vk::PresentInfoKHR presentInfo{
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores = &renderFinishedSemaphore,
+		.swapchainCount = 1,
+		.pSwapchains = &*swapchain.handle,
+		.pImageIndices = &imageIndex,
+		.pResults = nullptr, // Optional
+	};
+	vk::Result presentCode = qPresent.presentKHR(presentInfo);
 	currentFrame = (currentFrame + 1) % bufferedFrames;
 }
 
-void Renderer::Draw(int imageIndex)
+void Renderer::BeginDrawing(int imageIndex)
 {
 	auto &cmd = cmds[currentFrame];
 	cmd.reset();
@@ -432,9 +446,41 @@ void Renderer::Draw(int imageIndex)
 		.clearValueCount = 2,
 		.pClearValues = clearValues,
 	};
+	
+	//Secondary commands
+	vk::CommandBufferInheritanceInfo inheritance{
+		.renderPass = *renderPass,
+		.subpass = 0,
+		.framebuffer = *swapchain.framebuffers[imageIndex],
+	};
+	vk::CommandBufferBeginInfo beginSecondary{
+		.flags = vk::CommandBufferUsageFlagBits::eRenderPassContinue | vk::CommandBufferUsageFlagBits::eOneTimeSubmit,
+		.pInheritanceInfo = &inheritance
+	};
+	for(int i = 0; i < externalDrawThreads; ++i)
+	{
+		auto &cmd2 = secondaryCmds[i][currentFrame];
+		cmd2.reset();
+		cmd2.begin(beginSecondary);
+		cmd2.setViewport(0, viewportArea);
+		cmd2.setScissor(0, scissorArea);
+	}
 
 	cmd.begin(beginInfo);
-	cmd.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+	cmd.beginRenderPass(renderPassInfo, vk::SubpassContents::eSecondaryCommandBuffers);
+}
+
+void Renderer::EndDrawing(int imageIndex)
+{
+	std::array<vk::CommandBuffer, externalDrawThreads> executeCmds;
+	auto &cmd = cmds[currentFrame];
+	for(int i = 0; i < externalDrawThreads; ++i)
+	{
+		auto &cmd2 = secondaryCmds[i][currentFrame];
+		cmd2.end();
+		executeCmds[i] = *cmd2;
+	}
+	cmd.executeCommands(executeCmds);
 	cmd.endRenderPass();
 	cmd.end();
 }
@@ -654,7 +700,7 @@ void Renderer::TransferBuffer(int src, int dst, size_t size)
 	});
 }
 
-Pipeline Renderer::NewPipeline()
+PipelineBuilder Renderer::GetPipelineBuilder()
 {
 	return {&device, this};
 }
@@ -664,10 +710,21 @@ int Renderer::RegisterPipelines(vk::GraphicsPipelineCreateInfo& pipelineInfo, vk
 	vk::raii::PipelineLayout layout = {device, pipelineLayoutInfo};
 	pipelineInfo.layout = *layout;
 	pipelineInfo.renderPass = *renderPass;
+	pipelineInfo.basePipelineHandle = lastPipeline;
 	vk::raii::Pipeline graphicsPipeline = {device, nullptr, pipelineInfo};
-	pipelineInfo.basePipelineHandle = *graphicsPipeline;
+	lastPipeline = *graphicsPipeline;
 
-	//TODO:
-	//return {std::move(layout), std::move(graphicsPipeline)};
-	return 0;
+	pipelines.emplace(pipelineMapCounter, Pipeline_t{std::move(graphicsPipeline), std::move(layout)});
+	pipelineMapCounter++;
+	return pipelineMapCounter-1;
+}
+
+vk::Pipeline Renderer::GetPipeline(size_t id) const
+{
+	return *pipelines.at(id).pipeline;
+}
+
+const vk::CommandBuffer &Renderer::GetCommand()
+{
+	return *secondaryCmds[0][currentFrame];
 }

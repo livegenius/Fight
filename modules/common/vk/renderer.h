@@ -6,13 +6,14 @@
 #include <vulkan/vulkan_raii.hpp>
 #include <filesystem>
 #include "allocation.h"
-#include "pipeline.h"
+#include "pipeline_builder.h"
 
 constexpr int internalWidth = 480;
 constexpr int internalHeight = 270;
 
 class Renderer
 {
+	static constexpr int externalDrawThreads = 1;
 public:
 	static constexpr size_t bufferedFrames = 2;
 	static size_t uniformBufferAligment;
@@ -81,6 +82,9 @@ private:
 
 	vk::raii::CommandPool commandPool {nullptr};
 	std::vector<vk::raii::CommandBuffer> cmds;
+
+	std::vector<vk::raii::CommandPool> secondaryCommandPools;
+	std::vector<vk::raii::CommandBuffer> secondaryCmds[externalDrawThreads];
 	
 	//Per frame data.
 	struct PerFrameData{
@@ -93,6 +97,7 @@ private:
 
 	size_t textureMapCounter = 0;
 	size_t bufferMapCounter = 0;
+	size_t pipelineMapCounter = 0;
 	struct Texture{
 		AllocatedImage buf;
 		vk::raii::ImageView view;
@@ -104,8 +109,16 @@ private:
 		BufferFlags flags;
 		bool locked = false;
 	};
+	struct Pipeline_t{
+		vk::raii::Pipeline pipeline;
+		vk::raii::PipelineLayout layout;
+	};
 	std::unordered_map<size_t, Texture> textures;
 	std::unordered_map<size_t, Buffer> buffers;
+	std::unordered_map<size_t, Pipeline_t> pipelines;
+	vk::Pipeline lastPipeline = VK_NULL_HANDLE;
+
+	uint32_t imageIndex;
 
 private:
 	void RecreateSwapchain();
@@ -114,15 +127,18 @@ private:
 	void CreateFramebuffers();
 	void CreateCommandPool();
 	void CreateSyncStructs();
-	void Draw(int imageIndex);
+	void BeginDrawing(int imageIndex);
+	void EndDrawing(int imageIndex);
+	
 
 	void ExecuteCommand(std::function<void(vk::CommandBuffer)>&& function);
 
 public:
 	//Renderer();
 	~Renderer();
-
 	bool Init(SDL_Window *, int syncMode);
+	
+	bool Acquire();
 	void Submit();
 	bool HandleEvents(SDL_Event);
 
@@ -132,11 +148,11 @@ public:
 	void* MapBuffer(int handle);
 	void UnmapBuffer(int handle);
 	void TransferBuffer(int src, int dst, size_t size);
-	Pipeline NewPipeline();
-
-public:
-	//Not in the public interface:
+	PipelineBuilder GetPipelineBuilder();
 	int RegisterPipelines(vk::GraphicsPipelineCreateInfo&, vk::PipelineLayoutCreateInfo&);
+	vk::Pipeline GetPipeline(size_t id) const;
+
+	const vk::CommandBuffer &GetCommand();
 };
 
 #endif /* VK_CONTEXT_H_GUARD */

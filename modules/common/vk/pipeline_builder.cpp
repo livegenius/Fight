@@ -1,8 +1,8 @@
-#include "pipeline.h"
+#include "pipeline_builder.h"
 #include "renderer.h"
 #include <fstream>
 
-Pipeline::Pipeline(vk::raii::Device *device, Renderer* renderer):
+PipelineBuilder::PipelineBuilder(vk::raii::Device *device, Renderer* renderer):
 device(device),
 renderer(renderer)
 {
@@ -117,7 +117,7 @@ renderer(renderer)
 	};
 }
 
-Pipeline& Pipeline::SetShaders(path vertex, path fragment)
+PipelineBuilder& PipelineBuilder::SetShaders(path vertex, path fragment)
 {
 	shaderStages.clear();
 	shaderModules.clear();
@@ -160,7 +160,7 @@ Pipeline& Pipeline::SetShaders(path vertex, path fragment)
 	return *this;
 }
 
-int Pipeline::Build()
+int PipelineBuilder::Build()
 {
 	return renderer->RegisterPipelines(pipelineInfo, pipelineLayoutInfo);
 }

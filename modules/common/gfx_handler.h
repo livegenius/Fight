@@ -28,6 +28,8 @@ private:
 	};
 
 	Renderer &renderer;
+	const vk::CommandBuffer *cmd;
+	vk::Pipeline pipeline;
 
 	std::vector<std::unique_ptr<VertexData4[]>> tempVDContainer;
 	VertexBuffer vertices;
@@ -53,7 +55,7 @@ private:
 	unsigned int particleBuffer;
 
 public:
-	int indexedP;
+	std::vector<int> pipelineIds;
 	Shader indexedS, rectS, particleS;
 
 	GfxHandler(Renderer*);

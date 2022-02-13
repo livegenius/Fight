@@ -5,7 +5,7 @@ target_link_libraries(Common PUBLIC Vulkan::Vulkan vk-bootstrap::vk-bootstrap vm
 target_sources(Common PRIVATE
 	vk/renderer.cpp
 	vk/allocation.cpp
-	vk/pipeline.cpp
+	vk/pipeline_builder.cpp
 )
 
 target_include_directories(Common PUBLIC ".")

@@ -6,7 +6,7 @@
 #include <filesystem>
 
 class Renderer;
-class Pipeline
+class PipelineBuilder
 {
 private:
 	using path = std::filesystem::path;
@@ -31,9 +31,9 @@ public:
 	vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
 	vk::GraphicsPipelineCreateInfo pipelineInfo;
 
-	Pipeline(vk::raii::Device *device, Renderer* renderer);
+	PipelineBuilder(vk::raii::Device *device, Renderer* renderer);
 	
-	Pipeline& SetShaders(path vertex, path fragment);
+	PipelineBuilder& SetShaders(path vertex, path fragment);
 	int Build();
 	
 };

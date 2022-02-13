@@ -188,7 +188,6 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	
 	while(!mainWindow->wantsToClose)
 	{
-
 		EventLoop(keyHandler, pause);
 		if(pause){
 			if(!step)
@@ -196,6 +195,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			else
 				step = false;
 		}
+		mainWindow->renderer.Acquire(); //Prepare for rendering. Must be after the event because the window may get resized.
 		
 		if(replay)
 		{

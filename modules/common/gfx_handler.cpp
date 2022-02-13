@@ -1,5 +1,4 @@
 #include "gfx_handler.h"
-#include "vk/pipeline.h"
 #include <iostream>
 #include <sol/sol.hpp>
 #include <fstream>
@@ -10,8 +9,11 @@ GfxHandler::GfxHandler(Renderer *renderer_):
 renderer(*renderer_),
 vertices(renderer_)
 {
-	auto pipeline = renderer.NewPipeline();
-	pipeline.SetShaders("data/spirv/shader.vert.bin", "data/spirv/shader.frag.bin");
+	auto pBuilder = renderer.GetPipelineBuilder();
+	pBuilder.SetShaders("data/spirv/shader.vert.bin", "data/spirv/shader.frag.bin");
+	int id = pBuilder.Build();
+	pipeline = renderer.GetPipeline(id);
+	pipelineIds.push_back(id);
 
 	/* rectS.LoadShader("data/def.vert", "data/defRect.frag");
 	indexedS.LoadShader("data/def.vert", "data/palette.frag");
@@ -130,7 +132,8 @@ void GfxHandler::LoadingDone()
 
 void GfxHandler::Begin()
 {
-	vertices.Bind();
+	cmd = &renderer.GetCommand();
+	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 }
 
 void GfxHandler::End()
@@ -143,7 +146,8 @@ void GfxHandler::End()
 
 void GfxHandler::Draw(int id, int defId, int _paletteSlot)
 {
-	auto search = idMapList[defId].find(id);
+	cmd->draw(3, 1, 0, id);
+/* 	auto search = idMapList[defId].find(id);
 	if (search != idMapList[defId].end())
 	{
 		auto meta = search->second;
@@ -171,7 +175,7 @@ void GfxHandler::Draw(int id, int defId, int _paletteSlot)
 			//glUniform1i(paletteSlotL, paletteSlot);
 		}
 		vertices.Draw(meta.trueId);
-	}
+	} */
 }
 
 void GfxHandler::DrawParticles(std::vector<Particle> &data, int id, int defId)
