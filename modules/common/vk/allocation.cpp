@@ -52,6 +52,15 @@ AllocatedBuffer::AllocatedBuffer(AllocatedBuffer&& old)
 	old.allocator = nullptr;
 }
 
+AllocatedBuffer& AllocatedBuffer::operator=(AllocatedBuffer&& old)
+{
+	buffer = std::move(old.buffer);
+	allocation = std::move(old.allocation);
+	allocator = old.allocator;
+	old.allocator = nullptr;
+	return *this;
+}
+
 void AllocatedBuffer::Allocate(const vma::Allocator &allocator_, vk::DeviceSize size, vk::BufferUsageFlags bufferUsage, vma::MemoryUsage memUsage)
 {
 	vk::BufferCreateInfo bufferInfo = {

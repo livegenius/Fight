@@ -39,6 +39,7 @@ struct AllocatedBuffer {
 	AllocatedBuffer(AllocatedBuffer&&);
 	AllocatedBuffer(const AllocatedBuffer&) = delete;
 	AllocatedBuffer& operator=(const AllocatedBuffer&) = delete;
+	AllocatedBuffer& operator=(AllocatedBuffer&&);
 
 	void* Map();
 	void Unmap();

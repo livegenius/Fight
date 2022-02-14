@@ -652,7 +652,7 @@ void Renderer::ExecuteCommand(std::function<void(vk::CommandBuffer)>&& function)
 	upload.cmdPool.reset();
 }
 
-int Renderer::NewBuffer(size_t size, BufferFlags interfaceFlags, int oldBuffer)
+AllocatedBuffer Renderer::NewBuffer(size_t size, BufferFlags interfaceFlags)
 {
 	vk::BufferUsageFlags flags;
 	vma::MemoryUsage vmaFlags;
@@ -666,37 +666,19 @@ int Renderer::NewBuffer(size_t size, BufferFlags interfaceFlags, int oldBuffer)
 		case TransferSrc:
 			flags = vk::BufferUsageFlagBits::eTransferSrc;
 			vmaFlags = vma::MemoryUsage::eCpuOnly;
-			assert(oldBuffer != -1);
 			break;
 	}
-	buffers.emplace(bufferMapCounter, Buffer{{allocator, size, flags, vmaFlags}, interfaceFlags});
-	bufferMapCounter++;
-	return bufferMapCounter-1;
+	return AllocatedBuffer(allocator, size, flags, vmaFlags);
 }
 
-void Renderer::DestroyBuffer(int handle)
-{
-	buffers.erase(handle);
-}
-
-void* Renderer::MapBuffer(int handle)
-{
-	return buffers[handle].buf.Map();
-}
-
-void Renderer::UnmapBuffer(int handle)
-{
-	buffers[handle].buf.Unmap();
-}
-
-void Renderer::TransferBuffer(int src, int dst, size_t size)
+void Renderer::TransferBuffer(AllocatedBuffer &src, AllocatedBuffer &dst, size_t size)
 {
 	ExecuteCommand([&](vk::CommandBuffer cmd) {
 		vk::BufferCopy copy;
 		copy.dstOffset = 0;
 		copy.srcOffset = 0;
 		copy.size = size;
-		cmd.copyBuffer(buffers[src].buf.buffer, buffers[dst].buf.buffer, 1, &copy);
+		cmd.copyBuffer(src.buffer, dst.buffer, 1, &copy);
 	});
 }
 

@@ -1,11 +1,12 @@
 add_library(Common STATIC)
 
 target_include_directories(Common PUBLIC vk)
-target_link_libraries(Common PUBLIC Vulkan::Vulkan vk-bootstrap::vk-bootstrap vma-hpp)
+target_link_libraries(Common PUBLIC Vulkan::Vulkan vk-bootstrap::vk-bootstrap vma-hpp spirv-reflect)
 target_sources(Common PRIVATE
 	vk/renderer.cpp
 	vk/allocation.cpp
 	vk/pipeline_builder.cpp
+	vk/format_info.cpp
 )
 
 target_include_directories(Common PUBLIC ".")

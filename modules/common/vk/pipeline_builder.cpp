@@ -1,6 +1,8 @@
 #include "pipeline_builder.h"
 #include "renderer.h"
+#include <spirv_reflect.h>
 #include <fstream>
+#include "format_info.h"
 
 PipelineBuilder::PipelineBuilder(vk::raii::Device *device, Renderer* renderer):
 device(device),
@@ -153,6 +155,8 @@ PipelineBuilder& PipelineBuilder::SetShaders(path vertex, path fragment)
 			.module = *shaderModules.back(),
 			.pName = "main",
 		});
+
+		//Reflection(createInfo.pCode, createInfo.codeSize);
 	}
 
 	pipelineInfo.pStages = shaderStages.data();
@@ -162,6 +166,76 @@ PipelineBuilder& PipelineBuilder::SetShaders(path vertex, path fragment)
 
 int PipelineBuilder::Build()
 {
+	vertexInputInfo.pVertexAttributeDescriptions = attributes.data();
+	vertexInputInfo.vertexAttributeDescriptionCount = attributes.size();
+	vertexInputInfo.pVertexBindingDescriptions = bindings.data();
+	vertexInputInfo.vertexBindingDescriptionCount = bindings.size();
 	return renderer->RegisterPipelines(pipelineInfo, pipelineLayoutInfo);
 }
 
+
+void PipelineBuilder::Reflection(const void* code, size_t size)
+{
+	SpvReflectShaderModule module;
+	SpvReflectResult result = spvReflectCreateShaderModule(size, code, &module);
+	assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+	// Enumerate and extract shader's input variables
+	uint32_t var_count = 0;
+	result = spvReflectEnumerateInputVariables(&module, &var_count, NULL);
+	assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+	std::vector<SpvReflectInterfaceVariable*> input_vars(var_count);
+	result = spvReflectEnumerateInputVariables(&module, &var_count, input_vars.data());
+	assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+	// Output variables, descriptor bindings, descriptor sets, and push constants
+	// can be enumerated and extracted using a similar mechanism.
+
+	// Destroy the reflection data when no longer required.
+	spvReflectDestroyShaderModule(&module);
+}
+
+PipelineBuilder& PipelineBuilder::SetInputLayout(bool interleaved, std::initializer_list<vk::Format> formats)
+{
+	bindings.clear();
+	attributes.clear();
+	if(interleaved)
+	{
+		uint32_t stride = 0;
+		for(const auto &format : formats)
+		{	
+			auto info = FormatInfo::GetFormatInfo(format);
+			stride += info.bytes;
+		}
+
+		vk::VertexInputBindingDescription binding = {};
+		binding.binding = 0;
+		binding.stride = stride;
+		binding.inputRate = vk::VertexInputRate::eVertex;
+
+		bindings.push_back(binding);
+
+		uint32_t offset = 0, location = 0;
+		for(const auto &format : formats)
+		{
+			auto info = FormatInfo::GetFormatInfo(format);
+			vk::VertexInputAttributeDescription attribute = {
+				.location = location,
+				.binding = 0,
+				.format = format,
+				.offset = offset,
+			};
+
+			offset+= info.bytes;
+			location++;
+
+			attributes.push_back(attribute);
+		}
+	}
+	else{
+		assert(0 && "Unimplemented");
+	}
+
+	return *this;
+}

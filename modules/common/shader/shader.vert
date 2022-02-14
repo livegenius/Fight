@@ -1,6 +1,6 @@
 #version 460 core
-//layout (location = 0) in vec2 iPos;
-//layout (location = 1) in vec2 iTexCoord;
+layout (location = 0) in vec2 iPos;
+layout (location = 1) in vec2 iTexCoord;
 
 layout (location = 0) out vec2 oTexCoord;
 

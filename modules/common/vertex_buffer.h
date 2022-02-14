@@ -20,12 +20,14 @@ private:
 		size_t stride;
 	};
 
-	int bufferHandle;
+	
 	size_t totalSize = 0;
 	size_t eboSize = 0;
 	std::vector<memPtr> dataPointers;
 
 public:
+	AllocatedBuffer buffer;
+	
 	VertexBuffer(Renderer*);
 	~VertexBuffer();
 

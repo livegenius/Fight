@@ -10,7 +10,9 @@ renderer(*renderer_),
 vertices(renderer_)
 {
 	auto pBuilder = renderer.GetPipelineBuilder();
-	pBuilder.SetShaders("data/spirv/shader.vert.bin", "data/spirv/shader.frag.bin");
+	pBuilder
+		.SetShaders("data/spirv/shader.vert.bin", "data/spirv/shader.frag.bin")
+		.SetInputLayout(true, {vk::Format::eR16G16Sscaled, vk::Format::eR16G16Uscaled});
 	int id = pBuilder.Build();
 	pipeline = renderer.GetPipeline(id);
 	pipelineIds.push_back(id);
@@ -134,6 +136,7 @@ void GfxHandler::Begin()
 {
 	cmd = &renderer.GetCommand();
 	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+	cmd->bindVertexBuffers(0, vertices.buffer.buffer, {0});
 }
 
 void GfxHandler::End()

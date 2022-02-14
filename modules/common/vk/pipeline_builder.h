@@ -14,6 +14,8 @@ private:
 	std::vector<vk::raii::ShaderModule> shaderModules;
 	vk::raii::Device* device;
 	Renderer* renderer;
+
+	void Reflection(const void* code, size_t size);
 public:
 	vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
 	vk::PipelineInputAssemblyStateCreateInfo inputAssembly;
@@ -31,9 +33,13 @@ public:
 	vk::PipelineLayoutCreateInfo pipelineLayoutInfo;
 	vk::GraphicsPipelineCreateInfo pipelineInfo;
 
+	std::vector<vk::VertexInputBindingDescription> bindings;
+	std::vector<vk::VertexInputAttributeDescription> attributes;
+
 	PipelineBuilder(vk::raii::Device *device, Renderer* renderer);
 	
 	PipelineBuilder& SetShaders(path vertex, path fragment);
+	PipelineBuilder& SetInputLayout(bool interleaved, std::initializer_list<vk::Format> formats);
 	int Build();
 	
 };

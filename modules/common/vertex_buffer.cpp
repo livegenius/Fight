@@ -10,7 +10,7 @@ renderer(*renderer)
 
 VertexBuffer::~VertexBuffer()
 {
-	renderer.DestroyBuffer(bufferHandle);
+
 }
 
 int VertexBuffer::Prepare(size_t size, unsigned int stride, void *ptr)
@@ -78,9 +78,9 @@ void VertexBuffer::Bind()
 void VertexBuffer::Load()
 {
 	Bind();
-	bufferHandle = renderer.NewBuffer(totalSize, Renderer::BufferFlags::VertexStatic);
-	int stagingBuffer = renderer.NewBuffer(totalSize, Renderer::BufferFlags::TransferSrc, bufferHandle);
-	uint8_t *data = (uint8_t*)renderer.MapBuffer(stagingBuffer);
+	buffer = renderer.NewBuffer(totalSize, Renderer::BufferFlags::VertexStatic);
+	AllocatedBuffer stagingBuffer = renderer.NewBuffer(totalSize, Renderer::BufferFlags::TransferSrc);
+	uint8_t *data = (uint8_t*)stagingBuffer.Map();
 	size_t where = 0;
 	for(auto &subData : dataPointers)
 	{
@@ -88,7 +88,7 @@ void VertexBuffer::Load()
 			memcpy(data+where, subData.ptr, subData.size);
 		where += subData.size;
 	}
-	renderer.UnmapBuffer(stagingBuffer);
-	renderer.TransferBuffer(stagingBuffer, bufferHandle, totalSize);
-	renderer.DestroyBuffer(stagingBuffer);
+
+	stagingBuffer.Unmap();
+	renderer.TransferBuffer(stagingBuffer, buffer, totalSize);
 }

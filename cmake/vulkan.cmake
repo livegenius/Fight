@@ -24,6 +24,8 @@ function(compile_shader target)
 	endforeach()
 endfunction()
 
+target_compile_definitions(Vulkan::Vulkan INTERFACE VULKAN_HPP_NO_CONSTRUCTORS)
+
 add_subdirectory(submodules/vk-bootstrap)
 
 #Add VMA library
@@ -39,5 +41,11 @@ target_precompile_headers(vma-hpp PUBLIC
 	<vulkan/vulkan_raii.hpp>
 )
 
-target_compile_definitions(Vulkan::Vulkan INTERFACE VULKAN_HPP_NO_CONSTRUCTORS)
+#Add SPIRV-Reflect
+add_library(spirv-reflect STATIC
+	submodules/spirv-reflect/spirv_reflect.c
+)
+target_include_directories(spirv-reflect PUBLIC submodules/spirv-reflect)
+target_link_libraries(spirv-reflect PRIVATE Vulkan::Vulkan)
+
 
