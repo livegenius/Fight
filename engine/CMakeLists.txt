@@ -22,6 +22,7 @@ target_sources(Fight PRIVATE
 
 target_link_libraries(Fight PRIVATE
 	#Internal
+	vulkan-pch
 	FixedPoint
 	Geometry
 	Image

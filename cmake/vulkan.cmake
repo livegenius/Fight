@@ -10,13 +10,13 @@ function(compile_shader target)
 		add_custom_command(
 			OUTPUT ${outFilePath}
 			DEPENDS ${source}
-			DEPFILE ${source}.d
+			DEPFILE ${filename}.d
 			COMMAND
 				${glslc_executable}
 				#$<$<BOOL:${arg_ENV}>:--target-env=${arg_ENV}>
 				--target-env=vulkan1.2
 				$<$<BOOL:${arg_FORMAT}>:-mfmt=${arg_FORMAT}>
-				-MD -MF ${source}.d
+				-MD -MF ${filename}.d
 				-o ${outFilePath}
 				${CMAKE_CURRENT_SOURCE_DIR}/${source}
 		)
@@ -24,7 +24,12 @@ function(compile_shader target)
 	endforeach()
 endfunction()
 
-target_compile_definitions(Vulkan::Vulkan INTERFACE VULKAN_HPP_NO_CONSTRUCTORS)
+add_library(vulkan-pch INTERFACE)
+target_compile_definitions(vulkan-pch INTERFACE VULKAN_HPP_NO_CONSTRUCTORS)
+target_precompile_headers(vulkan-pch INTERFACE
+	<vulkan/vulkan.hpp>
+	<vulkan/vulkan_raii.hpp>
+)
 
 add_subdirectory(submodules/vk-bootstrap)
 
@@ -33,12 +38,10 @@ add_library(vma-hpp STATIC
 	submodules/vma-hpp/vmahppimp.cpp 
 )
 target_include_directories(vma-hpp PUBLIC submodules/vma-hpp)
-target_link_libraries(vma-hpp PRIVATE Vulkan::Vulkan)
+target_link_libraries(vma-hpp PRIVATE Vulkan::Vulkan vulkan-pch)
 target_precompile_headers(vma-hpp PUBLIC
 	#vk_mem_alloc.h doesn't play well with precompiled headers
 	[["vk_mem_alloc.hpp"]]
-	<vulkan/vulkan.hpp>
-	<vulkan/vulkan_raii.hpp>
 )
 
 #Add SPIRV-Reflect

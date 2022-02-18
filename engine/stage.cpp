@@ -3,9 +3,8 @@
 #include <iostream>
 #include <glm/ext/matrix_transform.hpp>
 
-Stage::Stage(GfxHandler &gfx, std::filesystem::path file, std::function <void(glm::mat4&)> setViewFun):
-gfx(&gfx),
-setView(setViewFun)
+Stage::Stage(GfxHandler &gfx, std::filesystem::path file):
+gfx(&gfx)
 {
 	sol::state lua;
 	//Blending
@@ -88,7 +87,7 @@ std::pair<int,int> Stage::GetDimensions()
 	return {width, height};
 }
 
-void Stage::Draw(glm::mat4 &view, centerScale camera)
+void Stage::Draw(const glm::mat4 &view, centerScale camera)
 {
 	//std::cout <<camera.scale<<"\n";
  	float wRange = width - internalWidth*camera.scale;
@@ -141,7 +140,7 @@ void Stage::Draw(glm::mat4 &view, centerScale camera)
 			for(auto &e : layer.elements)
 			{
 				auto elementView = layerView * glm::translate(glm::mat4(1.f), glm::vec3(e.x, e.y, 0.f));
-				setView(elementView);
+				gfx->SetMatrix(elementView);
 				gfx->Draw(e.drawId, defId);
 			}
 		};

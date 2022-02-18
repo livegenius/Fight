@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <cstdint>
+#include <utility> //pair
 #include "vk/renderer.h"
 
 //More like builder/indexer, but w/e
@@ -33,9 +34,7 @@ public:
 
 	//Returns index of object that can be drawn.
 	int Prepare(size_t size, unsigned int stride, void *ptr);
-	void Draw(int which, int mode = 0/* GL_TRIANGLES */) const;
-	void DrawCount(int which, int count, int mode = 0/* GL_TRIANGLES */) const;
-	void DrawInstances(int which, size_t instances, int mode = 0/* GL_TRIANGLES */)const;
+	std::pair<size_t,size_t> Index(int which) const;
 	void UpdateBuffer(int which, void *data, size_t count = 0);
 	void UpdateElementBuffer(void *data, size_t count);
 	void Bind();

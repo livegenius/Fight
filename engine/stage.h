@@ -37,7 +37,6 @@ class Stage
 	float globalScale;
 
 	GfxHandler *gfx;
-	std::function <void(glm::mat4&)> setView;
 
 	enum //lua constants
 	{
@@ -51,11 +50,11 @@ public:
 	int defId;
 	std::string musicName;
 
-	Stage(GfxHandler &gfx, std::filesystem::path file, std::function <void(glm::mat4&)> setViewFun);
+	Stage(GfxHandler &gfx, std::filesystem::path file);
 	std::pair<int,int> GetDimensions();
 
 	//Must be used after GfxHandler's Begin()
-	void Draw(glm::mat4 &view, centerScale camera);	
+	void Draw(const glm::mat4 &view, centerScale camera);	
 	
 };
 

@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <memory>
 #include <sol/sol.hpp>
+#include <glm/mat4x4.hpp>
 
 class GfxHandler{
 private:
@@ -29,7 +30,11 @@ private:
 
 	Renderer &renderer;
 	const vk::CommandBuffer *cmd;
-	vk::Pipeline pipeline;
+	
+	vk::raii::Pipeline pipeline = nullptr;
+	vk::raii::PipelineLayout pipelineLayout = nullptr;
+	std::vector<vk::raii::DescriptorSetLayout> setLayouts;
+	std::vector<vk::DescriptorSet> sets;
 
 	std::vector<std::unique_ptr<VertexData4[]>> tempVDContainer;
 	VertexBuffer vertices;
@@ -37,7 +42,9 @@ private:
 	//One for each def load.
 	//Maps virtual id to real id;
 	std::vector<std::unordered_map<int, spriteIdMeta>> idMapList;
-	std::vector<int> textureHandles;
+
+	vk::raii::Sampler sampler = nullptr;
+	std::vector<Renderer::Texture> textures;
 	
 	int boundTexture = -1;
 	int boundProgram = -1;
@@ -55,7 +62,6 @@ private:
 	unsigned int particleBuffer;
 
 public:
-	std::vector<int> pipelineIds;
 	Shader indexedS, rectS, particleS;
 
 	GfxHandler(Renderer*);
@@ -67,6 +73,7 @@ public:
 	static void LoadLuaDefinitions(sol::state &lua);
 	void LoadingDone();
 
+	void SetMatrix(const glm::mat4 &matrix);
 	void Draw(int id, int defId = 0, int paletteSlot = 0);
 	void DrawParticles(std::vector<Particle> &data, int id, int defId = 0);
 	void Begin();

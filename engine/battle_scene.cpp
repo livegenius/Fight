@@ -69,7 +69,7 @@ player(interface), player2(interface)
 	/* defaultS.LoadShader("data/def.vert", "data/def.frag");
 	defaultS.Use();	 */
 
-	projection = glm::ortho<float>(0, internalWidth, 0, internalHeight, -32768, 32767);
+	projection = glm::ortho<float>(0, internalWidth, internalHeight, 0, -32768, 32767);
 	//projection = glm::ortho<float>(-internalWidth*0.5, internalWidth*1.5, -internalHeight*0.5, internalHeight*1.5, -32768, 32767);
 	/* projection = glm::perspective<float>(90, (float)internalWidth/(float)internalHeight, 1, 32767);
 	projection = glm::rotate(projection, 0.3f, glm::vec3(0.f,1.f,0.f));
@@ -153,7 +153,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		soloud->setProtectVoice(h, true);
 	}
 
-	Stage stage(gfx, stageLuaFile, [&](glm::mat4& a){SetModelView(a);});
+	Stage stage(gfx, stageLuaFile);
 	gfx.LoadingDone();
 
 	player.SetTarget(player2);
@@ -239,22 +239,22 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		}
 		
 		//Start rendering
-//		drawList.Init(player, player2);
+		drawList.Init(player, player2);
 		
 		gfx.Begin();
 		//Draw stage quad
 		auto center = view.GetCameraCenterScale();
-		stage.Draw(viewMatrix, center);
+		stage.Draw(projection*viewMatrix, center);
 
-/*
+
 		int p1Pos = players[1]->FillDrawList(drawList);
 		int p2Pos = players[0]->FillDrawList(drawList);
 
 		auto draw = [this,&gfx](Actor *actor, glm::mat4 &viewMatrix)
 		{
-			SetModelView(viewMatrix*actor->GetSpriteTransform());
+			gfx.SetMatrix(projection*viewMatrix*actor->GetSpriteTransform());
 			auto options = actor->GetRenderOptions();
-			switch(options.blendingMode) //Maybe should go inside draw.
+			/* switch(options.blendingMode) //Maybe should go inside draw.
 			{
 				case RenderOptions::normal:
 					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -262,7 +262,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 				case RenderOptions::additive:
 					glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 					break;
-			};
+			}; */
 			gfx.Draw(actor->GetSpriteIndex(), 0, options.paletteIndex);
 		};
 
@@ -281,14 +281,14 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			draw(actor,viewMatrix);
 		}
 
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-		SetModelView(viewMatrix);
+		//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+		/* SetModelView(viewMatrix);
 		for(auto &pg : particleGroups)
 		{
 			pg.second.FillParticleVector(particles);
 			gfx.DrawParticles(particles, pg.first);
 		}
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); */
 		gfx.End();
 
 		//Draw boxes
@@ -299,7 +299,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		}
 				
 		//Draw HUD
-		SetModelView(glm::mat4(1));
+		/*SetModelView(glm::mat4(1));
 		vaoTexOnly.Bind();
 		defaultS.Use();
 

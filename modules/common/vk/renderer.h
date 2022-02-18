@@ -36,6 +36,13 @@ public:
 		TransferSrc, //Must provide oldBuffer.
 	};
 
+	struct Texture{
+		AllocatedImage buf;
+		vk::raii::ImageView view;
+		vk::Extent3D extent;
+		vk::Format format;
+	};
+
 private:
 	SDL_Window *window = nullptr;
 	vk::raii::Context context;
@@ -80,6 +87,8 @@ private:
 		vk::raii::CommandBuffer cmd = nullptr;
 	} upload;
 
+	vk::raii::DescriptorPool descriptorPool = nullptr;
+
 	vk::raii::CommandPool commandPool {nullptr};
 	std::vector<vk::raii::CommandBuffer> cmds;
 
@@ -95,27 +104,12 @@ private:
 	std::array<PerFrameData, bufferedFrames> frames;
 	size_t currentFrame = 0;
 
-	size_t textureMapCounter = 0;
-	size_t pipelineMapCounter = 0;
-	struct Texture{
-		AllocatedImage buf;
-		vk::raii::ImageView view;
-		vk::Extent3D extent;
-		vk::Format format;
-	};
 	struct Buffer{
 		AllocatedBuffer buf;
 		BufferFlags flags;
 		bool locked = false;
 	};
-	struct Pipeline_t{
-		vk::raii::Pipeline pipeline;
-		vk::raii::PipelineLayout layout;
-	};
-	std::unordered_map<size_t, Texture> textures;
-	std::unordered_map<size_t, Pipeline_t> pipelines;
 	vk::Pipeline lastPipeline = VK_NULL_HANDLE;
-
 	uint32_t imageIndex;
 
 private:
@@ -124,6 +118,7 @@ private:
 	void CreateRenderPass();
 	void CreateFramebuffers();
 	void CreateCommandPool();
+	void CreateDescriptorPools();
 	void CreateSyncStructs();
 	void BeginDrawing(int imageIndex);
 	void EndDrawing(int imageIndex);
@@ -139,15 +134,19 @@ public:
 	bool Acquire();
 	void Submit();
 	bool HandleEvents(SDL_Event);
-
-	std::vector<int> LoadTextures(std::vector<LoadTextureInfo>&);
+	
+	void LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vector<Texture> &textures);
 	AllocatedBuffer NewBuffer(size_t size, BufferFlags);
 	void TransferBuffer(AllocatedBuffer &src, AllocatedBuffer &dst, size_t size);
 	PipelineBuilder GetPipelineBuilder();
-	int RegisterPipelines(vk::GraphicsPipelineCreateInfo&, vk::PipelineLayoutCreateInfo&);
-	vk::Pipeline GetPipeline(size_t id) const;
+	std::pair<vk::raii::Pipeline, vk::raii::PipelineLayout> RegisterPipelines(vk::GraphicsPipelineCreateInfo&, vk::PipelineLayoutCreateInfo&);
+	std::vector<vk::DescriptorSet> CreateDescriptorSets(const std::vector<vk::DescriptorSetLayout>&);
+	vk::raii::Sampler CreateSampler(vk::Filter mag = vk::Filter::eNearest, /* vk::Filter min = vk::Filter::eNearest, */ 
+		vk::SamplerAddressMode mode = vk::SamplerAddressMode::eRepeat);
 
 	const vk::CommandBuffer &GetCommand();
+
+	void Wait();
 };
 
 #endif /* VK_CONTEXT_H_GUARD */

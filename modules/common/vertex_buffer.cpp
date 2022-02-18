@@ -24,32 +24,18 @@ int VertexBuffer::Prepare(size_t size, unsigned int stride, void *ptr)
 	dataPointers.push_back(memPtr{
 		(uint8_t*) ptr,
 		size,
-		totalSize/stride,
+		totalSize/stride, //TODO: Take a better look at this.
 		stride,
 	});
 	totalSize += size;
 	return dataPointers.size() - 1;
 }
 
-void VertexBuffer::Draw(int which, int mode) const
+std::pair<size_t,size_t> VertexBuffer::Index(int which) const
 {
 	const auto &data = dataPointers[which];
-/*	size_t count = ;
-	glDrawArrays(mode, data.location, data.size/data.stride); */
+	return{data.location, data.size/data.stride};
 }
-
-void VertexBuffer::DrawCount(int which, int count, int mode) const
-{
-	//const auto &data = dataPointers[which];
-//	glDrawArrays(mode, dataPointers[which].location, count);
-}
-
-void VertexBuffer::DrawInstances(int which, size_t instances, int mode) const
-{
-	const auto &data = dataPointers[which];
-//	glDrawArraysInstanced(mode, data.location, data.size/data.stride, instances);
-}
-
 
 void VertexBuffer::UpdateBuffer(int which, void *data, size_t count)
 {

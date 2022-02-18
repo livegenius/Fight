@@ -2,31 +2,18 @@
 #include <iostream>
 #include <sol/sol.hpp>
 #include <fstream>
+#include <glm/mat4x4.hpp>
 
 constexpr unsigned int vertexStride = 4 * sizeof(short);
 
 GfxHandler::GfxHandler(Renderer *renderer_):
 renderer(*renderer_),
 vertices(renderer_)
-{
-	auto pBuilder = renderer.GetPipelineBuilder();
-	pBuilder
-		.SetShaders("data/spirv/shader.vert.bin", "data/spirv/shader.frag.bin")
-		.SetInputLayout(true, {vk::Format::eR16G16Sscaled, vk::Format::eR16G16Uscaled});
-	int id = pBuilder.Build();
-	pipeline = renderer.GetPipeline(id);
-	pipelineIds.push_back(id);
-
-	/* rectS.LoadShader("data/def.vert", "data/defRect.frag");
-	indexedS.LoadShader("data/def.vert", "data/palette.frag");
-	particleS.LoadShader("data/particle.vert", "data/defRect.frag");
-	rectS.Use(); */
-	//SetMulColor(1, 1, 1, 1); //TODO: Fix this
-}
+{}
 
 GfxHandler::~GfxHandler()
 {
-	//glDeleteBuffers(1, &particleBuffer);
+	renderer.Wait();
 }
 
 void GfxHandler::LoadLuaDefinitions(sol::state &lua)
@@ -80,7 +67,7 @@ int GfxHandler::LoadGfxFromLua(sol::state &lua, std::filesystem::path workingDir
 		LoadToVertexBuffer(workingDir/vertexFile, mapId, infos.size()-1);
 	}
 
-textureHandles = renderer.LoadTextures(infos);
+	renderer.LoadTextures(infos, textures);
 	return mapId;
 }
 
@@ -118,6 +105,22 @@ void GfxHandler::LoadToVertexBuffer(std::filesystem::path file, int mapId, int t
 
 void GfxHandler::LoadingDone()
 {
+	sampler = renderer.CreateSampler();
+	auto pBuilder = renderer.GetPipelineBuilder();
+	pBuilder
+		.SetShaders("data/spirv/shader.vert.bin", "data/spirv/shader.frag.bin")
+		.SetInputLayout(true, {vk::Format::eR16G16Sscaled, vk::Format::eR16G16Uscaled})
+		.SetPushConstants({{.stageFlags = vk::ShaderStageFlagBits::eVertex, .size = sizeof(glm::mat4)}})
+	;
+	pBuilder.Build(pipeline, pipelineLayout, sets, setLayouts);
+	pBuilder.UpdateSets({
+		{vk::DescriptorImageInfo{
+			.sampler = *sampler,
+			.imageView = *textures[0].view,
+			.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
+		}, 0, 0},
+	});
+
 	vertices.Load();
 	tempVDContainer.clear();
 	loaded = true;
@@ -135,8 +138,9 @@ void GfxHandler::LoadingDone()
 void GfxHandler::Begin()
 {
 	cmd = &renderer.GetCommand();
-	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
+	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline);
 	cmd->bindVertexBuffers(0, vertices.buffer.buffer, {0});
+	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipelineLayout, 0, sets, nullptr);
 }
 
 void GfxHandler::End()
@@ -149,12 +153,12 @@ void GfxHandler::End()
 
 void GfxHandler::Draw(int id, int defId, int _paletteSlot)
 {
-	cmd->draw(3, 1, 0, id);
-/* 	auto search = idMapList[defId].find(id);
+	
+ 	auto search = idMapList[defId].find(id);
 	if (search != idMapList[defId].end())
 	{
 		auto meta = search->second;
-		if(boundTexture != meta.textureIndex)
+		/* if(boundTexture != meta.textureIndex)
 		{
 			boundTexture = meta.textureIndex;
 			//glBindTexture(GL_TEXTURE_2D, textures[boundTexture].id);
@@ -176,9 +180,11 @@ void GfxHandler::Draw(int id, int defId, int _paletteSlot)
 		{
 			paletteSlot = _paletteSlot;
 			//glUniform1i(paletteSlotL, paletteSlot);
-		}
-		vertices.Draw(meta.trueId);
-	} */
+		} */
+
+		auto what = vertices.Index(meta.trueId);
+		cmd->draw(what.second, 1, what.first, 0);
+	} 
 }
 
 void GfxHandler::DrawParticles(std::vector<Particle> &data, int id, int defId)
@@ -205,7 +211,7 @@ void GfxHandler::DrawParticles(std::vector<Particle> &data, int id, int defId)
 
 			/* glBindBuffer(GL_ARRAY_BUFFER, particleBuffer);
 			glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Particle)*size, data.data()); */
-			vertices.DrawInstances(meta.trueId, size);
+			//vertices.DrawInstances(meta.trueId, size);
 		}
 	}
 }
@@ -227,4 +233,10 @@ int GfxHandler::GetVirtualId(int id, int defId)
 			return search.first;
 	}
 	return -1;
+}
+
+void GfxHandler::SetMatrix(const glm::mat4 &matrix)
+{
+	vk::ArrayProxy<const uint8_t> push(sizeof(matrix), (uint8_t*)&matrix);
+	cmd->pushConstants(*pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, push);
 }

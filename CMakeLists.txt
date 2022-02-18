@@ -42,6 +42,8 @@ else()
 	find_package(glm CONFIG REQUIRED)
 endif()
 
+target_compile_definitions(glm INTERFACE GLM_FORCE_DEPTH_ZERO_TO_ONE)
+
 add_subdirectory(modules)
 add_subdirectory(engine)
 
@@ -53,4 +55,3 @@ if(AFGE_BUILD_TOOLS)
 
 	add_subdirectory(tools)
 endif()
-

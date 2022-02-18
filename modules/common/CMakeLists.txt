@@ -1,7 +1,7 @@
 add_library(Common STATIC)
 
 target_include_directories(Common PUBLIC vk)
-target_link_libraries(Common PUBLIC Vulkan::Vulkan vk-bootstrap::vk-bootstrap vma-hpp spirv-reflect)
+target_link_libraries(Common PUBLIC vulkan-pch Vulkan::Vulkan vk-bootstrap::vk-bootstrap vma-hpp spirv-reflect)
 target_sources(Common PRIVATE
 	vk/renderer.cpp
 	vk/allocation.cpp
@@ -23,7 +23,7 @@ target_sources(Common PRIVATE
 	xorshift.cpp
 )
 
-target_link_libraries(Common PUBLIC Image SDL2::SDL2)
+target_link_libraries(Common PUBLIC Image SDL2::SDL2 glm::glm)
 target_link_libraries(Common PUBLIC sol2::sol2)
 
 compile_shader(Common

@@ -103,6 +103,7 @@ bool Renderer::Init(SDL_Window *window_, int syncMode)
 	CreateRenderPass();
 	CreateFramebuffers();
 	CreateCommandPool();
+	CreateDescriptorPools();
 	CreateSyncStructs();
 	return true;
 }
@@ -328,6 +329,23 @@ void Renderer::CreateCommandPool()
 	upload.cmd = std::move(vk::raii::CommandBuffers(device, allocInfo).front());
 }
 
+void Renderer::CreateDescriptorPools()
+{
+	std::vector<vk::DescriptorPoolSize> sizes =
+	{
+		{vk::DescriptorType::eUniformBuffer, 10},
+		{vk::DescriptorType::eUniformBufferDynamic, 10 },
+		{vk::DescriptorType::eStorageBuffer, 10 },
+		{vk::DescriptorType::eCombinedImageSampler, 10 }
+	};
+	vk::DescriptorPoolCreateInfo pool_info = {
+		.maxSets = 10,
+		.poolSizeCount = (uint32_t)sizes.size(),
+		.pPoolSizes = sizes.data(),
+	};
+	descriptorPool = {device, pool_info};
+}
+
 void Renderer::CreateSyncStructs()
 {
 	vk::SemaphoreCreateInfo semaphoreInfo;
@@ -485,10 +503,10 @@ void Renderer::EndDrawing(int imageIndex)
 	cmd.end();
 }
 
-std::vector<int> Renderer::LoadTextures(std::vector<LoadTextureInfo>& infos)
+void Renderer::LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vector<Texture> &textures)
 {
 	std::vector<int> returns(infos.size());
-	std::vector<AllocatedBuffer> stagingBuffers(infos.size());
+	std::vector<AllocatedBuffer> stagingBuffers(infos.size()); //TODO: Make into a single one.
 	textures.reserve(textures.size()+infos.size());
 
 	struct TextureWRef{
@@ -559,17 +577,14 @@ std::vector<int> Renderer::LoadTextures(std::vector<LoadTextureInfo>& infos)
 			}
 		};
 
-		textures.emplace(textureMapCounter, Texture{
+		textures.push_back(Texture{
 			.buf = std::move(buf),
 			.view = {device, viewInfo},
 			.extent = extent,
 			.format = format,
 		});
 
-		newTextures.push_back({textureMapCounter, i});
-
-		returns[i] = textureMapCounter;
-		textureMapCounter++;
+		newTextures.push_back({textures.size()-1, i});
 	}
 
 	ExecuteCommand([&](vk::CommandBuffer cmd) {
@@ -578,7 +593,7 @@ std::vector<int> Renderer::LoadTextures(std::vector<LoadTextureInfo>& infos)
 		
 		for(const auto &ref : newTextures)
 		{
-			const auto &texture = textures.at(ref.texture);
+			const auto &texture = textures[ref.texture];
 			barriers.push_back(vk::ImageMemoryBarrier{
 				.srcAccessMask = vk::AccessFlagBits::eNoneKHR,
 				.dstAccessMask = vk::AccessFlagBits::eTransferWrite,
@@ -600,7 +615,7 @@ std::vector<int> Renderer::LoadTextures(std::vector<LoadTextureInfo>& infos)
 
 		for(const auto &ref : newTextures)
 		{
-			const auto &texture = textures.at(ref.texture);
+			const auto &texture = textures[ref.texture];
 			vk::BufferImageCopy copyRegion = {
 				.imageSubresource{
 					.aspectMask = vk::ImageAspectFlagBits::eColor,
@@ -630,8 +645,6 @@ std::vector<int> Renderer::LoadTextures(std::vector<LoadTextureInfo>& infos)
 
 		cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, 0, nullptr, 0, nullptr, barriers.size(), barriers.data());
 	});
-	
-	return returns;
 }
 
 void Renderer::ExecuteCommand(std::function<void(vk::CommandBuffer)>&& function)
@@ -687,7 +700,7 @@ PipelineBuilder Renderer::GetPipelineBuilder()
 	return {&device, this};
 }
 
-int Renderer::RegisterPipelines(vk::GraphicsPipelineCreateInfo& pipelineInfo, vk::PipelineLayoutCreateInfo& pipelineLayoutInfo)
+std::pair<vk::raii::Pipeline, vk::raii::PipelineLayout> Renderer::RegisterPipelines(vk::GraphicsPipelineCreateInfo& pipelineInfo, vk::PipelineLayoutCreateInfo& pipelineLayoutInfo)
 {
 	vk::raii::PipelineLayout layout = {device, pipelineLayoutInfo};
 	pipelineInfo.layout = *layout;
@@ -696,17 +709,37 @@ int Renderer::RegisterPipelines(vk::GraphicsPipelineCreateInfo& pipelineInfo, vk
 	vk::raii::Pipeline graphicsPipeline = {device, nullptr, pipelineInfo};
 	lastPipeline = *graphicsPipeline;
 
-	pipelines.emplace(pipelineMapCounter, Pipeline_t{std::move(graphicsPipeline), std::move(layout)});
-	pipelineMapCounter++;
-	return pipelineMapCounter-1;
+	return {std::move(graphicsPipeline), std::move(layout)};
 }
 
-vk::Pipeline Renderer::GetPipeline(size_t id) const
+std::vector<vk::DescriptorSet> Renderer::CreateDescriptorSets(const std::vector<vk::DescriptorSetLayout>& layouts)
 {
-	return *pipelines.at(id).pipeline;
+	vk::DescriptorSetAllocateInfo setAllocInfo ={
+		.descriptorPool = *descriptorPool,
+		.descriptorSetCount = (uint32_t)layouts.size(),
+		.pSetLayouts = layouts.data(),
+	};
+	return (*device).allocateDescriptorSets(setAllocInfo);
 }
 
 const vk::CommandBuffer &Renderer::GetCommand()
 {
 	return *secondaryCmds[0][currentFrame];
+}
+
+void Renderer::Wait()
+{
+	device.waitIdle();
+}
+
+vk::raii::Sampler Renderer::CreateSampler(vk::Filter filter, vk::SamplerAddressMode mode)
+{
+	vk::SamplerCreateInfo samplerI{
+		.magFilter = filter,
+		.minFilter = filter,
+		.addressModeU = mode,
+		.addressModeV = mode,
+		.addressModeW = mode,
+	};
+	return {device, samplerI};
 }

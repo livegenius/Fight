@@ -1,9 +1,12 @@
 #include "pipeline_builder.h"
 #include "renderer.h"
-#include <spirv_reflect.h>
 #include <fstream>
 #include "format_info.h"
+#include <spirv_reflect.h>
 
+#define spvr_assert(x) assert(x == SPV_REFLECT_RESULT_SUCCESS)
+
+PipelineBuilder::~PipelineBuilder(){}
 PipelineBuilder::PipelineBuilder(vk::raii::Device *device, Renderer* renderer):
 device(device),
 renderer(renderer)
@@ -60,12 +63,12 @@ renderer(renderer)
 	};
 
 	colorBlendAttachment = {
-		.blendEnable = VK_FALSE,
-		.srcColorBlendFactor = vk::BlendFactor::eOne, // Optional
-		.dstColorBlendFactor = vk::BlendFactor::eZero, // Optional
+		.blendEnable = VK_TRUE,
+		.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha, // Optional
+		.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha, // Optional
 		.colorBlendOp = vk::BlendOp::eAdd, // Optional
-		.srcAlphaBlendFactor = vk::BlendFactor::eOne, // Optional
-		.dstAlphaBlendFactor = vk::BlendFactor::eZero, // Optional
+		.srcAlphaBlendFactor = vk::BlendFactor::eSrcAlpha, // Optional
+		.dstAlphaBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha, // Optional
 		.alphaBlendOp = vk::BlendOp::eAdd, // Optional
 		.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA,
 	};
@@ -79,8 +82,8 @@ renderer(renderer)
 	};
 
 	depthStencil = {
-		.depthTestEnable = VK_TRUE,
-		.depthWriteEnable = VK_TRUE,
+		.depthTestEnable = VK_FALSE,
+		.depthWriteEnable = VK_FALSE,
 		.depthCompareOp = vk::CompareOp::eLess,
 		.depthBoundsTestEnable = VK_FALSE,
 		.stencilTestEnable = VK_FALSE,
@@ -156,7 +159,7 @@ PipelineBuilder& PipelineBuilder::SetShaders(path vertex, path fragment)
 			.pName = "main",
 		});
 
-		//Reflection(createInfo.pCode, createInfo.codeSize);
+		BuildDescriptorSetsBindings(createInfo.pCode, createInfo.codeSize, shaderStageFlags[i]);
 	}
 
 	pipelineInfo.pStages = shaderStages.data();
@@ -164,42 +167,51 @@ PipelineBuilder& PipelineBuilder::SetShaders(path vertex, path fragment)
 	return *this;
 }
 
-int PipelineBuilder::Build()
+void PipelineBuilder::BuildDescriptorSetsBindings(const void* code, size_t size, vk::ShaderStageFlagBits stage)
 {
-	vertexInputInfo.pVertexAttributeDescriptions = attributes.data();
-	vertexInputInfo.vertexAttributeDescriptionCount = attributes.size();
-	vertexInputInfo.pVertexBindingDescriptions = bindings.data();
-	vertexInputInfo.vertexBindingDescriptionCount = bindings.size();
-	return renderer->RegisterPipelines(pipelineInfo, pipelineLayoutInfo);
-}
+	SpvReflectShaderModule spvModule;
+	uint32_t count = 0;
+	spvr_assert( spvReflectCreateShaderModule(size, code, &spvModule) );
 
-
-void PipelineBuilder::Reflection(const void* code, size_t size)
-{
-	SpvReflectShaderModule module;
-	SpvReflectResult result = spvReflectCreateShaderModule(size, code, &module);
-	assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-	// Enumerate and extract shader's input variables
-	uint32_t var_count = 0;
-	result = spvReflectEnumerateInputVariables(&module, &var_count, NULL);
-	assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-	std::vector<SpvReflectInterfaceVariable*> input_vars(var_count);
-	result = spvReflectEnumerateInputVariables(&module, &var_count, input_vars.data());
-	assert(result == SPV_REFLECT_RESULT_SUCCESS);
-
-	// Output variables, descriptor bindings, descriptor sets, and push constants
-	// can be enumerated and extracted using a similar mechanism.
-
-	// Destroy the reflection data when no longer required.
-	spvReflectDestroyShaderModule(&module);
+	//Bindings
+/* 	spvr_assert( spvReflectEnumerateDescriptorBindings(&module, &count, nullptr) );
+	std::vector<SpvReflectDescriptorBinding*> bindings(count);
+	spvr_assert( spvReflectEnumerateDescriptorBindings(&module, &count, bindings.data()) ); */
+	//Sets
+	SpvReflectDescriptorBinding a;
+	spvr_assert( spvReflectEnumerateDescriptorSets(&spvModule, &count, nullptr) );
+	std::vector<SpvReflectDescriptorSet*> spvSets(count);
+	spvr_assert( spvReflectEnumerateDescriptorSets(&spvModule, &count, spvSets.data()) );
+	for(auto &spvSet: spvSets)
+	{
+		auto set = spvSet->set;
+		assert(set >= 0 && set <= maxSets);
+		for(uint32_t i = 0; i < spvSet->binding_count; ++i)
+		{
+			auto &binding = *spvSet->bindings[i];
+			auto it = setBindings[set].find(binding.binding);
+			if(it != setBindings[set].end())
+			{
+				it->second.stageFlags |= stage;
+			}
+			else
+			{
+				setBindings[set].emplace(binding.binding, vk::DescriptorSetLayoutBinding{
+					.binding = binding.binding,
+					.descriptorType = (vk::DescriptorType)binding.descriptor_type,
+					.descriptorCount = binding.count,
+					.stageFlags = stage
+				});
+			}
+		}
+	}
+	spvReflectDestroyShaderModule(&spvModule);
 }
 
 PipelineBuilder& PipelineBuilder::SetInputLayout(bool interleaved, std::initializer_list<vk::Format> formats)
 {
-	bindings.clear();
-	attributes.clear();
+	viBindings.clear();
+	viAttributes.clear();
 	if(interleaved)
 	{
 		uint32_t stride = 0;
@@ -214,7 +226,7 @@ PipelineBuilder& PipelineBuilder::SetInputLayout(bool interleaved, std::initiali
 		binding.stride = stride;
 		binding.inputRate = vk::VertexInputRate::eVertex;
 
-		bindings.push_back(binding);
+		viBindings.push_back(binding);
 
 		uint32_t offset = 0, location = 0;
 		for(const auto &format : formats)
@@ -230,7 +242,7 @@ PipelineBuilder& PipelineBuilder::SetInputLayout(bool interleaved, std::initiali
 			offset+= info.bytes;
 			location++;
 
-			attributes.push_back(attribute);
+			viAttributes.push_back(attribute);
 		}
 	}
 	else{
@@ -238,4 +250,92 @@ PipelineBuilder& PipelineBuilder::SetInputLayout(bool interleaved, std::initiali
 	}
 
 	return *this;
+}
+
+PipelineBuilder& PipelineBuilder::SetPushConstants(std::initializer_list<vk::PushConstantRange> ranges)
+{
+	pushConstantRanges = std::move(ranges);
+	pipelineLayoutInfo.pushConstantRangeCount = pushConstantRanges.size();
+	pipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
+	return *this;
+}
+
+void PipelineBuilder::Build(vk::raii::Pipeline &pipeline, vk::raii::PipelineLayout &pLayout,
+	std::vector<vk::DescriptorSet> &sets, std::vector<vk::raii::DescriptorSetLayout> &setLayouts)
+{
+	std::vector<vk::DescriptorSetLayout> createSetWLayout;
+	for(int i = 0; i < maxSets; ++i)
+	{
+		if(setBindings[i].empty())
+			continue;
+		
+		std::vector<vk::DescriptorSetLayoutBinding> bindings; bindings.reserve(setBindings[i].size());
+		for(auto &bindingI : setBindings[i])
+			bindings.push_back(bindingI.second);
+
+		vk::DescriptorSetLayoutCreateInfo setInfo = {
+			.bindingCount = (uint32_t)bindings.size(),
+			.pBindings = bindings.data(),
+		};
+		
+		setLayouts.emplace_back(*device, setInfo);
+		createSetWLayout.push_back(*setLayouts.back());
+	}
+	
+	//if(sets.empty())
+		sets = renderer->CreateDescriptorSets(createSetWLayout);
+	/* else
+	{
+		auto newSets = renderer->CreateDescriptorSets(createSetWLayout);
+		sets.reserve(sets.size()+newSets.size());
+		std::move(std::begin(newSets), std::end(newSets), std::back_inserter(sets));
+	} */
+
+	setsCached = sets;
+	assert(setsCached.size() <= 4);
+
+	vertexInputInfo.pVertexAttributeDescriptions = viAttributes.data();
+	vertexInputInfo.vertexAttributeDescriptionCount = viAttributes.size();
+	vertexInputInfo.pVertexBindingDescriptions = viBindings.data();
+	vertexInputInfo.vertexBindingDescriptionCount = viBindings.size();
+	pipelineLayoutInfo.setLayoutCount = createSetWLayout.size();
+	pipelineLayoutInfo.pSetLayouts = createSetWLayout.data();
+
+	std::tie(pipeline, pLayout) = renderer->RegisterPipelines(pipelineInfo, pipelineLayoutInfo);
+}
+
+void PipelineBuilder::UpdateSets(const std::vector<WriteSetInfo> &parameters)
+{
+	size_t bindingsSize = 0;
+	for(int i = 0; i < 4; ++i)
+		bindingsSize += setBindings[i].size();
+	std::vector<VkWriteDescriptorSet> setWriteInfos;
+
+	for(const auto &param: parameters)
+	{
+		auto &currentBinding = setBindings[param.set][param.binding];
+
+		if(param.type == 0)
+			setWriteInfos.push_back(VkWriteDescriptorSet{
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = setsCached[param.set],
+				.dstBinding = (unsigned)param.binding,
+				.descriptorCount = currentBinding.descriptorCount,
+				.descriptorType = (VkDescriptorType)currentBinding.descriptorType,
+				.pBufferInfo = &param.data.buffer,
+			});
+		else if(param.type == 1)
+			setWriteInfos.push_back(VkWriteDescriptorSet{
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = setsCached[param.set],
+				.dstBinding = (unsigned)param.binding,
+				.descriptorCount = currentBinding.descriptorCount,
+				.descriptorType = (VkDescriptorType)currentBinding.descriptorType,
+				.pImageInfo = &param.data.image,
+			});
+		else
+			assert(0 && "Invalid setWriteInfos type");
+	}
+
+	vkUpdateDescriptorSets(**device, setWriteInfos.size(), setWriteInfos.data(), 0, nullptr);
 }
