@@ -323,6 +323,28 @@ typedef struct SpvReflectTypeDescription {
   struct SpvReflectTypeDescription* members;
 } SpvReflectTypeDescription;
 
+// -- GODOT begin --
+/*! @struct SpvReflectSpecializationConstant
+
+*/
+
+typedef enum SpvReflectSpecializationConstantType {
+  SPV_REFLECT_SPECIALIZATION_CONSTANT_BOOL = 0,
+  SPV_REFLECT_SPECIALIZATION_CONSTANT_INT = 1,
+  SPV_REFLECT_SPECIALIZATION_CONSTANT_FLOAT = 2,
+} SpvReflectSpecializationConstantType;
+
+typedef struct SpvReflectSpecializationConstant {
+  const char* name;
+  uint32_t spirv_id;
+  uint32_t constant_id;
+  SpvReflectSpecializationConstantType constant_type;
+  union {
+    float float_value;
+    uint32_t int_bool_value;
+  } default_value;
+} SpvReflectSpecializationConstant;
+// -- GODOT end --
 
 /*! @struct SpvReflectInterfaceVariable
 
@@ -472,6 +494,10 @@ typedef struct SpvReflectShaderModule {
   SpvReflectInterfaceVariable*      interface_variables;                              // Uses value(s) from first entry point
   uint32_t                          push_constant_block_count;                        // Uses value(s) from first entry point
   SpvReflectBlockVariable*          push_constant_blocks;                             // Uses value(s) from first entry point
+  // -- GODOT begin --
+  uint32_t                          specialization_constant_count;
+  SpvReflectSpecializationConstant* specialization_constants;
+  // -- GODOT end --
 
   struct Internal {
     SpvReflectModuleFlags           module_flags;
@@ -744,6 +770,33 @@ SpvReflectResult spvReflectEnumerateInputVariables(
   SpvReflectInterfaceVariable** pp_variables
 );
 
+// -- GOODT begin --
+/*! @fn spvReflectEnumerateSpecializationConstants
+ @brief  If the module contains multiple entry points, this will only get
+         the specialization constants for the first one.
+ @param  p_module      Pointer to an instance of SpvReflectShaderModule.
+ @param  p_count       If pp_constants is NULL, the module's specialization constant
+                       count will be stored here.
+                       If pp_variables is not NULL, *p_count must contain
+                       the module's specialization constant count.
+ @param  pp_variables  If NULL, the module's specialization constant count will be
+                       written to *p_count.
+                       If non-NULL, pp_constants must point to an array with
+                       *p_count entries, where pointers to the module's
+                       specialization constants will be written. The caller must not
+                       free the specialization constants written to this array.
+ @return               If successful, returns SPV_REFLECT_RESULT_SUCCESS.
+                       Otherwise, the error code indicates the cause of the
+                       failure.
+
+*/
+SpvReflectResult spvReflectEnumerateSpecializationConstants(
+  const SpvReflectShaderModule*      p_module,
+  uint32_t*                          p_count,
+  SpvReflectSpecializationConstant** pp_constants
+);
+// -- GODOT end --
+
 /*! @fn spvReflectEnumerateEntryPointInputVariables
  @brief  Enumerate the input variables for a given entry point.
  @param  entry_point The name of the entry point to get the input variables for.
@@ -992,6 +1045,31 @@ const SpvReflectDescriptorSet* spvReflectGetEntryPointDescriptorSet(
   SpvReflectResult*             p_result
 );
 
+/* @fn spvReflectGetSpecializationConstantByLocation
+
+ @param  p_module  Pointer to an instance of SpvReflectShaderModule.
+ @param  location  The "location" value of the requested specialization
+                   constant.
+                   A location of 0xFFFFFFFF will always return NULL
+                   with *p_result == ELEMENT_NOT_FOUND.
+ @param  p_result  If successful, SPV_REFLECT_RESULT_SUCCESS will be
+                   written to *p_result. Otherwise, a error code
+                   indicating the cause of the failure will be stored
+                   here.
+ @return           If the module contains a specialization constant
+                   with the provided location value, a pointer to that
+                   variable is returned. The caller must not free this
+                   pointer.
+                   If no match can be found, or if an unrelated error
+                   occurs, the return value will be NULL. Detailed
+                   error results are written to *pResult.
+                   
+*/
+const SpvReflectSpecializationConstant* spvReflectGetSpecializationConstantByLocation(
+  const SpvReflectShaderModule* p_module,
+  uint32_t                      location,
+  SpvReflectResult*             p_result
+);
 
 /* @fn spvReflectGetInputVariableByLocation
 

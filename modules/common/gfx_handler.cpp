@@ -118,7 +118,7 @@ void GfxHandler::LoadingDone()
 	sampler = renderer.CreateSampler();
 	auto pBuilder = renderer.GetPipelineBuilder();
 	pBuilder
-		//.SetSpecializationConstants({iTextureNumber, textureNumber})
+		.SetSpecializationConstants({iTextureNumber, textureNumber})
 		.SetShaders("data/spirv/shader.vert.bin", "data/spirv/shader.frag.bin")
 		.SetInputLayout(true, {vk::Format::eR16G16Sscaled, vk::Format::eR16G16Uscaled})
 		.SetPushConstants({{.stageFlags = vk::ShaderStageFlagBits::eVertex, .size = sizeof(glm::mat4)}})

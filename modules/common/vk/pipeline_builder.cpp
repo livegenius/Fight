@@ -199,13 +199,12 @@ void PipelineBuilder::BuildDescriptorSetsBindings(const void* code, size_t size,
 	//Bindings
 /* 	spvr_assert( spvReflectEnumerateDescriptorBindings(&module, &count, nullptr) );
 	std::vector<SpvReflectDescriptorBinding*> bindings(count);
-	spvr_assert( spvReflectEnumerateDescriptorBindings(&module, &count, bindings.data()) ); */
-	//Sets
-	/* spvr_assert( spvReflectEnumerateInterfaceVariables(&spvModule, &count, nullptr) );
-	std::vector<SpvReflectInterfaceVariable*> spvInterfaces(count);
-	spvr_assert( spvReflectEnumerateInterfaceVariables(&spvModule, &count, spvInterfaces.data()) );
-	 */
+	spvr_assert( spvReflectEnumerateDescriptorBindings(&module, &count, bindings.data()) ); 
 
+ 	spvr_assert( spvReflectEnumerateSpecializationConstants(&spvModule, &count, nullptr) );
+	std::vector<SpvReflectSpecializationConstant*> spvConstants(count);
+	spvr_assert( spvReflectEnumerateSpecializationConstants(&spvModule, &count, spvConstants.data()) );
+ */
 	spvr_assert( spvReflectEnumerateDescriptorSets(&spvModule, &count, nullptr) );
 	std::vector<SpvReflectDescriptorSet*> spvSets(count);
 	spvr_assert( spvReflectEnumerateDescriptorSets(&spvModule, &count, spvSets.data()) );
@@ -228,13 +227,15 @@ void PipelineBuilder::BuildDescriptorSetsBindings(const void* code, size_t size,
 				{
 					auto loc = binding.type_description->traits.array.spec_constant_op_ids[0];
 					SpvReflectResult result;
-					auto thing = spvReflectGetInputVariableByLocation(&spvModule, loc, &result);
-					assert(thing->location);
+					auto thing = spvReflectGetSpecializationConstantByLocation(&spvModule, loc, &result);
+					assert(result == SPV_REFLECT_RESULT_SUCCESS);
+					assert(specValues.size() > thing->constant_id);
+					count = specValues[thing->constant_id];
 				}
 				setBindings[set].emplace(binding.binding, vk::DescriptorSetLayoutBinding{
 					.binding = binding.binding,
 					.descriptorType = (vk::DescriptorType)binding.descriptor_type,
-					.descriptorCount = binding.count,
+					.descriptorCount = count,
 					.stageFlags = stage
 				});
 			}
