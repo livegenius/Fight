@@ -122,6 +122,23 @@ renderer(renderer)
 	};
 }
 
+PipelineBuilder& PipelineBuilder::SetSpecializationConstants(const std::initializer_list<int32_t> &values)
+{
+	specValues = values;
+	specEntries.resize(values.size());
+	for(unsigned int i = 0; i < values.size(); ++i)
+	{
+		specEntries[i] = {i, i*(uint32_t)sizeof(int32_t), sizeof(int32_t)};
+	}
+	specInfo = {
+		(uint32_t)specEntries.size(),
+		specEntries.data(),
+		specEntries.size()*sizeof(uint32_t),
+		&specValues
+	};
+	return *this;
+}
+
 PipelineBuilder& PipelineBuilder::SetShaders(path vertex, path fragment)
 {
 	shaderStages.clear();
@@ -131,6 +148,10 @@ PipelineBuilder& PipelineBuilder::SetShaders(path vertex, path fragment)
 		vk::ShaderStageFlagBits::eVertex,
 		vk::ShaderStageFlagBits::eFragment
 	};
+
+	vk::SpecializationInfo *specialization = nullptr;
+	if(!specEntries.empty())
+		specialization = &specInfo;
 
 	for(int i = 0; i < 2; ++i)
 	{
@@ -153,10 +174,11 @@ PipelineBuilder& PipelineBuilder::SetShaders(path vertex, path fragment)
 		};
 
 		shaderModules.emplace_back(*device, createInfo);
-		shaderStages.push_back({
+		shaderStages.push_back(vk::PipelineShaderStageCreateInfo{
 			.stage = shaderStageFlags[i],
 			.module = *shaderModules.back(),
 			.pName = "main",
+			.pSpecializationInfo = specialization,
 		});
 
 		BuildDescriptorSetsBindings(createInfo.pCode, createInfo.codeSize, shaderStageFlags[i]);
@@ -164,6 +186,7 @@ PipelineBuilder& PipelineBuilder::SetShaders(path vertex, path fragment)
 
 	pipelineInfo.pStages = shaderStages.data();
 	pipelineInfo.stageCount = shaderStages.size();
+
 	return *this;
 }
 
@@ -178,7 +201,11 @@ void PipelineBuilder::BuildDescriptorSetsBindings(const void* code, size_t size,
 	std::vector<SpvReflectDescriptorBinding*> bindings(count);
 	spvr_assert( spvReflectEnumerateDescriptorBindings(&module, &count, bindings.data()) ); */
 	//Sets
-	SpvReflectDescriptorBinding a;
+	/* spvr_assert( spvReflectEnumerateInterfaceVariables(&spvModule, &count, nullptr) );
+	std::vector<SpvReflectInterfaceVariable*> spvInterfaces(count);
+	spvr_assert( spvReflectEnumerateInterfaceVariables(&spvModule, &count, spvInterfaces.data()) );
+	 */
+
 	spvr_assert( spvReflectEnumerateDescriptorSets(&spvModule, &count, nullptr) );
 	std::vector<SpvReflectDescriptorSet*> spvSets(count);
 	spvr_assert( spvReflectEnumerateDescriptorSets(&spvModule, &count, spvSets.data()) );
@@ -196,6 +223,14 @@ void PipelineBuilder::BuildDescriptorSetsBindings(const void* code, size_t size,
 			}
 			else
 			{
+				uint32_t count = binding.count;
+				if(binding.count == 0xFFFFFFFF) //specialization constant
+				{
+					auto loc = binding.type_description->traits.array.spec_constant_op_ids[0];
+					SpvReflectResult result;
+					auto thing = spvReflectGetInputVariableByLocation(&spvModule, loc, &result);
+					assert(thing->location);
+				}
 				setBindings[set].emplace(binding.binding, vk::DescriptorSetLayoutBinding{
 					.binding = binding.binding,
 					.descriptorType = (vk::DescriptorType)binding.descriptor_type,
@@ -306,35 +341,70 @@ void PipelineBuilder::Build(vk::raii::Pipeline &pipeline, vk::raii::PipelineLayo
 
 void PipelineBuilder::UpdateSets(const std::vector<WriteSetInfo> &parameters)
 {
-	size_t bindingsSize = 0;
-	for(int i = 0; i < 4; ++i)
-		bindingsSize += setBindings[i].size();
-	std::vector<VkWriteDescriptorSet> setWriteInfos;
+	std::vector<VkWriteDescriptorSet> setWriteInfos; setWriteInfos.reserve(parameters.size());
+	std::vector<VkDescriptorBufferInfo> bufferArr; bufferArr.reserve(parameters.size());
+	std::vector<VkDescriptorImageInfo> imageArr; imageArr.reserve(parameters.size());
+	std::unordered_map<int,int> setAndBindCount[4];
 
 	for(const auto &param: parameters)
 	{
+		auto &currSet = setAndBindCount[param.set];
+		auto it = currSet.find(param.binding);
+		if(it != currSet.end())
+		{
+			it->second += 1;
+		}
+		else
+			currSet.emplace(param.binding, 1);
+	}
+
+	for(int pI = 0; pI < parameters.size(); ++pI)
+	{
+		auto &param = parameters[pI];
 		auto &currentBinding = setBindings[param.set][param.binding];
 
-		if(param.type == 0)
-			setWriteInfos.push_back(VkWriteDescriptorSet{
-				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.dstSet = setsCached[param.set],
-				.dstBinding = (unsigned)param.binding,
-				.descriptorCount = currentBinding.descriptorCount,
-				.descriptorType = (VkDescriptorType)currentBinding.descriptorType,
-				.pBufferInfo = &param.data.buffer,
-			});
-		else if(param.type == 1)
-			setWriteInfos.push_back(VkWriteDescriptorSet{
-				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.dstSet = setsCached[param.set],
-				.dstBinding = (unsigned)param.binding,
-				.descriptorCount = currentBinding.descriptorCount,
-				.descriptorType = (VkDescriptorType)currentBinding.descriptorType,
-				.pImageInfo = &param.data.image,
-			});
-		else
-			assert(0 && "Invalid setWriteInfos type");
+		VkWriteDescriptorSet write{
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.dstSet = setsCached[param.set],
+			.dstBinding = (unsigned)param.binding,
+			.descriptorCount = 1,
+			.descriptorType = (VkDescriptorType)currentBinding.descriptorType
+		};
+
+		auto count = setAndBindCount[param.set][param.binding];
+		if(count > 1)	
+		{
+			assert(count <= write.descriptorCount);
+			write.descriptorCount = count;
+			if(param.type == 0)
+			{
+				write.pBufferInfo = bufferArr.data()+bufferArr.size();
+				for(int i = 0; i < count && i < parameters.size() - pI; ++i, ++pI)
+				{
+					assert(parameters[pI].type == 0);
+					bufferArr.push_back(parameters[pI].data.buffer);
+				}
+			}
+			else //if(param.type == 1)
+			{
+				write.pImageInfo = imageArr.data()+imageArr.size();
+				for(int i = 0; i < count && i < parameters.size() - pI; ++i, ++pI)
+				{
+					assert(parameters[pI].type == 1);
+					imageArr.push_back(parameters[pI].data.image);	
+				}
+			}
+		}
+		else if(param.type == 0)
+		{
+			write.pBufferInfo = &param.data.buffer;
+		}
+		else //if(param.type == 1)
+		{
+			write.pImageInfo = &param.data.image;
+		}
+
+		setWriteInfos.push_back(write);
 	}
 
 	vkUpdateDescriptorSets(**device, setWriteInfos.size(), setWriteInfos.data(), 0, nullptr);

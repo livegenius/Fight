@@ -31,6 +31,9 @@ private:
 	const vk::raii::Device* device;
 	Renderer* renderer;
 	std::vector<vk::DescriptorSet> setsCached;
+	std::vector<VkSpecializationMapEntry> specEntries;
+	vk::SpecializationInfo specInfo;
+	std::vector<int32_t> specValues;
 
 	void BuildDescriptorSetsBindings(const void* code, size_t size, vk::ShaderStageFlagBits);
 public:
@@ -58,6 +61,7 @@ public:
 	PipelineBuilder(vk::raii::Device *device, Renderer* renderer);
 	~PipelineBuilder();
 	
+	PipelineBuilder& SetSpecializationConstants(const std::initializer_list<int32_t> &values);
 	PipelineBuilder& SetShaders(path vertex, path fragment);
 	PipelineBuilder& SetInputLayout(bool interleaved, std::initializer_list<vk::Format> formats);
 	PipelineBuilder& SetPushConstants(std::initializer_list<vk::PushConstantRange> ranges);

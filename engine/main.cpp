@@ -62,7 +62,9 @@ int main(int argc, char** argv)
 
 	while(!mainWindow->wantsToClose)
 	{
+		#ifdef NDEBUG
 		try{
+		#endif
 			switch (gameState)
 			{
 				case GS_MENU:
@@ -80,6 +82,7 @@ int main(int argc, char** argv)
 					break;
 				}
 			}
+		#ifdef NDEBUG
 		}
 		catch(std::exception e)
 		{
@@ -87,6 +90,7 @@ int main(int argc, char** argv)
 			std::cin.get();
 			return 0;
 		}
+		#endif
 	}
 
 	for(auto &control : controllers)

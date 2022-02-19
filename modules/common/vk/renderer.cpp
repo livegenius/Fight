@@ -543,12 +543,14 @@ void Renderer::LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vect
 
 		vk::Extent3D extent = {image.width, image.height, 1};
 		vk::Format format;
-		if(image.bytesPerPixel == 1)
+		if(image.compressed)
+			format = vk::Format::eBc3SrgbBlock;
+		else if(image.bytesPerPixel == 1)
 			format = vk::Format::eR8Uint;
 		else if(image.bytesPerPixel == 4)
 			format = vk::Format::eR8G8B8A8Srgb;
 		else
-			throw std::runtime_error(std::string("Unsupported format: ") + info.path.string());
+			assert(0 && "Unsupported format: ");
 
 		vk::ImageCreateInfo imgInfo =
 		{

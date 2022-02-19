@@ -44,6 +44,7 @@ int GfxHandler::LoadGfxFromLua(sol::state &lua, std::filesystem::path workingDir
 	idMapList.push_back({});
 
 	std::vector<Renderer::LoadTextureInfo> infos;
+	const auto textureIndex = textures.size();
 	for(const auto &entry : graphics)
 	{
 		sol::table arr = entry.second;
@@ -64,7 +65,7 @@ int GfxHandler::LoadGfxFromLua(sol::state &lua, std::filesystem::path workingDir
 		else
 			info.type = Renderer::TextureType::png;
 
-		LoadToVertexBuffer(workingDir/vertexFile, mapId, infos.size()-1);
+		LoadToVertexBuffer(workingDir/vertexFile, mapId, textureIndex+infos.size()-1);
 	}
 
 	renderer.LoadTextures(infos, textures);
@@ -105,9 +106,19 @@ void GfxHandler::LoadToVertexBuffer(std::filesystem::path file, int mapId, int t
 
 void GfxHandler::LoadingDone()
 {
+	//Count the number of the type of texture so it can go into the specialized texture array in the shader.
+	int32_t iTextureNumber = 0;
+	int32_t textureNumber = 0;
+	for(auto &tex: textures)
+		if(tex.format == vk::Format::eR8Uint)
+			iTextureNumber += 1;
+		else
+			textureNumber += 1;
+	
 	sampler = renderer.CreateSampler();
 	auto pBuilder = renderer.GetPipelineBuilder();
 	pBuilder
+		//.SetSpecializationConstants({iTextureNumber, textureNumber})
 		.SetShaders("data/spirv/shader.vert.bin", "data/spirv/shader.frag.bin")
 		.SetInputLayout(true, {vk::Format::eR16G16Sscaled, vk::Format::eR16G16Uscaled})
 		.SetPushConstants({{.stageFlags = vk::ShaderStageFlagBits::eVertex, .size = sizeof(glm::mat4)}})
