@@ -17,6 +17,17 @@
 			"console": "integratedTerminal"
 		},
 		{
+			"name": "Engine (REL)",
+			"type": "cppvsdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/rel/bin/Fight.exe",
+			//"args": ["127.0.0.1", "7000"],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}",
+			"environment": [],
+			"console": "integratedTerminal"
+		},
+		{
 			"name": "Compressor",
 			"type": "cppvsdbg",
 			"request": "launch",

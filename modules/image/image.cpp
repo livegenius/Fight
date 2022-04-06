@@ -9,6 +9,17 @@
 
 #include <lz4.h>
 
+int SpngStreamRead(spng_ctx *ctx, void *user, void *dest, size_t length)
+{
+	auto *file = (std::ifstream*)user;
+	file->read((char *)dest, length);
+	if(file->eof())
+		return SPNG_IO_EOF;
+	else if(file->fail())
+		return SPNG_IO_ERROR;
+	return 0;
+}
+
 void* ImageData::defaultAllocator(size_t size)
 {
 	return new char[size];
@@ -35,13 +46,23 @@ data(nullptr), width(_width), height(_height), bytesPerPixel(_bytesPerPixel)
 
 ImageData::ImageData(std::filesystem::path image, Allocation alloc): ImageData()
 {
-	if(!LoadLzs3(image, alloc) && !LoadPng(image, alloc) && !LoadRaw(image, alloc))
-		std::cerr << image<<": invalid image file\n";
+	if(!LoadAny(image, alloc))
+		throw std::runtime_error(image.string()+" : Can't load image.\n");
 }
 
 ImageData::~ImageData()
 {
 	free(data);
+}
+
+bool ImageData::LoadAny(std::filesystem::path image, Allocation alloc)
+{
+	if(!LoadLzs3(image, alloc) && !LoadPng(image, alloc) && !LoadRaw(image, alloc))
+	{
+		std::cerr << image<<": invalid image file\n";
+		return false;
+	}
+	return true;
 }
 
 std::size_t ImageData::GetMemSize() const
@@ -59,30 +80,71 @@ struct raw_header{
 	uint32_t w, h, bpp;
 };
 
-bool ImageData::WriteRaw(std::filesystem::path filename) const
+int ImageData::PeekBytesPerPixel(std::filesystem::path path)
 {
-	std::ofstream out(filename, std::ios_base::binary);
-	if(!out.is_open())
+	std::ifstream image(path, std::ios_base::binary);
+	if(image.fail())
 		return false;
 	
-	raw_header meta = {
-		width, height, bytesPerPixel
-	};
-	uint32_t size = GetMemSize();
-	out.write((char*)&meta, sizeof(meta));
-	out.write((char*)data, size);
-	return true;
-}
+	lzs3:{
+		struct{
+			uint32_t type;
+			uint32_t size;
+			uint32_t cSize;
+			uint16_t w,h;
+		} meta{};
+		image.read((char*)&meta, sizeof(meta));
+		if((meta.type&~0x1000) > 4 || meta.w > 16384 || meta.h > 16384 || meta.size*2 < meta.cSize) //Checking valid header.
+			goto png;
+		if(meta.type & 0x1000)
+			return meta.type&~0x1000;
+		else
+			return 4;
+	}
+	png:{
+		image.seekg (0, image.beg);
+		std::unique_ptr<spng_ctx, decltype(&spng_ctx_free)> ctxObj(spng_ctx_new(0), &spng_ctx_free);
+		auto ctx = ctxObj.get();
+		if(ctx == NULL)
+			goto raw;
 
-int SpngStreamRead(spng_ctx *ctx, void *user, void *dest, size_t length)
-{
-	auto *file = (std::ifstream*)user;
-	file->read((char *)dest, length);
-	if(file->eof())
-		return SPNG_IO_EOF;
-	else if(file->fail())
-		return SPNG_IO_ERROR;
-	return 0;
+		/* Ignore and don't calculate chunk CRC's */
+		spng_set_crc_action(ctx, SPNG_CRC_USE, SPNG_CRC_USE);
+		constexpr size_t limit = 4096 * 4096 * 16;
+		spng_set_chunk_limits(ctx, limit, limit);
+		spng_set_png_stream(ctx, SpngStreamRead, &image);
+
+		struct spng_ihdr ihdr;
+		int result = spng_get_ihdr(ctx, &ihdr);
+
+		if(result)
+			goto raw;
+
+		switch(ihdr.color_type)
+		{
+		case SPNG_COLOR_TYPE_GRAYSCALE:
+			return 1;
+		case SPNG_COLOR_TYPE_TRUECOLOR:
+			return 3;
+		case SPNG_COLOR_TYPE_INDEXED:
+			return 1;
+		case SPNG_COLOR_TYPE_GRAYSCALE_ALPHA:
+			return 2;
+		default:
+			return 4; //RGBA
+		}
+	}
+	raw:{
+		image.seekg (0, image.beg);
+		raw_header meta;
+		image.read((char*)&meta, sizeof(meta));
+		if(meta.bpp > 4 || meta.w*meta.h*meta.bpp > 4096 * 4096 * 16)
+			goto err;
+		return meta.bpp;
+	}
+	err:
+		std::cerr << path <<"is not a valid image file.\n";
+		return -1;
 }
 
 bool ImageData::LoadPng(std::filesystem::path filename, Allocation alloc)
@@ -274,6 +336,9 @@ bool ImageData::LoadLzs3(std::filesystem::path imageFile, Allocation alloc)
 		uint16_t w,h;
 	} meta{};
 	file.read((char*)&meta, sizeof(meta));
+	if((meta.type&~0x1000) > 4 || meta.w > 16384 || meta.h > 16384 || meta.size*2 < meta.cSize) //Checking valid header.
+		return false;
+
 	*alloc.ptr = alloc.allocate(meta.size);
 	auto cData = std::make_unique<char[]>(meta.cSize);
 	file.read(cData.get(), meta.cSize);
@@ -295,3 +360,18 @@ bool ImageData::LoadLzs3(std::filesystem::path imageFile, Allocation alloc)
 
 	return true;
 }	
+
+bool ImageData::WriteRaw(std::filesystem::path filename) const
+{
+	std::ofstream out(filename, std::ios_base::binary);
+	if(!out.is_open())
+		return false;
+	
+	raw_header meta = {
+		width, height, bytesPerPixel
+	};
+	uint32_t size = GetMemSize();
+	out.write((char*)&meta, sizeof(meta));
+	out.write((char*)data, size);
+	return true;
+}

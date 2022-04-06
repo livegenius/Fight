@@ -68,7 +68,6 @@ private:
 	//Renderer stuff
 	HitboxRenderer hr;
 	glm::mat4 projection;
-	unsigned int paletteId;
 
 	void SetModelView(glm::mat4 &view);
 	void SetModelView(glm::mat4 &&view);

@@ -3,12 +3,8 @@
 #.vscode/
 *.code-workspace
 
-#Original image data
-/data/char/vaki/effect/
-/data/char/vaki/vaki/
-/data/images/src/
-/data/hud/src/
-/data/bg/src/
+#Source data
+/data/**/src/
 /data/spirv/
 
 #clangd

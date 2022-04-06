@@ -18,17 +18,19 @@ public:
 	static constexpr size_t bufferedFrames = 2;
 	static size_t uniformBufferAligment;
 
-	enum TextureType{
-		png,
-		lzs3,
+	enum SrcTextureType{
+		standard = 0,
+		palette = 1,
 	};
 
 	struct LoadTextureInfo{
 		std::filesystem::path path;
-		TextureType type;
-		bool repeat = false;
-		bool linearFilter = false;
-		bool rectangle = false;
+		SrcTextureType type;
+
+		//Only if it's palette type.
+		uint16_t width; 
+		uint16_t height;
+		uint8_t *data;
 	};
 
 	enum BufferFlags{
@@ -38,7 +40,7 @@ public:
 
 	struct Texture{
 		AllocatedImage buf;
-		vk::raii::ImageView view;
+		vk::raii::ImageView view = nullptr;
 		vk::Extent3D extent;
 		vk::Format format;
 	};
@@ -135,6 +137,7 @@ public:
 	void Submit();
 	bool HandleEvents(SDL_Event);
 	
+	Renderer::Texture LoadTextureSingle(const LoadTextureInfo& info);
 	void LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vector<Texture> &textures);
 	AllocatedBuffer NewBuffer(size_t size, BufferFlags);
 	void TransferBuffer(AllocatedBuffer &src, AllocatedBuffer &dst, size_t size);

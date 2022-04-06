@@ -12,7 +12,7 @@ int main(int argc, char **argv)
 	args::ArgumentParser parser("lzs3 image compressor.",
 	"Encodes a single image into a lz4-compressed s3tc texture format, thus lzs3. "
 	"The input has to be a PNG or RAW file.");
-	args::Positional<std::string> srcImage(parser, "FILE", "Path to the image.");
+	args::PositionalList<std::string> srcImages(parser, "FILE(s)", "Path to the image.");
 	args::HelpFlag help(parser, "help", "Display this help menu.", {'h', "help"});
 	args::ValueFlag<std::string> outName(parser, "name", "Output filename. Defaults to [FILE].", {'o'});
 	args::ValueFlag<int> dtxn(parser, "format",
@@ -34,7 +34,7 @@ int main(int argc, char **argv)
 	try
 	{
 		parser.ParseCLI(argc, argv);
-		if(!srcImage)
+		if(!srcImages)
 		{
 			std::cout << "No image file selected. Use -h for help.";
 			return 0;
@@ -106,71 +106,90 @@ int main(int argc, char **argv)
 	if(weightAlpha)
 		extra = kWeightColourByAlpha;
 
-	std::filesystem::path filepath = srcImage.Get();
-
-	//Compress image
-	ImageData img(filepath);
-
-	if(alphaCorrect && img.bytesPerPixel == 4)
-	{
-		float exponent = alphaCorrect.Get();
-		for(int i = 0; i < img.height*img.width*4; i+=4)
-		{
-			auto& alpha = img.data[i+3];
-			alpha = pow((float)alpha/255.f, exponent) * 255.f;
-		}
-	}
-
-	int size;
-	uint8_t* dataToCompress;
-
-	if(fit)
-	{
-		int flags = format | fit | extra;
-		size = GetStorageRequirements( img.width, img.height, flags );
-		dataToCompress = new uint8_t[size];
-		CompressImage(img.data, img.width, img.height, dataToCompress, flags);
-	}
-	else
-	{
-		format = 0;
-		size = img.width * img.height * img.bytesPerPixel;
-		dataToCompress = img.data;
-	}
-
-	int cSize = LZ4_compressBound(size);
-	auto compressed = std::make_unique<char[]>(cSize);
-
-	uint32_t outBytes = LZ4_compress_default((char*)dataToCompress, compressed.get(), size, cSize);
-	if(fit)
-		delete[] dataToCompress;
-
-	struct{
-		uint32_t type;
-		uint32_t size;
-		uint32_t cSize;
-		uint16_t w,h;
-	} meta;
-	meta.size = size;
-	meta.cSize = outBytes;
-	meta.w = img.width;
-	meta.h = img.height;
-	if(format & kDxt1)
-		meta.type = 1;
-	else if(format & kDxt3)
-		meta.type = 2;
-	else if(format & kDxt5)
-		meta.type = 3;
-	else
-		meta.type = img.bytesPerPixel|0x1000;
-
-	std::filesystem::path outFilepath = filepath.parent_path()/filepath.stem();
+	std::filesystem::path outFilepath;
 	if(outName)
 		outFilepath = outName.Get();
+	else
+	{
+		std::filesystem::path firstFile = args::get(srcImages).front();
+		if(args::get(srcImages).size() > 1) //Take the name of the folder if it's more than 1 image.
+		{
+			if(firstFile.parent_path().empty())
+				outFilepath = "output";
+			else
+				outFilepath = firstFile.parent_path()/firstFile.parent_path();
+		}
+		else
+		{
+			outFilepath = firstFile.parent_path()/firstFile.stem();
+		}
+	}
 	outFilepath += ".lzs3";
 	std::ofstream file(outFilepath, std::ios_base::binary);
-	file.write((char*)&meta, sizeof(meta));
-	file.write(compressed.get(), outBytes);
+
+	for(const auto imagePath: args::get(srcImages))
+	{
+		std::filesystem::path filepath = imagePath;
+
+		//Compress image
+		ImageData img(filepath);
+
+		if(alphaCorrect && img.bytesPerPixel == 4)
+		{
+			float exponent = alphaCorrect.Get();
+			for(int i = 0; i < img.height*img.width*4; i+=4)
+			{
+				auto& alpha = img.data[i+3];
+				alpha = pow((float)alpha/255.f, exponent) * 255.f;
+			}
+		}
+
+		int size;
+		uint8_t* dataToCompress;
+
+		if(fit)
+		{
+			int flags = format | fit | extra;
+			size = GetStorageRequirements( img.width, img.height, flags );
+			dataToCompress = new uint8_t[size];
+			CompressImage(img.data, img.width, img.height, dataToCompress, flags);
+		}
+		else
+		{
+			format = 0;
+			size = img.width * img.height * img.bytesPerPixel;
+			dataToCompress = img.data;
+		}
+
+		int cSize = LZ4_compressBound(size);
+		auto compressed = std::make_unique<char[]>(cSize);
+
+		uint32_t outBytes = LZ4_compress_default((char*)dataToCompress, compressed.get(), size, cSize);
+		if(fit)
+			delete[] dataToCompress;
+
+		struct{
+			uint32_t type;
+			uint32_t size;
+			uint32_t cSize;
+			uint16_t w,h;
+		} meta;
+		meta.size = size;
+		meta.cSize = outBytes;
+		meta.w = img.width;
+		meta.h = img.height;
+		if(format & kDxt1)
+			meta.type = 1;
+		else if(format & kDxt3)
+			meta.type = 2;
+		else if(format & kDxt5)
+			meta.type = 3;
+		else
+			meta.type = img.bytesPerPixel|0x1000;
+
+		file.write((char*)&meta, sizeof(meta));
+		file.write(compressed.get(), outBytes);
+	}
 
 	/* ImageData outImg(img.width, img.height, 4);
 	DecompressImage(outImg.data, img.width, img.height, dxtData.get(), format );

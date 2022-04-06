@@ -24,6 +24,7 @@ struct AllocatedImage {
 	AllocatedImage(AllocatedImage&&);
 	AllocatedImage(const AllocatedImage&) = delete;
 	AllocatedImage& operator=(const AllocatedImage&) = delete;
+	AllocatedImage& operator=(AllocatedImage&&);
 	void Allocate(const vma::Allocator &, const vk::ImageCreateInfo, const vma::MemoryUsage, const vk::MemoryPropertyFlags = {});
 	void Destroy();
 	~AllocatedImage();

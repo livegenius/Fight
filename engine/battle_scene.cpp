@@ -24,32 +24,6 @@ const char *texNames[] ={
 
 int inputDelay = 0;
 
-//TODO: Remove.
-unsigned int LoadPaletteTEMP()
-{
-	std::ifstream pltefile("data/palettes/col1.act", std::ifstream::in | std::ifstream::binary);
-	uint8_t palette[256*3*2];
-
-	pltefile.read((char*)palette, 256*3);
-	pltefile.close();
-	pltefile.open("data/palettes/col2.act", std::ifstream::in | std::ifstream::binary);
-	pltefile.read((char*)(palette+256*3), 256*3);
-
-	unsigned int paletteGlId = 0;
-
-/* 	glGenTextures(1, &paletteGlId);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, paletteGlId);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 256, 2, 0, GL_RGB, GL_UNSIGNED_BYTE, palette);
-	glActiveTexture(GL_TEXTURE0); */
-
-	return paletteGlId;
-}
-
 BattleScene::BattleScene(ENetHost *local):
 sfx(gameTicks),
 local(local),
@@ -63,8 +37,6 @@ player(interface), player2(interface)
 		texture.LoadLzs3(texNames[0], opt);
 		activeTextures.push_back(std::move(texture));
 	}
-	
-	paletteId = LoadPaletteTEMP();
 
 	/* defaultS.LoadShader("data/def.vert", "data/def.frag");
 	defaultS.Use();	 */
@@ -185,6 +157,9 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			return 0;
 		}
 	}
+
+	int palOffset1 = 0;
+	int palOffset2 = 0;
 	
 	while(!mainWindow->wantsToClose)
 	{
@@ -237,6 +212,11 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			player2.SendInput(keySend[1]);
 			AdvanceFrame();
 		}
+
+		if(gameTicks % 21 == 0)
+			palOffset1 = (palOffset1+1)%4;
+		if(gameTicks % 41 == 0)
+			palOffset2 = (palOffset2+1)%4;
 		
 		//Start rendering
 		drawList.Init(player, player2);
@@ -250,7 +230,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		int p1Pos = players[1]->FillDrawList(drawList);
 		int p2Pos = players[0]->FillDrawList(drawList);
 
-		auto draw = [this,&gfx](Actor *actor, glm::mat4 &viewMatrix)
+		auto draw = [this,&gfx, &palOffset1, &palOffset2](Actor *actor, glm::mat4 &viewMatrix)
 		{
 			gfx.SetMatrix(projection*viewMatrix*actor->GetSpriteTransform());
 			auto options = actor->GetRenderOptions();
@@ -263,7 +243,11 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 					glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 					break;
 			}; */
-			gfx.Draw(actor->GetSpriteIndex(), 0, options.paletteIndex);
+			if(options.paletteIndex == 0)
+				gfx.SetPaletteSlot(palOffset1);
+			else
+				gfx.SetPaletteSlot(palOffset2);
+			gfx.Draw(actor->GetSpriteIndex(), 0);
 		};
 
 		auto invertedView = glm::translate(glm::scale(viewMatrix, glm::vec3(1,-1,1)), glm::vec3(0,-64,0));

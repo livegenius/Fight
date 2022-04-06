@@ -503,6 +503,13 @@ void Renderer::EndDrawing(int imageIndex)
 	cmd.end();
 }
 
+Renderer::Texture Renderer::LoadTextureSingle(const LoadTextureInfo& info)
+{
+	std::vector<Texture> texturesDummy;
+	LoadTextures({info}, texturesDummy);
+	return std::move(texturesDummy.back());
+}
+
 void Renderer::LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vector<Texture> &textures)
 {
 	std::vector<int> returns(infos.size());
@@ -526,20 +533,34 @@ void Renderer::LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vect
 		};
 
 		char *ptr;
-		auto deallocateFunc = [](void**){};
+		auto deallocateFunc = [](void**){}; //TODO: !!!
 		ImageData image;
 		bool result;
-		if(info.type == TextureType::lzs3)
-			result = image.LoadLzs3(info.path, ImageData::Allocation{(void**)&ptr, allocateFunc, deallocateFunc});
-		else if(info.type == TextureType::png)
-			result = image.LoadPng(info.path, ImageData::Allocation{(void**)&ptr, allocateFunc, deallocateFunc});
-		
-		stagingBuffer.Unmap();
+		switch(info.type)
+		{
+			case palette:{
+				auto size = info.height*info.width*4;
+				stagingBuffer.Allocate(allocator, size, vk::BufferUsageFlagBits::eTransferSrc, vma::MemoryUsage::eCpuOnly);
+				void * data = stagingBuffer.Map();
+				image.width = info.width;
+				image.height = info.height;
+				image.bytesPerPixel = 4;
+				memcpy(data, info.data, size);
+				result = true;
+				break;
+			}
+			default:
+				result = image.LoadAny(info.path, ImageData::Allocation{(void**)&ptr, allocateFunc, deallocateFunc});
+		}
+
+		if(stagingBuffer.allocation)
+			stagingBuffer.Unmap();
 		if(!result)
 		{
 			std::cerr << "Error while loading " << info.path <<"\n";
 			throw std::runtime_error("Texture can't be loaded");
 		}
+		
 
 		vk::Extent3D extent = {image.width, image.height, 1};
 		vk::Format format;

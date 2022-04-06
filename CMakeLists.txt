@@ -50,7 +50,7 @@ add_subdirectory(engine)
 if(AFGE_BUILD_TOOLS)
 	add_subdirectory(submodules/squish) 
 	#Not supported by non-submodule build
-	include(imgui) #We use a special branch branch.
+	#include(imgui) #We use a special branch branch.
 	add_subdirectory(submodules/nfd) 
 
 	add_subdirectory(tools)

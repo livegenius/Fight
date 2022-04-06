@@ -4,7 +4,11 @@
 #include "format_info.h"
 #include <spirv_reflect.h>
 
-#define spvr_assert(x) assert(x == SPV_REFLECT_RESULT_SUCCESS)
+#define spvr_assert(x)\
+	do{\
+		auto result = x;\
+		assert(x == SPV_REFLECT_RESULT_SUCCESS);\
+	}while(0)
 
 PipelineBuilder::~PipelineBuilder(){}
 PipelineBuilder::PipelineBuilder(vk::raii::Device *device, Renderer* renderer):
@@ -133,8 +137,8 @@ PipelineBuilder& PipelineBuilder::SetSpecializationConstants(const std::initiali
 	specInfo = {
 		(uint32_t)specEntries.size(),
 		specEntries.data(),
-		specEntries.size()*sizeof(uint32_t),
-		&specValues
+		specEntries.size()*sizeof(int32_t),
+		specValues.data()
 	};
 	return *this;
 }
@@ -291,6 +295,12 @@ PipelineBuilder& PipelineBuilder::SetInputLayout(bool interleaved, std::initiali
 PipelineBuilder& PipelineBuilder::SetPushConstants(std::initializer_list<vk::PushConstantRange> ranges)
 {
 	pushConstantRanges = std::move(ranges);
+	uint32_t offset = 0;
+	for(auto &range :pushConstantRanges)
+	{
+		range.offset = offset;
+		offset += range.size;
+	}
 	pipelineLayoutInfo.pushConstantRangeCount = pushConstantRanges.size();
 	pipelineLayoutInfo.pPushConstantRanges = pushConstantRanges.data();
 	return *this;
@@ -340,6 +350,8 @@ void PipelineBuilder::Build(vk::raii::Pipeline &pipeline, vk::raii::PipelineLayo
 	std::tie(pipeline, pLayout) = renderer->RegisterPipelines(pipelineInfo, pipelineLayoutInfo);
 }
 
+
+
 void PipelineBuilder::UpdateSets(const std::vector<WriteSetInfo> &parameters)
 {
 	std::vector<VkWriteDescriptorSet> setWriteInfos; setWriteInfos.reserve(parameters.size());
@@ -373,9 +385,9 @@ void PipelineBuilder::UpdateSets(const std::vector<WriteSetInfo> &parameters)
 		};
 
 		auto count = setAndBindCount[param.set][param.binding];
-		if(count > 1)	
+		if(count > 1) //Array of descriptors must be contiguous.
 		{
-			assert(count <= write.descriptorCount);
+			assert(count <= setBindings[param.set][param.binding].descriptorCount);
 			write.descriptorCount = count;
 			if(param.type == 0)
 			{
@@ -389,7 +401,7 @@ void PipelineBuilder::UpdateSets(const std::vector<WriteSetInfo> &parameters)
 			else //if(param.type == 1)
 			{
 				write.pImageInfo = imageArr.data()+imageArr.size();
-				for(int i = 0; i < count && i < parameters.size() - pI; ++i, ++pI)
+				for(int i = 0; i < count && pI < parameters.size(); ++i, ++pI)
 				{
 					assert(parameters[pI].type == 1);
 					imageArr.push_back(parameters[pI].data.image);	

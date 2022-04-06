@@ -26,6 +26,9 @@ public:
 	ImageData(std::filesystem::path image, Allocation alloc = {nullptr, defaultAllocator, defaultDeallocator});
 	~ImageData();
 	
+	static int PeekBytesPerPixel(std::filesystem::path image);
+	//bool PeekMem(void *memory);
+	bool LoadAny(std::filesystem::path image, Allocation alloc = {nullptr, defaultAllocator, defaultDeallocator});
 	bool LoadRaw(std::filesystem::path image, Allocation alloc = {nullptr, defaultAllocator, defaultDeallocator});
 	bool LoadPng(std::filesystem::path image, Allocation alloc = {nullptr, defaultAllocator, defaultDeallocator});
 	bool LoadLzs3(std::filesystem::path image, Allocation alloc = {nullptr, defaultAllocator, defaultDeallocator});
