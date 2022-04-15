@@ -54,18 +54,10 @@ void VertexBuffer::UpdateElementBuffer(void *data, size_t count)
 	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, count, data); */
 }
 
-void VertexBuffer::Bind()
-{
-/* 	glBindVertexArray(vaoId);
-	if(eboId)
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboId); */
-}
-
 void VertexBuffer::Load()
 {
-	Bind();
-	buffer = renderer.NewBuffer(totalSize, Renderer::BufferFlags::VertexStatic);
-	AllocatedBuffer stagingBuffer = renderer.NewBuffer(totalSize, Renderer::BufferFlags::TransferSrc);
+	buffer.Allocate(&renderer, totalSize, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vma::MemoryUsage::eGpuOnly);
+	AllocatedBuffer stagingBuffer(&renderer, totalSize, vk::BufferUsageFlagBits::eTransferSrc, vma::MemoryUsage::eCpuOnly);
 	uint8_t *data = (uint8_t*)stagingBuffer.Map();
 	size_t where = 0;
 	for(auto &subData : dataPointers)

@@ -266,13 +266,13 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		}
 
 		//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-		/* SetModelView(viewMatrix);
-		for(auto &pg : particleGroups)
-		{
-			pg.second.FillParticleVector(particles);
-			gfx.DrawParticles(particles, pg.first);
-		}
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); */
+		gfx.SetMatrix(projection*viewMatrix);
+		auto &pg = particleGroups[ParticleGroup::START];
+
+			pg.FillParticleVector(particles);
+			gfx.DrawParticles(particles, ParticleGroup::START);
+		
+		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
 		gfx.End();
 
 		//Draw boxes

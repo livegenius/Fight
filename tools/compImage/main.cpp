@@ -133,6 +133,11 @@ int main(int argc, char **argv)
 
 		//Compress image
 		ImageData img(filepath);
+		if(img.bytesPerPixel != 4 && quality)
+		{
+			format = 0;
+			std::cout << "Warning: The mage is not 32bpp. Skipping s3tc compression...";
+		}
 
 		if(alphaCorrect && img.bytesPerPixel == 4)
 		{

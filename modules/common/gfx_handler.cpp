@@ -46,34 +46,6 @@ int GfxHandler::LoadGfxFromLua(sol::state &lua, std::filesystem::path workingDir
 
 	std::vector<Renderer::LoadTextureInfo> infos;
 	
-
-	sol::optional<std::vector<std::string>> imageListOpt = graphics["images"];
-	if(imageListOpt)
-	{
-		for(const std::string &imageFile : imageListOpt.value())
-		{
-			auto path = workingDir/imageFile;
-			infos.push_back({
-				.path = path,
-				.type = Renderer::SrcTextureType::standard
-			});
-			int ByPP = ImageData::PeekBytesPerPixel(path);
-			if(ByPP == 1)
-			{
-				index8++;
-			}
-			else if (ByPP == 4)
-			{
-				index32++;
-			}
-			else
-			{
-				std::cerr << path << " : Unhandled texture byte depth "<<ByPP<<". Skipping...";
-				continue;
-			}
-		}
-	}
-	
 	for(const auto &entry : graphics)
 	{
 		sol::table arr = entry.second;
@@ -94,10 +66,10 @@ int GfxHandler::LoadGfxFromLua(sol::state &lua, std::filesystem::path workingDir
 				LoadToVertexBuffer(workingDir/vertexFile.value(), mapId, index8);
 				index8++;
 			}
-			else if(ByPP == 4)
+			else if(ByPP == 4) //32bit textures have negative indices to differenciate.
 			{
-				LoadToVertexBuffer(workingDir/vertexFile.value(), mapId, index32);
-				index32++;
+				LoadToVertexBuffer(workingDir/vertexFile.value(), mapId, index32-1);
+				index32--;
 			}
 			else
 			{
@@ -108,7 +80,30 @@ int GfxHandler::LoadGfxFromLua(sol::state &lua, std::filesystem::path workingDir
 		}
 	}
 
-	renderer.LoadTextures(infos, textures);
+	int spriteEndIndexNeg = -infos.size();
+	sol::optional<std::vector<std::string>> imageListOpt = graphics["images"];
+	if(imageListOpt)
+	{
+		for(const std::string &imageFile : imageListOpt.value())
+		{
+			auto path = workingDir/imageFile;
+			infos.push_back({
+				.path = path,
+				.type = Renderer::SrcTextureType::standard
+			});
+			int ByPP = ImageData::PeekBytesPerPixel(path);
+			assert(ByPP == 4 && "Unsupported ByPP");
+		}
+	}
+
+	spriteEndIndexNeg += infos.size();
+
+	renderer.LoadTextures(infos, textureAtlas);
+
+	//Keep chunked textures separate.
+	textureQuads.insert(textureQuads.end(), std::make_move_iterator(textureAtlas.end() - spriteEndIndexNeg), std::make_move_iterator(textureAtlas.end()));
+	textureAtlas.erase(textureAtlas.end() - spriteEndIndexNeg, textureAtlas.end());
+
 	//If there's a palette add it.
 	auto palettesOptFp = lua.get<sol::optional<std::string>>("palettes");
 	if(palettesOptFp)
@@ -169,6 +164,17 @@ void GfxHandler::LoadToVertexBuffer(std::filesystem::path file, int mapId, int t
 
 void GfxHandler::LoadingDone()
 {
+	vertices.Load();
+	tempVDContainer.clear();
+	SetupSpritePipeline();
+	SetupParticlePipeline();
+	
+	loaded = true;
+}
+
+void GfxHandler::SetupSpritePipeline()
+{
+	
 	assert(!paletteData.empty());
 	palette = renderer.LoadTextureSingle(Renderer::LoadTextureInfo{
 		.type = Renderer::SrcTextureType::palette,
@@ -180,11 +186,13 @@ void GfxHandler::LoadingDone()
 
 	//Count the number of the type of texture so it can go into the specialized texture array in the shader.
 	int iTextureNumber = 0;
-	std::sort(textures.begin(), textures.end(), [](const Renderer::Texture& tex1, const Renderer::Texture& tex2){return tex1.format < tex2.format;});
-	for(auto &tex: textures)
+	std::stable_sort(textureAtlas.begin(), textureAtlas.end(), [](const Renderer::Texture& tex1, const Renderer::Texture& tex2){
+		return (tex1.format > vk::Format::eR8Srgb) < (tex2.format > vk::Format::eR8Srgb);
+	});
+	for(auto &tex: textureAtlas)
 		if(tex.format == vk::Format::eR8Uint)
 			iTextureNumber += 1;
-	int textureNumber = textures.size() - iTextureNumber;
+	int textureNumber = textureAtlas.size() - iTextureNumber;
 	assert(iTextureNumber > 0);
 	
 	samplerI = renderer.CreateSampler();
@@ -192,16 +200,17 @@ void GfxHandler::LoadingDone()
 	auto pBuilder = renderer.GetPipelineBuilder();
 	pBuilder
 		.SetSpecializationConstants({iTextureNumber, textureNumber})
-		.SetShaders("data/spirv/shader.vert.bin", "data/spirv/shader.frag.bin")
+		.SetShaders("data/spirv/sprite.vert.bin", "data/spirv/sprite.frag.bin")
 		.SetInputLayout(true, {vk::Format::eR16G16Sint, vk::Format::eR16G16Sint})
 		.SetPushConstants({
 			{.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, .size = sizeof(pushConstants)},
 		})
 	;
-	pBuilder.Build(pipeline, pipelineLayout, sets, setLayouts);
+	
+	spritePipe.accessor = pBuilder.Build(spritePipe.pipeline, spritePipe.pipelineLayout, spritePipe.sets, spritePipe.setLayouts);
 
 	std::vector<PipelineBuilder::WriteSetInfo> updateSetParams;
-	updateSetParams.reserve(textures.size()+1);
+	updateSetParams.reserve(textureAtlas.size()+1);
 	updateSetParams.push_back({vk::DescriptorImageInfo{ //Palette
 		.sampler = *sampler,
 		.imageView = *palette.view,
@@ -211,40 +220,77 @@ void GfxHandler::LoadingDone()
 	{
 		updateSetParams.push_back({vk::DescriptorImageInfo{
 			.sampler = *samplerI,
-			.imageView = *textures[i].view,
+			.imageView = *textureAtlas[i].view,
 			.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
 		}, 0, 1});
 	}
-	for(int i = iTextureNumber; i < textures.size(); ++i) //Truecolor
+	for(int i = iTextureNumber; i < textureAtlas.size(); ++i) //Truecolor
 	{
 		updateSetParams.push_back({vk::DescriptorImageInfo{
 			.sampler = *sampler,
-			.imageView = *textures[i].view,
+			.imageView = *textureAtlas[i].view,
 			.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
 		}, 0, 2});
 	}
 	
 	pBuilder.UpdateSets(updateSetParams);
-	vertices.Load();
-	tempVDContainer.clear();
-	loaded = true;
-/*	glGenBuffers(1, &particleBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, particleBuffer);
-	glBufferData(GL_ARRAY_BUFFER, particleAttributeSize, nullptr, GL_STREAM_DRAW);
-	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride, nullptr);
-	glEnableVertexAttribArray(2);
-	glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, stride, (void*)(sizeof(float)*4));
-	glEnableVertexAttribArray(3);
-	glVertexAttribDivisor(2,1);
-	glVertexAttribDivisor(3,1); */
+}
+
+void GfxHandler::SetupParticlePipeline()
+{
+	maxParticles = renderer.uniformBufferSizeLimit/sizeof(Particle);
+
+	auto pBuilder = renderer.GetPipelineBuilder();
+	pBuilder
+		.SetSpecializationConstants({(int)textureQuads.size(), (int)maxParticles})
+		.SetShaders("data/spirv/particle.vert.bin", "data/spirv/particle.frag.bin")
+		.SetPushConstants({
+			{.stageFlags = vk::ShaderStageFlagBits::eVertex, .size = sizeof(glm::mat4)},
+		})
+	;
+	pBuilder.colorBlendAttachment.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha;
+	pBuilder.colorBlendAttachment.dstColorBlendFactor = vk::BlendFactor::eOne;
+	particlePipe.accessor = pBuilder.Build(particlePipe.pipeline, particlePipe.pipelineLayout, particlePipe.sets, particlePipe.setLayouts, {2});
+
+	size_t bufSize = maxParticles * sizeof(Particle);
+	particleProperties.Allocate(&renderer, bufSize,
+	vk::BufferUsageFlagBits::eUniformBuffer, vma::MemoryUsage::eCpuToGpu, renderer.bufferedFrames);
+
+	std::vector<PipelineBuilder::WriteSetInfo> updateSetParams;
+	updateSetParams.reserve(textureQuads.size()+2);
+	for(short i = 0; i < renderer.bufferedFrames; i++)
+	{
+		updateSetParams.push_back({vk::DescriptorBufferInfo{ //Palette
+			.buffer = particleProperties.buffer,
+			.offset = renderer.PadToAlignment(bufSize)*i,
+			.range = bufSize,
+		}, 0, 0, i});
+	}
+	//for(short j = 0; j < 2; ++j)
+	for(int i = 0; i < textureQuads.size(); ++i) //Indexed
+	{
+		updateSetParams.push_back({vk::DescriptorImageInfo{
+			.sampler = *sampler,
+			.imageView = *textureQuads[i].view,
+			.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
+		}, 1, 0});
+	}
+	pBuilder.UpdateSets(updateSetParams);
 }
 
 void GfxHandler::Begin()
 {
-	cmd = &renderer.GetCommand();
-	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline);
+	cmd = renderer.GetCommand();
+	if(!cmd)
+		return;
+
+	void *propMem = particleProperties.Map();
+
+	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *spritePipe.pipeline);
 	cmd->bindVertexBuffers(0, vertices.buffer.buffer, {0});
-	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipelineLayout, 0, sets, nullptr);
+	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *spritePipe.pipelineLayout, 0, {
+		spritePipe.sets[spritePipe.accessor(0,0)]
+	}, nullptr);
 }
 
 void GfxHandler::End()
@@ -254,12 +300,13 @@ void GfxHandler::End()
 
 void GfxHandler::Draw(int id, int defId)
 {
- 	auto search = idMapList[defId].find(id);
+	if(!cmd)
+		return;
+	auto search = idMapList[defId].find(id);
 	if (search != idMapList[defId].end())
 	{
 		auto meta = search->second;
-		auto &texture = textures[meta.textureIndex];
-		if(texture.format == vk::Format::eR8Uint)
+		if(meta.textureIndex >= 0)
 		{
 			pushConstants.shaderType = 0;
 			pushConstants.textureIndex = meta.textureIndex;
@@ -267,19 +314,42 @@ void GfxHandler::Draw(int id, int defId)
 		else
 		{
 			pushConstants.shaderType = 1;
-			pushConstants.textureIndex = meta.textureIndex;
+			pushConstants.textureIndex = -meta.textureIndex-1;
 		}
 		
 		vk::ArrayProxy<const uint8_t> push(sizeof(pushConstants), (uint8_t*)&pushConstants);
-		cmd->pushConstants(*pipelineLayout, vk::ShaderStageFlagBits::eFragment |  vk::ShaderStageFlagBits::eVertex, 0, push);
+		cmd->pushConstants(*spritePipe.pipelineLayout, vk::ShaderStageFlagBits::eFragment |  vk::ShaderStageFlagBits::eVertex, 0, push);
 
 		auto what = vertices.Index(meta.trueId);
 		cmd->draw(what.second, 1, what.first, 0);
 	} 
 }
 
-void GfxHandler::DrawParticles(std::vector<Particle> &data, int id, int defId)
+void GfxHandler::DrawParticles(const std::vector<Particle> &data, int id, int defId)
 {
+	if(!cmd)
+		return;
+	auto frame = renderer.CurrentFrame();
+	auto buf = particleProperties.Map(frame);
+	auto srcSize = data.size()*sizeof(Particle);
+
+	if(srcSize > particleProperties.copySize)
+		srcSize = particleProperties.copySize;
+	memcpy(buf, data.data(), srcSize);
+	
+
+	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *particlePipe.pipeline);
+	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *particlePipe.pipelineLayout, 0, 
+		{particlePipe.sets[particlePipe.accessor(0, frame)],
+		particlePipe.sets[particlePipe.accessor(1,0)] 
+	}, nullptr);
+
+	vk::ArrayProxy<const uint8_t> push(sizeof(glm::mat4), (uint8_t*)&pushConstants.transform);
+	cmd->pushConstants(*particlePipe.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, push);
+	cmd->draw(data.size()*6, 1, 0, 0);
+
+	return;
+
 	auto size = data.size();
 	if(size > 0){
 		auto search = idMapList[defId].find(id);
@@ -309,10 +379,7 @@ void GfxHandler::DrawParticles(std::vector<Particle> &data, int id, int defId)
 
 void GfxHandler::SetMulColor(float r, float g, float b, float a)
 {
-	//rectS.Use();
-	//glUniform4f(rectMulColorL, r,g,b,a);
-	//indexedS.Use();
-	//glUniform4f(indexedMulColorL, r,g,b,a);
+	pushConstants.mulColor = {r,g,b,a};
 }
 
 int GfxHandler::GetVirtualId(int id, int defId)

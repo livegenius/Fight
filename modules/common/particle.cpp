@@ -40,11 +40,16 @@ void ParticleGroup::UpdateNormal()
 	for(int pi = 0, end = particles.size(); pi < end; ++pi)
 	{
 		auto& particle = particles[pi];
-		while(particle.remainingTicks < 0 && pi < end)
+		while((particle.remainingTicks < 0 || particle.p.scale[0] < 0.01 || particle.p.scale[1] < 0.01) && pi < end)
 		{
 			particle = particles.back();
 			particles.pop_back();
 			--end;
+		}
+		if(particle.p.pos[1] < 32)
+		{
+			particle.vel[1] = -particle.vel[1]*0.65;
+			particle.p.pos[1] = 32+(32-particle.p.pos[1]);
 		}
 		for(int i = 0; i < 2; ++i)
 		{
@@ -52,6 +57,10 @@ void ParticleGroup::UpdateNormal()
 			particle.vel[i] += particle.acc[i];
 			particle.p.scale[0] *= particle.growRate[0];
 			particle.p.scale[1] *= particle.growRate[1]; 
+			float x = particle.p.sin;
+			float y = particle.p.cos;
+			particle.p.sin = x*particle.rotCos - y*particle.rotSin;
+			particle.p.cos = x*particle.rotSin + y*particle.rotCos;
 		}
 		particle.remainingTicks -= 1;
 	}
@@ -122,21 +131,28 @@ void ParticleGroup::PushNormalHit(int amount, float x, float y)
 	}
 	for(int i = start+1; i < start+amount; ++i)
 	{
+		float angle = 0.3f*(float)(rng->Get())/max32;
 		auto &p = particles[i];
 		
+		p.p.texId = rng->GetU()%2;
 		p.p.cos = 1;
 		p.p.sin = 0;
+		p.rotSin = sin(angle);
+		p.rotCos = cos(angle);
 		p.p.pos[0] = x;
 		p.p.pos[1] = y;
-		p.p.scale[0] = 0.25;
-		p.p.scale[1] = 0.25;
+		p.p.scale[0] = 1 - p.p.texId*0.5;
+		p.p.scale[1] = p.p.scale[0];
 		p.vel[0] = maxSpeed*(float)(rng->Get())/max32;
-		p.vel[1] = maxSpeed*(float)(rng->Get())/max32;	
-		p.acc[0] = p.vel[0]*deceleration;
-		p.acc[1] = p.vel[1]*deceleration - 0.1;
+		p.vel[1] = maxSpeed*(float)(rng->Get())/max32;
+		auto sqroot = sqrt(p.vel[0]*p.vel[0] + p.vel[1]*p.vel[1])/(10);
+		p.vel[0] /=	sqroot;
+		p.vel[1] /=	sqroot;
+		p.acc[0] = abs(p.vel[0])*-fmod(p.vel[0], 0.05);
+		p.acc[1] = p.vel[1]*fmod(p.vel[1], 0.05) - 0.8;
 		p.growRate[0] = 0.97f - 0.05*(float)(rng->GetU())/max32u;
 		p.growRate[1] = p.growRate[0];
-		p.remainingTicks = 20;
+		p.remainingTicks = 60;
 	}
 }
 

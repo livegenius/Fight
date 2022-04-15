@@ -673,7 +673,7 @@ void Player::HitCollision(Player &bluePlayer, Player &redPlayer)
 				{
 					if(blue->attack.hitStop > blue->hitstop)
 						blue->hitstop = blue->attack.hitStop;
-					int particleAmount = blue->hitstop*2;
+					int particleAmount = blue->hitstop*25;
 					blue->comboType = red->ResolveHit(keys[i], blue);
 					if(blue->comboType != Actor::none) //Set hitting player on top.
 					{

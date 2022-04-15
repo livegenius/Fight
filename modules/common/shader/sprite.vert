@@ -11,6 +11,7 @@ layout (push_constant) uniform Common
 	int textureIndex;
 	int paletteSlot;
 	int paletteIndex;
+	vec4 mulColor;
 };
 
 void main()

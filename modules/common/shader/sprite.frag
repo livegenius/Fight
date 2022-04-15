@@ -18,6 +18,7 @@ layout (push_constant) uniform Common
 	int textureIndex;
 	int paletteSlot;
 	int paletteIndex;
+	vec4 mulColor;
 };
 
 vec4 IndexedShader()
@@ -38,10 +39,11 @@ void main(void)
 	switch(shaderType)
 	{
 		case 0:
-			oColor = IndexedShader();
+			oColor = IndexedShader()*mulColor;
 			break;
 		case 1:
-			oColor = TruecolorShader();
+			oColor = TruecolorShader()*mulColor;
+			oColor.a = pow(oColor.a, 2.4);
 			break;
 	}
 }

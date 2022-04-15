@@ -26,9 +26,13 @@ target_sources(Common PRIVATE
 target_link_libraries(Common PUBLIC Image SDL2::SDL2 glm::glm)
 target_link_libraries(Common PUBLIC sol2::sol2)
 
+
+
 compile_shader(Common
 	FORMAT bin
 	SOURCES
-		shader/shader.vert
-		shader/shader.frag
+		shader/sprite.vert
+		shader/sprite.frag
+		shader/particle.vert
+		shader/particle.frag
 ) 

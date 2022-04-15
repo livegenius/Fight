@@ -5,7 +5,8 @@
 #include <image.h>
 #include <fstream>
 
-size_t Renderer::uniformBufferAligment = 0;
+size_t Renderer::uniformBufferAlignment = 0;
+size_t Renderer::uniformBufferSizeLimit = 0;
 
 bool Renderer::Init(SDL_Window *window_, int syncMode)
 {
@@ -77,7 +78,8 @@ bool Renderer::Init(SDL_Window *window_, int syncMode)
 	pDevice = {instance, phys_dev.physical_device};
 
 	deviceProperties = phys_dev.properties;
-	uniformBufferAligment = deviceProperties.limits.minUniformBufferOffsetAlignment;
+	uniformBufferAlignment = deviceProperties.limits.minUniformBufferOffsetAlignment;
+	uniformBufferSizeLimit = deviceProperties.limits.maxUniformBufferRange;
 
 	vkb::DeviceBuilder device_builder(phys_dev);
 	auto dev_ret = device_builder.build ();
@@ -126,7 +128,7 @@ void Renderer::CreateSwapchain()
 	SDL_Vulkan_GetDrawableSize(window, &width, &height);
 	aspectRatio = (float)width/(float)height;
 	vkb::Swapchain vkbSwapchain = swapchainBuilder
-		.use_default_format_selection()
+		.set_desired_format({VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
 		.set_desired_extent(width, height)
 		.set_old_swapchain(*swapchain.handle)
@@ -366,6 +368,12 @@ bool Renderer::HandleEvents(SDL_Event event)
 		case SDL_WINDOWEVENT:
 			switch(event.window.event)
 			{
+				case SDL_WINDOWEVENT_MINIMIZED:
+					shouldDraw = false;
+					return true;
+				case SDL_WINDOWEVENT_RESTORED:
+					shouldDraw = true;
+					return true;
 				case SDL_WINDOWEVENT_SIZE_CHANGED:
 					RecreateSwapchain();
 					return true;
@@ -435,7 +443,14 @@ void Renderer::Submit()
 		.pImageIndices = &imageIndex,
 		.pResults = nullptr, // Optional
 	};
-	vk::Result presentCode = qPresent.presentKHR(presentInfo);
+	/* try
+	{ */
+		vk::Result presentCode = qPresent.presentKHR(presentInfo);
+	/* }
+	catch(vk::OutOfDateKHRError e)
+	{
+		RecreateSwapchain();
+	} */
 	currentFrame = (currentFrame + 1) % bufferedFrames;
 }
 
@@ -449,8 +464,9 @@ void Renderer::BeginDrawing(int imageIndex)
 		.pInheritanceInfo = nullptr,
 	};
 
+	//float add = (currentFrame+1)/5.f;
 	const vk::ClearValue clearValues[2] = {
-		vk::ClearColorValue{{{ 0.2f, 0.0f, 0.2f, 1.0f }}},
+		vk::ClearColorValue{{{ 0.5f, 0.5f, 0.5f, 1.0f }}},
 		{.depthStencil = vk::ClearDepthStencilValue{1.f, 0}}
 	};
 
@@ -528,7 +544,7 @@ void Renderer::LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vect
 		auto &info = infos[i];
 		AllocatedBuffer &stagingBuffer = stagingBuffers[i];
 		auto allocateFunc = [this, &stagingBuffer](size_t size)->void*{
-			stagingBuffer.Allocate(allocator, size, vk::BufferUsageFlagBits::eTransferSrc, vma::MemoryUsage::eCpuOnly);
+			stagingBuffer.Allocate(this, size, vk::BufferUsageFlagBits::eTransferSrc, vma::MemoryUsage::eCpuOnly);
 			return stagingBuffer.Map();
 		};
 
@@ -540,7 +556,7 @@ void Renderer::LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vect
 		{
 			case palette:{
 				auto size = info.height*info.width*4;
-				stagingBuffer.Allocate(allocator, size, vk::BufferUsageFlagBits::eTransferSrc, vma::MemoryUsage::eCpuOnly);
+				stagingBuffer.Allocate(this, size, vk::BufferUsageFlagBits::eTransferSrc, vma::MemoryUsage::eCpuOnly);
 				void * data = stagingBuffer.Map();
 				image.width = info.width;
 				image.height = info.height;
@@ -572,6 +588,7 @@ void Renderer::LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vect
 			format = vk::Format::eR8G8B8A8Srgb;
 		else
 			assert(0 && "Unsupported format: ");
+
 
 		vk::ImageCreateInfo imgInfo =
 		{
@@ -688,25 +705,6 @@ void Renderer::ExecuteCommand(std::function<void(vk::CommandBuffer)>&& function)
 	upload.cmdPool.reset();
 }
 
-AllocatedBuffer Renderer::NewBuffer(size_t size, BufferFlags interfaceFlags)
-{
-	vk::BufferUsageFlags flags;
-	vma::MemoryUsage vmaFlags;
-
-	switch(interfaceFlags)
-	{
-		case VertexStatic:
-			flags = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst;
-			vmaFlags = vma::MemoryUsage::eGpuOnly;
-			break;
-		case TransferSrc:
-			flags = vk::BufferUsageFlagBits::eTransferSrc;
-			vmaFlags = vma::MemoryUsage::eCpuOnly;
-			break;
-	}
-	return AllocatedBuffer(allocator, size, flags, vmaFlags);
-}
-
 void Renderer::TransferBuffer(AllocatedBuffer &src, AllocatedBuffer &dst, size_t size)
 {
 	ExecuteCommand([&](vk::CommandBuffer cmd) {
@@ -728,9 +726,9 @@ std::pair<vk::raii::Pipeline, vk::raii::PipelineLayout> Renderer::RegisterPipeli
 	vk::raii::PipelineLayout layout = {device, pipelineLayoutInfo};
 	pipelineInfo.layout = *layout;
 	pipelineInfo.renderPass = *renderPass;
-	pipelineInfo.basePipelineHandle = lastPipeline;
+	//pipelineInfo.basePipelineHandle = lastPipeline;
 	vk::raii::Pipeline graphicsPipeline = {device, nullptr, pipelineInfo};
-	lastPipeline = *graphicsPipeline;
+	//lastPipeline = *graphicsPipeline;
 
 	return {std::move(graphicsPipeline), std::move(layout)};
 }
@@ -745,9 +743,12 @@ std::vector<vk::DescriptorSet> Renderer::CreateDescriptorSets(const std::vector<
 	return (*device).allocateDescriptorSets(setAllocInfo);
 }
 
-const vk::CommandBuffer &Renderer::GetCommand()
+const vk::CommandBuffer *Renderer::GetCommand()
 {
-	return *secondaryCmds[0][currentFrame];
+	if(!shouldDraw)
+		return nullptr;
+	else
+		return &*secondaryCmds[0][currentFrame];
 }
 
 void Renderer::Wait()
@@ -765,4 +766,14 @@ vk::raii::Sampler Renderer::CreateSampler(vk::Filter filter, vk::SamplerAddressM
 		.addressModeW = mode,
 	};
 	return {device, samplerI};
+}
+
+// Calculate required alignment based on minimum device offset alignment
+size_t Renderer::PadToAlignment(size_t originalSize)
+{
+	size_t alignedSize = originalSize;
+	if (uniformBufferAlignment > 0) {
+		alignedSize = (alignedSize + uniformBufferAlignment - 1) & ~(uniformBufferAlignment - 1);
+	}
+	return alignedSize;
 }

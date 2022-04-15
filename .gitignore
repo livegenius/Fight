@@ -6,6 +6,7 @@
 #Source data
 /data/**/src/
 /data/spirv/
+/srcImages
 
 #clangd
 .cache/

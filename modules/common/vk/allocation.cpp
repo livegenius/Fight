@@ -1,4 +1,5 @@
 #include "allocation.h"
+#include "renderer.h"
 
 AllocatedImage::AllocatedImage(const vma::Allocator &allocator, const vk::ImageCreateInfo imageInfo, const vma::MemoryUsage memUsage, const vk::MemoryPropertyFlags flags)
 {
@@ -49,9 +50,9 @@ AllocatedImage::~AllocatedImage()
 }
 
 /////////////
-AllocatedBuffer::AllocatedBuffer(const vma::Allocator &allocator, vk::DeviceSize size, vk::BufferUsageFlags bufferUsage, vma::MemoryUsage memUsage)
+AllocatedBuffer::AllocatedBuffer(const Renderer *renderer, vk::DeviceSize size, vk::BufferUsageFlags bufferUsage, vma::MemoryUsage memUsage, int copies)
 {
-	Allocate(allocator, size, bufferUsage, memUsage);
+	Allocate(renderer, size, bufferUsage, memUsage, copies);
 }
 
 AllocatedBuffer::AllocatedBuffer(AllocatedBuffer&& old)
@@ -59,7 +60,11 @@ AllocatedBuffer::AllocatedBuffer(AllocatedBuffer&& old)
 	buffer = std::move(old.buffer);
 	allocation = std::move(old.allocation);
 	allocator = old.allocator;
+	data = old.data;
+	copySize = old.copySize;
+	copies = old.copies;
 	old.allocator = nullptr;
+	old.data = nullptr;
 }
 
 AllocatedBuffer& AllocatedBuffer::operator=(AllocatedBuffer&& old)
@@ -71,10 +76,15 @@ AllocatedBuffer& AllocatedBuffer::operator=(AllocatedBuffer&& old)
 	return *this;
 }
 
-void AllocatedBuffer::Allocate(const vma::Allocator &allocator_, vk::DeviceSize size, vk::BufferUsageFlags bufferUsage, vma::MemoryUsage memUsage)
+void AllocatedBuffer::Allocate(const Renderer *renderer, vk::DeviceSize size, vk::BufferUsageFlags bufferUsage, vma::MemoryUsage memUsage, int copies_)
 {
+	assert(copies_ > 0);
+
+	copies = copies_;
+	copySize = Renderer::PadToAlignment(size);
+	auto allocatedSize = copies * copySize;
 	vk::BufferCreateInfo bufferInfo = {
-		.size = size,
+		.size = allocatedSize,
 		.usage = bufferUsage,
 	};
 
@@ -82,7 +92,7 @@ void AllocatedBuffer::Allocate(const vma::Allocator &allocator_, vk::DeviceSize 
 	allocInfo.usage = memUsage;
 
 	Destroy();
-	allocator = &allocator_;
+	allocator = &renderer->GetAllocator();
 	auto result = allocator->createBuffer(&bufferInfo, &allocInfo, &buffer, &allocation, nullptr);
 	assert(result == vk::Result::eSuccess && buffer && allocation);
 }
@@ -91,8 +101,9 @@ void AllocatedBuffer::Destroy()
 {
 	if(allocator)
 	{
+		Unmap();
 		allocator->destroyBuffer(buffer, allocation);
-		allocator = nullptr;
+		allocator = nullptr;	
 	}
 }
 
@@ -101,16 +112,20 @@ AllocatedBuffer::~AllocatedBuffer()
 	Destroy();
 }
 
-void* AllocatedBuffer::Map()
+void* AllocatedBuffer::Map(int index)
 {
-	void *mappedMem;
-	allocator->mapMemory(allocation, &mappedMem);
-	return mappedMem;
+	if(!data)
+		allocator->mapMemory(allocation, &data);
+	return (uint8_t*)data+copySize*index;
 }
 
 void AllocatedBuffer::Unmap()
 {
-	allocator->unmapMemory(allocation);
+	if(data)
+	{
+		allocator->unmapMemory(allocation);
+		data = nullptr;
+	}
 }
 
 void AllocatedBuffer::CopyData(void* input, size_t size)

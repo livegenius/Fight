@@ -15,11 +15,14 @@ public:
 		union {
 			VkDescriptorBufferInfo buffer; //0
 			VkDescriptorImageInfo image; //1
-		} data; // access with some_info_object.data.a or some_info_object.data.b
-		int type;
-		int set; int binding;
-		WriteSetInfo(vk::DescriptorBufferInfo buffer, int set, int binding): type(0), set(set), binding(binding){ data.buffer = buffer; }
-		WriteSetInfo(vk::DescriptorImageInfo image, int set, int binding): type(1), set(set), binding(binding){ data.image = image; }
+		} data;
+		short type;
+		short set; short binding;
+		short whichCopy; //In case there are multiple sets with the same layout.
+		WriteSetInfo(vk::DescriptorBufferInfo buffer, short set, short binding, short which = 0):
+			type(0), set(set), binding(binding), whichCopy(which){ data.buffer = buffer; }
+		WriteSetInfo(vk::DescriptorImageInfo image, short set, short binding, short which = 0):
+			type(1), set(set), binding(binding), whichCopy(which){ data.image = image; }
 	};
 
 private:
@@ -34,6 +37,7 @@ private:
 	std::vector<VkSpecializationMapEntry> specEntries;
 	vk::SpecializationInfo specInfo;
 	std::vector<int32_t> specValues;
+	std::vector<int> actualSetIndices;
 
 	void BuildDescriptorSetsBindings(const void* code, size_t size, vk::ShaderStageFlagBits);
 public:
@@ -65,8 +69,10 @@ public:
 	PipelineBuilder& SetShaders(path vertex, path fragment);
 	PipelineBuilder& SetInputLayout(bool interleaved, std::initializer_list<vk::Format> formats);
 	PipelineBuilder& SetPushConstants(std::initializer_list<vk::PushConstantRange> ranges);
-	void Build(vk::raii::Pipeline &pipeline, vk::raii::PipelineLayout &pLayout,
-		std::vector<vk::DescriptorSet> &sets, std::vector<vk::raii::DescriptorSetLayout> &setLayouts);
+
+	//Returns set index (set number, which one);
+	std::function<int(int, int)> Build(vk::raii::Pipeline &pipeline, vk::raii::PipelineLayout &pLayout,
+		std::vector<vk::DescriptorSet> &sets, std::vector<vk::raii::DescriptorSetLayout> &setLayouts, std::vector<int> numberOfCopies = {});
 	void UpdateSets(const std::vector<WriteSetInfo> &parameters);
 };
 

@@ -50,7 +50,6 @@ stage = {
 
 graphics = {
 	{
-		type = lzs3,
 		image = "bg.lzs3",
 		vertex = "bg.vt4",
 		filter = true,

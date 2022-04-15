@@ -1,6 +1,6 @@
 #ifndef VK_CONTEXT_H_GUARD
 #define VK_CONTEXT_H_GUARD
-
+  
 #include <unordered_map>
 #include <SDL.h>
 #include <vulkan/vulkan_raii.hpp>
@@ -16,7 +16,8 @@ class Renderer
 	static constexpr int externalDrawThreads = 1;
 public:
 	static constexpr size_t bufferedFrames = 2;
-	static size_t uniformBufferAligment;
+	static size_t uniformBufferAlignment;
+	static size_t uniformBufferSizeLimit;
 
 	enum SrcTextureType{
 		standard = 0,
@@ -124,9 +125,10 @@ private:
 	void CreateSyncStructs();
 	void BeginDrawing(int imageIndex);
 	void EndDrawing(int imageIndex);
-	
 
 	void ExecuteCommand(std::function<void(vk::CommandBuffer)>&& function);
+
+	
 
 public:
 	//Renderer();
@@ -139,7 +141,6 @@ public:
 	
 	Renderer::Texture LoadTextureSingle(const LoadTextureInfo& info);
 	void LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vector<Texture> &textures);
-	AllocatedBuffer NewBuffer(size_t size, BufferFlags);
 	void TransferBuffer(AllocatedBuffer &src, AllocatedBuffer &dst, size_t size);
 	PipelineBuilder GetPipelineBuilder();
 	std::pair<vk::raii::Pipeline, vk::raii::PipelineLayout> RegisterPipelines(vk::GraphicsPipelineCreateInfo&, vk::PipelineLayoutCreateInfo&);
@@ -147,9 +148,14 @@ public:
 	vk::raii::Sampler CreateSampler(vk::Filter mag = vk::Filter::eNearest, /* vk::Filter min = vk::Filter::eNearest, */ 
 		vk::SamplerAddressMode mode = vk::SamplerAddressMode::eRepeat);
 
-	const vk::CommandBuffer &GetCommand();
+	const vk::CommandBuffer *GetCommand();
+	
+	const vma::AllocatorEx &GetAllocator() const{return allocator;}
+	const size_t CurrentFrame() const{return currentFrame;}
 
 	void Wait();
+
+	static size_t PadToAlignment(size_t originalSize);
 };
 
 #endif /* VK_CONTEXT_H_GUARD */

@@ -10,6 +10,8 @@ struct Particle{
 	float scale[2];
 	float sin;
 	float cos;
+	uint32_t texId;
+	float pad;
 };
 
 class ParticleGroup

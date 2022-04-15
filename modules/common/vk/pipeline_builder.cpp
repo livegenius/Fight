@@ -3,6 +3,7 @@
 #include <fstream>
 #include "format_info.h"
 #include <spirv_reflect.h>
+#include <map>
 
 #define spvr_assert(x)\
 	do{\
@@ -13,7 +14,8 @@
 PipelineBuilder::~PipelineBuilder(){}
 PipelineBuilder::PipelineBuilder(vk::raii::Device *device, Renderer* renderer):
 device(device),
-renderer(renderer)
+renderer(renderer),
+actualSetIndices(4, 0)
 {
 	vertexInputInfo = vk::PipelineVertexInputStateCreateInfo{
 		.vertexBindingDescriptionCount = 0,
@@ -60,26 +62,26 @@ renderer(renderer)
 	multisampling = {
 		.rasterizationSamples = vk::SampleCountFlagBits::e1,
 		.sampleShadingEnable = VK_FALSE,
-		.minSampleShading = 1.f, // Optional
-		.pSampleMask = nullptr, // Optional
-		.alphaToCoverageEnable = VK_FALSE, // Optional
-		.alphaToOneEnable = VK_FALSE, // Optional
+		.minSampleShading = 1.f, 
+		.pSampleMask = nullptr,
+		.alphaToCoverageEnable = VK_FALSE, 
+		.alphaToOneEnable = VK_FALSE, 
 	};
 
 	colorBlendAttachment = {
 		.blendEnable = VK_TRUE,
-		.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha, // Optional
-		.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha, // Optional
-		.colorBlendOp = vk::BlendOp::eAdd, // Optional
-		.srcAlphaBlendFactor = vk::BlendFactor::eSrcAlpha, // Optional
-		.dstAlphaBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha, // Optional
-		.alphaBlendOp = vk::BlendOp::eAdd, // Optional
+		.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha,
+		.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
+		.colorBlendOp = vk::BlendOp::eAdd,
+		.srcAlphaBlendFactor = vk::BlendFactor::eSrcAlpha,
+		.dstAlphaBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
+		.alphaBlendOp = vk::BlendOp::eAdd, 
 		.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA,
 	};
 
 	colorBlending = {
 		.logicOpEnable = VK_FALSE,
-		.logicOp = vk::LogicOp::eCopy, // Optional
+		.logicOp = vk::LogicOp::eCopy, 
 		.attachmentCount = 1,
 		.pAttachments = &colorBlendAttachment,
 		.blendConstants = {},
@@ -306,14 +308,18 @@ PipelineBuilder& PipelineBuilder::SetPushConstants(std::initializer_list<vk::Pus
 	return *this;
 }
 
-void PipelineBuilder::Build(vk::raii::Pipeline &pipeline, vk::raii::PipelineLayout &pLayout,
-	std::vector<vk::DescriptorSet> &sets, std::vector<vk::raii::DescriptorSetLayout> &setLayouts)
+std::function<int(int, int)> PipelineBuilder::Build(vk::raii::Pipeline &pipeline, vk::raii::PipelineLayout &pLayout,
+	std::vector<vk::DescriptorSet> &sets, std::vector<vk::raii::DescriptorSetLayout> &setLayouts, std::vector<int> numberOfCopies)
 {
+	numberOfCopies.resize(4, 0);
 	std::vector<vk::DescriptorSetLayout> createSetWLayout;
+	int accum = 0;
 	for(int i = 0; i < maxSets; ++i)
 	{
 		if(setBindings[i].empty())
 			continue;
+		actualSetIndices[i] = accum;
+		accum += std::max(numberOfCopies[i], 1);
 		
 		std::vector<vk::DescriptorSetLayoutBinding> bindings; bindings.reserve(setBindings[i].size());
 		for(auto &bindingI : setBindings[i])
@@ -324,30 +330,45 @@ void PipelineBuilder::Build(vk::raii::Pipeline &pipeline, vk::raii::PipelineLayo
 			.pBindings = bindings.data(),
 		};
 		
+
 		setLayouts.emplace_back(*device, setInfo);
-		createSetWLayout.push_back(*setLayouts.back());
+		int copies = numberOfCopies[i]; 
+		do{ //At least once.
+			createSetWLayout.push_back(*setLayouts.back());
+			copies--;
+		}while (copies > 0);
 	}
-	
-	//if(sets.empty())
-		sets = renderer->CreateDescriptorSets(createSetWLayout);
-	/* else
+
+	/* if(!sets.empty()) //Append new sets
 	{
 		auto newSets = renderer->CreateDescriptorSets(createSetWLayout);
 		sets.reserve(sets.size()+newSets.size());
 		std::move(std::begin(newSets), std::end(newSets), std::back_inserter(sets));
 	} */
-
-	setsCached = sets;
-	assert(setsCached.size() <= 4);
+	if(!createSetWLayout.empty())
+	{
+		sets = renderer->CreateDescriptorSets(createSetWLayout);
+		setsCached = sets;
+	}
+	assert(accum == setsCached.size());
 
 	vertexInputInfo.pVertexAttributeDescriptions = viAttributes.data();
 	vertexInputInfo.vertexAttributeDescriptionCount = viAttributes.size();
 	vertexInputInfo.pVertexBindingDescriptions = viBindings.data();
 	vertexInputInfo.vertexBindingDescriptionCount = viBindings.size();
-	pipelineLayoutInfo.setLayoutCount = createSetWLayout.size();
-	pipelineLayoutInfo.pSetLayouts = createSetWLayout.data();
+
+	std::vector<vk::DescriptorSetLayout>setLayoutsNonRaii(setLayouts.size());
+	for(int i = 0; i < setLayouts.size(); ++i)
+		setLayoutsNonRaii[i] = *setLayouts[i];
+	pipelineLayoutInfo.setLayoutCount = setLayoutsNonRaii.size();
+	pipelineLayoutInfo.pSetLayouts = setLayoutsNonRaii.data();
 
 	std::tie(pipeline, pLayout) = renderer->RegisterPipelines(pipelineInfo, pipelineLayoutInfo);
+
+	return([actualSetIndices=actualSetIndices, accum](int set, int which){
+		assert(actualSetIndices[set]+which < accum);
+		return actualSetIndices[set]+which;
+	});
 }
 
 
@@ -357,11 +378,11 @@ void PipelineBuilder::UpdateSets(const std::vector<WriteSetInfo> &parameters)
 	std::vector<VkWriteDescriptorSet> setWriteInfos; setWriteInfos.reserve(parameters.size());
 	std::vector<VkDescriptorBufferInfo> bufferArr; bufferArr.reserve(parameters.size());
 	std::vector<VkDescriptorImageInfo> imageArr; imageArr.reserve(parameters.size());
-	std::unordered_map<int,int> setAndBindCount[4];
+	std::map<std::pair<int,int>,std::unordered_map<int,int>> setAndBindCount;
 
 	for(const auto &param: parameters)
 	{
-		auto &currSet = setAndBindCount[param.set];
+		auto &currSet = setAndBindCount[std::make_pair(param.set, param.whichCopy)];
 		auto it = currSet.find(param.binding);
 		if(it != currSet.end())
 		{
@@ -376,15 +397,16 @@ void PipelineBuilder::UpdateSets(const std::vector<WriteSetInfo> &parameters)
 		auto &param = parameters[pI];
 		auto &currentBinding = setBindings[param.set][param.binding];
 
+		assert(actualSetIndices[param.set]+param.whichCopy < setsCached.size());
 		VkWriteDescriptorSet write{
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			.dstSet = setsCached[param.set],
+			.dstSet = setsCached[actualSetIndices[param.set]+param.whichCopy], //TODO: THIS WON:T WORK
 			.dstBinding = (unsigned)param.binding,
 			.descriptorCount = 1,
 			.descriptorType = (VkDescriptorType)currentBinding.descriptorType
 		};
 
-		auto count = setAndBindCount[param.set][param.binding];
+		auto count = setAndBindCount[std::make_pair(param.set, param.whichCopy)][param.binding];
 		if(count > 1) //Array of descriptors must be contiguous.
 		{
 			assert(count <= setBindings[param.set][param.binding].descriptorCount);
@@ -397,15 +419,17 @@ void PipelineBuilder::UpdateSets(const std::vector<WriteSetInfo> &parameters)
 					assert(parameters[pI].type == 0);
 					bufferArr.push_back(parameters[pI].data.buffer);
 				}
+				--pI;
 			}
 			else //if(param.type == 1)
 			{
-				write.pImageInfo = imageArr.data()+imageArr.size();
+				write.pImageInfo = imageArr.data()+imageArr.size(); //DO NOT DO THIS
 				for(int i = 0; i < count && pI < parameters.size(); ++i, ++pI)
 				{
 					assert(parameters[pI].type == 1);
 					imageArr.push_back(parameters[pI].data.image);	
 				}
+				--pI;
 			}
 		}
 		else if(param.type == 0)

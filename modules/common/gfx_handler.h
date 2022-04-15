@@ -31,13 +31,20 @@ private:
 	Renderer &renderer;
 	const vk::CommandBuffer *cmd;
 	
-	vk::raii::Pipeline pipeline = nullptr;
-	vk::raii::PipelineLayout pipelineLayout = nullptr;
-	std::vector<vk::raii::DescriptorSetLayout> setLayouts;
-	std::vector<vk::DescriptorSet> sets;
+	struct Pipeline{
+		vk::raii::Pipeline pipeline = nullptr;
+		vk::raii::PipelineLayout pipelineLayout = nullptr;
+		std::vector<vk::raii::DescriptorSetLayout> setLayouts;
+		std::vector<vk::DescriptorSet> sets;
+		std::function <int(int,int)> accessor;
+	}spritePipe, particlePipe;
+
 
 	std::vector<std::unique_ptr<VertexData4[]>> tempVDContainer;
 	VertexBuffer vertices;
+	
+	AllocatedBuffer particleProperties;
+	size_t maxParticles = 0;
 
 	//One for each def load.
 	//Maps virtual id to real id;
@@ -45,7 +52,8 @@ private:
 
 	vk::raii::Sampler samplerI = nullptr;
 	vk::raii::Sampler sampler = nullptr;
-	std::vector<Renderer::Texture> textures;
+	std::vector<Renderer::Texture> textureAtlas;
+	std::vector<Renderer::Texture> textureQuads;
 	size_t index8 = 0, index32 = 0; //Counters so sprites know what texture to access.
 
 	Renderer::Texture palette;
@@ -53,26 +61,21 @@ private:
 
 	bool loaded = false;
 
-	void LoadToVertexBuffer(std::filesystem::path file, int mapId, int textureIndex);
-
-	static constexpr int stride = sizeof(float)*6;
-	static constexpr int maxParticles = 512;
-	static constexpr int particleAttributeSize = stride*maxParticles; 
-	static_assert(sizeof(Particle) == stride);
-
-	unsigned int particleBuffer;
-
 	struct{
 		glm::mat4 transform;
 		int shaderType = 0;
 		int textureIndex = 0;
 		int paletteSlot = 0;
 		int paletteIndex = 0;
+		glm::vec4 mulColor ;
 	} pushConstants;
 
-public:
-	Shader indexedS, rectS, particleS;
+	void LoadToVertexBuffer(std::filesystem::path file, int mapId, int textureIndex);
 
+	void SetupSpritePipeline();
+	void SetupParticlePipeline();
+
+public:
 	GfxHandler(Renderer*);
 	~GfxHandler();
 
@@ -86,7 +89,7 @@ public:
 	void SetPaletteIndex(int index);
 	void SetMatrix(const glm::mat4 &matrix);
 	void Draw(int id, int defId = 0);
-	void DrawParticles(std::vector<Particle> &data, int id, int defId = 0);
+	void DrawParticles(const std::vector<Particle> &data, int id, int defId = 0);
 	void Begin();
 	void End();
 

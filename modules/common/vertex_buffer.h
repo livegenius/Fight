@@ -37,7 +37,6 @@ public:
 	std::pair<size_t,size_t> Index(int which) const;
 	void UpdateBuffer(int which, void *data, size_t count = 0);
 	void UpdateElementBuffer(void *data, size_t count);
-	void Bind();
 	void Load();
 	
 };
