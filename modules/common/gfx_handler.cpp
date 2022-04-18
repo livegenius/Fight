@@ -238,7 +238,7 @@ void GfxHandler::SetupSpritePipeline()
 
 void GfxHandler::SetupParticlePipeline()
 {
-	maxParticles = renderer.uniformBufferSizeLimit/sizeof(Particle);
+	maxParticles = renderer.uniformBufferSizeLimit/sizeof(ParticleGroup::Particle);
 
 	auto pBuilder = renderer.GetPipelineBuilder();
 	pBuilder
@@ -252,7 +252,7 @@ void GfxHandler::SetupParticlePipeline()
 	pBuilder.colorBlendAttachment.dstColorBlendFactor = vk::BlendFactor::eOne;
 	particlePipe.accessor = pBuilder.Build(particlePipe.pipeline, particlePipe.pipelineLayout, particlePipe.sets, particlePipe.setLayouts, {2});
 
-	size_t bufSize = maxParticles * sizeof(Particle);
+	size_t bufSize = maxParticles * sizeof(ParticleGroup::Particle);
 	particleProperties.Allocate(&renderer, bufSize,
 	vk::BufferUsageFlagBits::eUniformBuffer, vma::MemoryUsage::eCpuToGpu, renderer.bufferedFrames);
 
@@ -325,13 +325,13 @@ void GfxHandler::Draw(int id, int defId)
 	} 
 }
 
-void GfxHandler::DrawParticles(const std::vector<Particle> &data, int id, int defId)
+void GfxHandler::DrawParticles(const std::vector<ParticleGroup::Particle> &data)
 {
-	if(!cmd)
+	if(!cmd || data.empty())
 		return;
 	auto frame = renderer.CurrentFrame();
 	auto buf = particleProperties.Map(frame);
-	auto srcSize = data.size()*sizeof(Particle);
+	auto srcSize = data.size()*sizeof(ParticleGroup::Particle);
 
 	if(srcSize > particleProperties.copySize)
 		srcSize = particleProperties.copySize;
@@ -347,34 +347,6 @@ void GfxHandler::DrawParticles(const std::vector<Particle> &data, int id, int de
 	vk::ArrayProxy<const uint8_t> push(sizeof(glm::mat4), (uint8_t*)&pushConstants.transform);
 	cmd->pushConstants(*particlePipe.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, push);
 	cmd->draw(data.size()*6, 1, 0, 0);
-
-	return;
-
-	auto size = data.size();
-	if(size > 0){
-		auto search = idMapList[defId].find(id);
-		if (search != idMapList[defId].end())
-		{
-			/* if(size > maxParticles)
-				size = maxParticles;
-			auto meta = search->second;
-			if(boundTexture != meta.textureIndex)
-			{
-				boundTexture = meta.textureIndex;
-				//glBindTexture(GL_TEXTURE_2D, textures[boundTexture].id);
-			}
-
-			if(boundProgram != particleS.program)
-			{
-				boundProgram = particleS.program;
-				particleS.Use();
-			}
-
-			glBindBuffer(GL_ARRAY_BUFFER, particleBuffer);
-			glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Particle)*size, data.data()); */
-			//vertices.DrawInstances(meta.trueId, size);
-		}
-	}
 }
 
 void GfxHandler::SetMulColor(float r, float g, float b, float a)

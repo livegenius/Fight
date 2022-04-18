@@ -128,7 +128,7 @@ void Renderer::CreateSwapchain()
 	SDL_Vulkan_GetDrawableSize(window, &width, &height);
 	aspectRatio = (float)width/(float)height;
 	vkb::Swapchain vkbSwapchain = swapchainBuilder
-		.set_desired_format({VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
+		.set_desired_format({VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
 		.set_desired_extent(width, height)
 		.set_old_swapchain(*swapchain.handle)
@@ -581,11 +581,11 @@ void Renderer::LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vect
 		vk::Extent3D extent = {image.width, image.height, 1};
 		vk::Format format;
 		if(image.compressed)
-			format = vk::Format::eBc3SrgbBlock;
+			format = vk::Format::eBc3UnormBlock;
 		else if(image.bytesPerPixel == 1)
 			format = vk::Format::eR8Uint;
 		else if(image.bytesPerPixel == 4)
-			format = vk::Format::eR8G8B8A8Srgb;
+			format = vk::Format::eR8G8B8A8Unorm;
 		else
 			assert(0 && "Unsupported format: ");
 
@@ -721,7 +721,12 @@ PipelineBuilder Renderer::GetPipelineBuilder()
 	return {&device, this};
 }
 
-std::pair<vk::raii::Pipeline, vk::raii::PipelineLayout> Renderer::RegisterPipelines(vk::GraphicsPipelineCreateInfo& pipelineInfo, vk::PipelineLayoutCreateInfo& pipelineLayoutInfo)
+vk::raii::Pipeline Renderer::RegisterPipelines(const vk::GraphicsPipelineCreateInfo& pipelineInfo)
+{
+	return {device, nullptr, pipelineInfo};
+}
+
+std::pair<vk::raii::Pipeline, vk::raii::PipelineLayout> Renderer::RegisterPipelines(vk::GraphicsPipelineCreateInfo& pipelineInfo, const vk::PipelineLayoutCreateInfo& pipelineLayoutInfo)
 {
 	vk::raii::PipelineLayout layout = {device, pipelineLayoutInfo};
 	pipelineInfo.layout = *layout;

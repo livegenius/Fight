@@ -510,7 +510,7 @@ bool Player::ScriptSetup()
 	global.set_function("PlaySound", [this](std::string audioString){scene.sfx.PlaySound(audioString);});
 	global.set_function("DamageTarget", [this](int amount){target->health -= amount;});
 	global.set_function("ParticlesNormalRel", [this](int amount, float x, float y){
-		scene.particles[ParticleGroup::redSpark].PushNormalHit(amount, (float)charObj->root.x+x*charObj->side, float(charObj->root.y)+y);
+		scene.particles.PushNormalHit(amount, (float)charObj->root.x+x*charObj->side, float(charObj->root.y)+y);
 	});
 	global.set_function("GetTarget", [this]()->Actor&{return *charObj->target;});
 	global.set_function("SetPriority", [this](int p){
@@ -673,7 +673,7 @@ void Player::HitCollision(Player &bluePlayer, Player &redPlayer)
 				{
 					if(blue->attack.hitStop > blue->hitstop)
 						blue->hitstop = blue->attack.hitStop;
-					int particleAmount = blue->hitstop*25;
+					int particleAmount = blue->hitstop*2;
 					blue->comboType = red->ResolveHit(keys[i], blue);
 					if(blue->comboType != Actor::none) //Set hitting player on top.
 					{
@@ -687,11 +687,11 @@ void Player::HitCollision(Player &bluePlayer, Player &redPlayer)
 					}
 					else if(blue->comboType == Actor::hurt && particleAmount > 0)
 					{
-						bluePlayer.scene.particles[ParticleGroup::redSpark].PushNormalHit(particleAmount, result.second.x, result.second.y);
+						bluePlayer.scene.particles.PushNormalHit(particleAmount, result.second.x, result.second.y);
 					}
 					else if(blue->comboType == Actor::counter && particleAmount > 0)
 					{
-						bluePlayer.scene.particles[ParticleGroup::stars].PushCounterHit(particleAmount, result.second.x, result.second.y);
+						bluePlayer.scene.particles.PushCounterHit(particleAmount, result.second.x, result.second.y);
 					}
 					blue->hitCount--;
 				}

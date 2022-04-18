@@ -371,7 +371,10 @@ std::function<int(int, int)> PipelineBuilder::Build(vk::raii::Pipeline &pipeline
 	});
 }
 
-
+void PipelineBuilder::BuildDerivate(vk::raii::Pipeline &pipeline)
+{
+	pipeline = renderer->RegisterPipelines(pipelineInfo);
+}
 
 void PipelineBuilder::UpdateSets(const std::vector<WriteSetInfo> &parameters)
 {

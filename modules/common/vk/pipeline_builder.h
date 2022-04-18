@@ -73,6 +73,8 @@ public:
 	//Returns set index (set number, which one);
 	std::function<int(int, int)> Build(vk::raii::Pipeline &pipeline, vk::raii::PipelineLayout &pLayout,
 		std::vector<vk::DescriptorSet> &sets, std::vector<vk::raii::DescriptorSetLayout> &setLayouts, std::vector<int> numberOfCopies = {});
+
+	void BuildDerivate(vk::raii::Pipeline &pipeline);
 	void UpdateSets(const std::vector<WriteSetInfo> &parameters);
 };
 

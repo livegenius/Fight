@@ -5,53 +5,41 @@
 #include <vector>
 #include "xorshift.h"
 
-struct Particle{
-	float pos[2];
-	float scale[2];
-	float sin;
-	float cos;
-	uint32_t texId;
-	float pad;
-};
-
 class ParticleGroup
 {
-private:
-	struct ParticleState{
-		Particle p;
+public:
+	struct Particle{
+		float pos[2];
+		float scale[2];
+		float sin;
+		float cos;
+		uint32_t texId;
+		uint8_t color[4] = {0xFF,0xFF,0xFF,0xFF};
+	};
+
+	struct Params{
 		float vel[2];
 		float acc[2];
 		float growRate[2];
 		float rotSin; //Rotation speed
 		float rotCos;
 		int remainingTicks;
+		bool bounce = false;
+		float fadeRate = 1.f;
 	};	
+	std::vector<Particle> particles;
+	std::vector<Params> particleParams;
 
-	std::vector<ParticleState> particles;
-
-	std::function<void(ParticleGroup*)> updatefunc;
-	void UpdateNormal();
-	void UpdateStars();
-
-public:
-	enum type{
-		START = 2000,
-		redSpark = START,
-		stars,
-		END
-	};
-
-	ParticleGroup(int type = START);
-	ParticleGroup(XorShift32& rng, int type = START);
+	ParticleGroup(XorShift32& rng);
 	ParticleGroup& operator=(const ParticleGroup &p);
+	ParticleGroup (const ParticleGroup &p);
+	ParticleGroup& operator=(ParticleGroup &&p);
+	ParticleGroup (ParticleGroup &&p);
 	XorShift32 *rng = nullptr;
 	void Update();
-	void FillParticleVector(std::vector<Particle> &v);
 	void PushNormalHit(int amount, float x, float y);
 	void PushCounterHit(int amount, float x, float y);
 	void PushSlash(int amount, float x, float y);
-
-	
 };
 
 #endif /* PARTICLE_H_GUARD */

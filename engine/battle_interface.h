@@ -10,7 +10,7 @@
 struct BattleInterface
 {
 	XorShift32 &rng;
-	std::unordered_map<int, ParticleGroup> &particles;
+	ParticleGroup &particles;
 	Camera &view;
 	SoundEffects &sfx;
 };

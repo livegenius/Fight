@@ -3,7 +3,7 @@
 
 #include <vk/renderer.h>
 
-#include "hitbox_renderer.h"
+#include <hitbox_renderer.h>
 #include "battle_interface.h"
 #include "chara.h"
 #include "camera.h"
@@ -11,8 +11,7 @@
 #include "hud.h"
 #include "xorshift.h"
 #include <particle.h>
-#include <shader.h>
-#include <ubo.h>
+
 #include <glm/mat4x4.hpp>
 #include <SDL_events.h>
 #include <ggponet.h>
@@ -23,10 +22,10 @@
 struct State
 {
 	XorShift32 rng;
-	std::unordered_map<int, ParticleGroup> particleGroups;
+	ParticleGroup particles;
 	Camera view;
 	PlayerStateCopy p1, p2;
-	//SaveState():{}
+	State():particles(rng){}
 };
 
 class BattleScene
@@ -34,7 +33,7 @@ class BattleScene
 private:
 	ENetHost *local;
 	XorShift32 rng;
-	std::unordered_map<int, ParticleGroup> particleGroups;
+	ParticleGroup particles;
 	Camera view{1.55};
 	int timer;
 

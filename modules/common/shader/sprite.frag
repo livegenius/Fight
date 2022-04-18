@@ -43,7 +43,7 @@ void main(void)
 			break;
 		case 1:
 			oColor = TruecolorShader()*mulColor;
-			oColor.a = pow(oColor.a, 2.4);
+			//oColor.a = pow(oColor.a, 2.4);
 			break;
 	}
 }

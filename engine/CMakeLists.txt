@@ -16,7 +16,6 @@ target_sources(Fight PRIVATE
 	battle_scene.cpp
 	framedata.cpp
 	actor.cpp
-	hitbox_renderer.cpp
 	stage.cpp
 )
 

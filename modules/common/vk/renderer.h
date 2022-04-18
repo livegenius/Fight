@@ -143,7 +143,9 @@ public:
 	void LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vector<Texture> &textures);
 	void TransferBuffer(AllocatedBuffer &src, AllocatedBuffer &dst, size_t size);
 	PipelineBuilder GetPipelineBuilder();
-	std::pair<vk::raii::Pipeline, vk::raii::PipelineLayout> RegisterPipelines(vk::GraphicsPipelineCreateInfo&, vk::PipelineLayoutCreateInfo&);
+
+	vk::raii::Pipeline RegisterPipelines(const vk::GraphicsPipelineCreateInfo&);
+	std::pair<vk::raii::Pipeline, vk::raii::PipelineLayout> RegisterPipelines(vk::GraphicsPipelineCreateInfo&, const vk::PipelineLayoutCreateInfo&);
 	std::vector<vk::DescriptorSet> CreateDescriptorSets(const std::vector<vk::DescriptorSetLayout>&);
 	vk::raii::Sampler CreateSampler(vk::Filter mag = vk::Filter::eNearest, /* vk::Filter min = vk::Filter::eNearest, */ 
 		vk::SamplerAddressMode mode = vk::SamplerAddressMode::eRepeat);

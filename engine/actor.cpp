@@ -1,4 +1,5 @@
 #include "actor.h"
+#include <hitbox_renderer.h>
 #include <glm/ext/matrix_transform.hpp>
 
 Actor::Actor(std::vector<Sequence> &sequences, sol::state &lua, std::vector<Actor> &actorList) :

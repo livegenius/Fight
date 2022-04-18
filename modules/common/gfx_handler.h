@@ -89,7 +89,7 @@ public:
 	void SetPaletteIndex(int index);
 	void SetMatrix(const glm::mat4 &matrix);
 	void Draw(int id, int defId = 0);
-	void DrawParticles(const std::vector<Particle> &data, int id, int defId = 0);
+	void DrawParticles(const std::vector<ParticleGroup::Particle> &data);
 	void Begin();
 	void End();
 

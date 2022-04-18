@@ -1,13 +1,13 @@
 #ifndef ACTOR_H_GUARD
 #define ACTOR_H_GUARD
 
-#include "hitbox_renderer.h"
 #include "framedata.h"
 #include <geometry.h>
 #include <fixed_point.h>
 #include <unordered_map>
 #include <sol/sol.hpp>
 #include <glm/mat4x4.hpp>
+#include <hitbox_renderer.h>
 
 const FixedPoint floorPos(32);
 

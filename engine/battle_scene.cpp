@@ -27,8 +27,10 @@ int inputDelay = 0;
 BattleScene::BattleScene(ENetHost *local):
 sfx(gameTicks),
 local(local),
-interface{rng, particleGroups, view, sfx},
-player(interface), player2(interface)
+particles(rng),
+interface{rng, particles, view, sfx},
+player(interface), player2(interface),
+hr(mainWindow->renderer)
 {
 	{ //Loads font texture. TODO: Remove
 		Texture texture;
@@ -136,16 +138,9 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	players[1] = &player2;
 
 	vaoTexOnly.Bind();
-
-	std::vector<Particle> particles;
 	
-	for(int i = ParticleGroup::START; i < ParticleGroup::END; ++i)
-		particleGroups.insert({i, {rng, i}});
-
-	//defaultS.Use();
 
 	auto keyHandler = std::bind(&BattleScene::KeyHandle, this, std::placeholders::_1);
-	
 	bool drawn = false;
 
 	if(local)
@@ -157,9 +152,6 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			return 0;
 		}
 	}
-
-	int palOffset1 = 0;
-	int palOffset2 = 0;
 	
 	while(!mainWindow->wantsToClose)
 	{
@@ -212,11 +204,6 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			player2.SendInput(keySend[1]);
 			AdvanceFrame();
 		}
-
-		if(gameTicks % 21 == 0)
-			palOffset1 = (palOffset1+1)%4;
-		if(gameTicks % 41 == 0)
-			palOffset2 = (palOffset2+1)%4;
 		
 		//Start rendering
 		drawList.Init(player, player2);
@@ -230,7 +217,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		int p1Pos = players[1]->FillDrawList(drawList);
 		int p2Pos = players[0]->FillDrawList(drawList);
 
-		auto draw = [this,&gfx, &palOffset1, &palOffset2](Actor *actor, glm::mat4 &viewMatrix)
+		auto draw = [this,&gfx](Actor *actor, glm::mat4 &viewMatrix)
 		{
 			gfx.SetMatrix(projection*viewMatrix*actor->GetSpriteTransform());
 			auto options = actor->GetRenderOptions();
@@ -244,9 +231,9 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 					break;
 			}; */
 			if(options.paletteIndex == 0)
-				gfx.SetPaletteSlot(palOffset1);
+				gfx.SetPaletteSlot(0);
 			else
-				gfx.SetPaletteSlot(palOffset2);
+				gfx.SetPaletteSlot(3);
 			gfx.Draw(actor->GetSpriteIndex(), 0);
 		};
 
@@ -267,11 +254,9 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 
 		//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		gfx.SetMatrix(projection*viewMatrix);
-		auto &pg = particleGroups[ParticleGroup::START];
 
-			pg.FillParticleVector(particles);
-			gfx.DrawParticles(particles, ParticleGroup::START);
-		
+		gfx.DrawParticles(particles.particles);
+	
 		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
 		gfx.End();
 
@@ -279,7 +264,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		if(drawBoxes)
 		{
 			hr.LoadHitboxVertices();
-			hr.Draw();
+			hr.Draw(projection*viewMatrix);
 		}
 				
 		//Draw HUD
@@ -349,8 +334,7 @@ void BattleScene::AdvanceFrame()
 	Player::Collision(player, player2);
 	viewMatrix = view.Calculate(player.GetXYCoords(), player2.GetXYCoords());
 
-	for(auto &pg : particleGroups)
-		pg.second.Update();
+	particles.Update();
 
 	ggpo_advance_frame(ggpo);
 }
@@ -369,7 +353,7 @@ void BattleScene::SaveState(State &state)
 {
 	//TODO Add inputIterator to state
 	state.rng = rng;
-	state.particleGroups = particleGroups;
+	state.particles = particles;
 	state.p1 = player.GetStateCopy();
 	state.p2 = player2.GetStateCopy();
 	state.view = view;
@@ -380,7 +364,7 @@ void BattleScene::LoadState(State &state)
 	if(!state.p1.charObj) //There are no saves.
 		return;
 	rng = state.rng;
-	particleGroups = state.particleGroups;
+	particles = state.particles;
 	player.SetState(state.p1);
 	player2.SetState(state.p2);
 	view = state.view;

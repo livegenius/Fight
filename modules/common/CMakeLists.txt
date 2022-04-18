@@ -18,6 +18,7 @@ target_sources(Common PRIVATE
 	vao.cpp
 	ubo.cpp
 	gfx_handler.cpp
+	hitbox_renderer.cpp
 	
 	particle.cpp
 	xorshift.cpp
@@ -35,4 +36,6 @@ compile_shader(Common
 		shader/sprite.frag
 		shader/particle.vert
 		shader/particle.frag
+		shader/box.vert
+		shader/box.frag
 ) 
