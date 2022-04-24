@@ -12,11 +12,7 @@ target_sources(Common PRIVATE
 target_include_directories(Common PUBLIC ".")
 target_sources(Common PRIVATE
 	vertex_buffer.cpp
-
-	shader.cpp
-	texture.cpp
-	vao.cpp
-	ubo.cpp
+	
 	gfx_handler.cpp
 	hitbox_renderer.cpp
 	

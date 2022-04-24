@@ -44,7 +44,6 @@ private:
 
 	int quadsToDraw = 0; //Number of boxes to draw.
 	size_t acumFloats = 0; //Numbers of floats written to the vertex buffer.
-	float zOrder = 0; 
 
 	struct PushConstants{
 		glm::mat4 transform;

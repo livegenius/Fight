@@ -151,7 +151,14 @@ RenderOptions Actor::GetRenderOptions()
 void Actor::SendHitboxData(HitboxRenderer &hr)
 {
 	static std::vector<float> vertices;
-	Frame::boxes_t *selector[] = {&framePointer->redboxes, &framePointer->greenboxes};
+	auto col = framePointer->colbox;
+	if(side == -1)
+		col = col.FlipHorizontal();
+	col = col.Translate(root);
+	vertices = {col.bottomLeft.x, col.bottomLeft.y, col.topRight.x, col.topRight.y};
+	hr.GenerateHitboxVertices(vertices, HitboxRenderer::gray);
+
+	Frame::boxes_t *selector[] = {&framePointer->greenboxes, &framePointer->redboxes};
 	for(int i = 0; i < 2; ++i)
 	{
 		vertices.resize(selector[i]->size()*4);
@@ -166,15 +173,8 @@ void Actor::SendHitboxData(HitboxRenderer &hr)
 			vertices[bi*4 + 2] = box.topRight.x;
 			vertices[bi*4 + 3] = box.topRight.y;
 		}
-		hr.GenerateHitboxVertices(vertices, 2-i);
+		hr.GenerateHitboxVertices(vertices, i+1);
 	}
-
-	auto col = framePointer->colbox;
-	if(side == -1)
-		col = col.FlipHorizontal();
-	col = col.Translate(root);
-	vertices = {col.bottomLeft.x, col.bottomLeft.y, col.topRight.x, col.topRight.y};
-	hr.GenerateHitboxVertices(vertices, HitboxRenderer::gray);
 }
 
 void Actor::SeqFun()

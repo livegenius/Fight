@@ -7,7 +7,6 @@
 #include "battle_interface.h"
 #include "chara.h"
 #include "camera.h"
-#include "texture.h"
 #include "hud.h"
 #include "xorshift.h"
 #include <particle.h>
@@ -62,8 +61,6 @@ public:
 	int PlayLoop(bool replay, int playerId, const std::string &address);
 
 private:
-	std::vector<Texture> activeTextures;
-
 	//Renderer stuff
 	HitboxRenderer hr;
 	glm::mat4 projection;

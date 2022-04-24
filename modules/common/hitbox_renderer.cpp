@@ -42,11 +42,12 @@ renderer(renderer)
 			{.stageFlags = vk::ShaderStageFlagBits::eVertex, .size = sizeof(PushConstants)},
 		})
 	;
-	auto &ds = pBuilder.depthStencil;
-/* 	ds.depthTestEnable = VK_TRUE;
-	ds.depthWriteEnable = VK_TRUE; */
 	pBuilder.inputAssembly.topology = vk::PrimitiveTopology::eLineList;
 	pBuilder.Build(lines.pipeline, lines.pipelineLayout, lines.sets, lines.setLayouts);
+	auto &ds = pBuilder.depthStencil;
+	ds.depthTestEnable = VK_TRUE;
+	ds.depthCompareOp = vk::CompareOp::eNotEqual;
+	ds.depthWriteEnable = VK_TRUE;
 	pBuilder.inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
 	pBuilder.BuildDerivate(filling);
 }
@@ -90,10 +91,10 @@ void HitboxRenderer::GenerateHitboxVertices(const std::vector<float> &hitboxes, 
 		return; //The buffer is full. Do nothing
 	
 	//r, g, b, z order
-	constexpr float colors[][3]={
-		{0.8, 0.8, 0.8},    //gray
-		{0.0, 1, 0.0},      //green
-		{1, 0.0, 0.0}       //red
+	constexpr float colors[][4]={
+		{0.8, 0.8, 0.8, 2},    //gray
+		{0.0, 1, 0.0, 4},      //green
+		{1, 0.0, 0.0, 8}       //red
 	};
 
 	const float * const color = colors[pickedColor];
@@ -111,16 +112,14 @@ void HitboxRenderer::GenerateHitboxVertices(const std::vector<float> &hitboxes, 
 			//X, Y, Z, R, G, B
 			quadVertices[dataI+j+0] = hitboxes[i+0] + (hitboxes[i+2]-hitboxes[i+0])*tX[j/6];
 			quadVertices[dataI+j+1] = hitboxes[i+1] + (hitboxes[i+3]-hitboxes[i+1])*tY[j/6];
-			quadVertices[dataI+j+2] = 10000-zOrder;
+			quadVertices[dataI+j+2] = color[3];
 			quadVertices[dataI+j+3] = color[0];
 			quadVertices[dataI+j+4] = color[1];
 			quadVertices[dataI+j+5] = color[2];
 		}
 		dataI += 4*6;
 	}
-
 	acumFloats = dataI;
-	zOrder++; 
 }
 
 void HitboxRenderer::LoadHitboxVertices()
@@ -129,7 +128,6 @@ void HitboxRenderer::LoadHitboxVertices()
 	vGeometry.UpdateElementBuffer(clientElements.data(), (acumElements)*sizeof(uint16_t)); */
 	quadsToDraw = acumFloats/(4*6);
 	acumFloats = 0;
-	zOrder = 0;
 }
 
 void HitboxRenderer::DontDraw()

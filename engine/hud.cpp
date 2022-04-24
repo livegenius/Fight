@@ -3,7 +3,7 @@
 #include <sol/sol.hpp>
 #include <iostream>
 #include <unordered_set>
-
+/* 
 constexpr int tX[] = {0,1,1, 1,0,0};
 constexpr int tY[] = {0,0,1, 1,1,0};
 
@@ -41,8 +41,8 @@ void Hud::Load(std::filesystem::path file, Vao &vao)
 	width = textureT["width"];
 	height = textureT["height"];
 	gScale = textureT["scale"].get_or(1.f);
-/* 	float xScale = gScale;
-	float yScale = gScale; */
+// 	float xScale = gScale;
+//	float yScale = gScale;
 	sol::table rects = textureT["rects"];
 	int indexCounter = 0;
 	for(const auto &entry : rects)
@@ -179,4 +179,4 @@ void Hud::ResizeBarId(int id, float horizPercentage)
 		}
 
 	vao->UpdateBuffer(bar.id, &coords[start], sizeof(Coord)*6);
-}
+} */

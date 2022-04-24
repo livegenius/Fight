@@ -61,11 +61,12 @@ bool Renderer::Init(SDL_Window *window_, int syncMode)
 		return false;
 	}
 	surface = {instance, sdlSurface};
-	
+
 	//Pick and create logical device.
 	vkb::PhysicalDeviceSelector phys_device_selector(vkb_inst); 
 	auto phys_device_ret = phys_device_selector
 			.set_surface(*surface)
+			//.set_required_features(VkPhysicalDeviceFeatures{.wideLines = true})
 			.require_present()
 			.set_minimum_version(1, 2)
 			.add_desired_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME)

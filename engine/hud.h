@@ -2,14 +2,11 @@
 #define HUD_H_INCLUDED
 
 //#include <vector>
-
-#include "vao.h"
-#include "texture.h"
 #include <filesystem>
 
 class Hud
 {
-	struct Coord{
+/* 	struct Coord{
 		float x,y,s,t;
 	};
 
@@ -39,7 +36,7 @@ public:
 	Hud(std::filesystem::path file, Vao &vao);
 	void Load(std::filesystem::path file, Vao &vao);
 	void Draw();
-	void ResizeBarId(int id, float horizPercentage);
+	void ResizeBarId(int id, float horizPercentage); */
 };
 
 #endif // HUD_H_INCLUDED

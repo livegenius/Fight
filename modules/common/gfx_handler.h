@@ -6,7 +6,6 @@
 #include "particle.h"
 #include "vertex_buffer.h"
 
-#include <shader.h>
 #include <vector>
 #include <unordered_map>
 #include <filesystem>

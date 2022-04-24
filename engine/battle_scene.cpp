@@ -7,7 +7,6 @@
 #include "game_state.h"
 #include "stage.h"
 #include <gfx_handler.h>
-#include <vao.h>
 #include <fstream>
 #include <sstream>
 #include <vector>
@@ -32,27 +31,16 @@ interface{rng, particles, view, sfx},
 player(interface), player2(interface),
 hr(mainWindow->renderer)
 {
-	{ //Loads font texture. TODO: Remove
-		Texture texture;
-		texture_options opt;
-		opt.linearFilter = true;
-		texture.LoadLzs3(texNames[0], opt);
-		activeTextures.push_back(std::move(texture));
-	}
-
-	/* defaultS.LoadShader("data/def.vert", "data/def.frag");
-	defaultS.Use();	 */
-
 	projection = glm::ortho<float>(0, internalWidth, internalHeight, 0, -32768, 32767);
-	//projection = glm::ortho<float>(-internalWidth*0.5, internalWidth*1.5, -internalHeight*0.5, internalHeight*1.5, -32768, 32767);
-	/* projection = glm::perspective<float>(90, (float)internalWidth/(float)internalHeight, 1, 32767);
+	//projection = glm::ortho<float>(-internalWidth*0.5, internalWidth*1.5, internalHeight*1.5, -internalHeight*0.5, -32768, 32767);
+/* 	projection = glm::perspective<float>(90, (float)internalWidth/(float)internalHeight, 1, 32767);
+	projection[1][1] = -projection[1][1];
 	projection = glm::rotate(projection, 0.3f, glm::vec3(0.f,1.f,0.f));
 	projection = glm::translate(projection, glm::vec3(-internalWidth/2.f,-internalHeight/2.f,-200)); */
 }
 
 BattleScene::~BattleScene()
 {
-	//glDeleteTextures(1, &paletteId);
 	enet_host_destroy(local);
 }
 
@@ -87,14 +75,14 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	Hud hud;
 
 	int stageId, textId;
-	std::vector<float> textVertData;
+/* 	std::vector<float> textVertData;
 	textVertData.resize(24*80);
-	Vao vaoTexOnly(Vao::F2F2, 0 /* GL_DYNAMIC_DRAW */);
+	Vao vaoTexOnly(Vao::F2F2, GL_DYNAMIC_DRAW );
 	{
 		hud.Load("data/hud/hud.lua", vaoTexOnly);
 		textId = vaoTexOnly.Prepare(sizeof(float)*textVertData.size(), nullptr);
 		vaoTexOnly.Load();
-	}
+	} */
 
 	player.Load(1, "data/char/vaki/vaki.char", 0);
 	player2.Load(-1, "data/char/vaki/vaki.char", 1);
@@ -137,7 +125,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	players[0] = &player;
 	players[1] = &player2;
 
-	vaoTexOnly.Bind();
+	//vaoTexOnly.Bind();
 	
 
 	auto keyHandler = std::bind(&BattleScene::KeyHandle, this, std::placeholders::_1);
