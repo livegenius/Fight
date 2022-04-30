@@ -1,6 +1,7 @@
 #include "vertex_buffer.h"
 #include <iostream>
 #include <cstring>
+#include "renderer.h"
 
 VertexBuffer::VertexBuffer(Renderer *renderer):
 renderer(*renderer)
@@ -24,7 +25,7 @@ int VertexBuffer::Prepare(size_t size, unsigned int stride, void *ptr)
 	dataPointers.push_back(memPtr{
 		(uint8_t*) ptr,
 		size,
-		totalSize/stride, //TODO: Take a better look at this.
+		totalSize/stride, //TODO: Take a better look at this. Really really do?
 		stride,
 	});
 	totalSize += size;
@@ -37,21 +38,13 @@ std::pair<size_t,size_t> VertexBuffer::Index(int which) const
 	return{data.location, data.size/data.stride};
 }
 
-void VertexBuffer::UpdateBuffer(int which, void *data, size_t count)
+void VertexBuffer::UpdateBuffer(int which, void *src, size_t count)
 {
 	if(count == 0)
 		count = dataPointers[which].size;
 
-/* 	glBindBuffer(GL_ARRAY_BUFFER, vboId);
-	glBufferSubData(GL_ARRAY_BUFFER, dataPointers[which].location*stride, count, data); */
-}
-
-void VertexBuffer::UpdateElementBuffer(void *data, size_t count)
-{
-	if(count > eboSize)
-		count = eboSize;
-/* 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboId);
-	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, count, data); */
+	uint8_t* dst = (uint8_t*)buffer.Map();
+	memcpy(dst+dataPointers[which].location*dataPointers[which].stride, src, count);
 }
 
 void VertexBuffer::Load()
@@ -69,4 +62,18 @@ void VertexBuffer::Load()
 
 	stagingBuffer.Unmap();
 	renderer.TransferBuffer(stagingBuffer, buffer, totalSize);
+}
+
+void VertexBuffer::LoadHostVisible()
+{
+	buffer.Allocate(&renderer, totalSize, vk::BufferUsageFlagBits::eVertexBuffer, vma::MemoryUsage::eCpuToGpu);
+	uint8_t *data = (uint8_t*)buffer.Map();
+	size_t where = 0;
+	for(auto &subData : dataPointers)
+	{
+		if(subData.ptr)
+			memcpy(data+where, subData.ptr, subData.size);
+		where += subData.size;
+	}
+	buffer.Unmap();
 }

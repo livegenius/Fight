@@ -3,19 +3,24 @@
 #include <sol/sol.hpp>
 #include <iostream>
 #include <unordered_set>
-/* 
+#include <renderer.h>
+
 constexpr int tX[] = {0,1,1, 1,0,0};
 constexpr int tY[] = {0,0,1, 1,1,0};
 
-Hud::Hud(){}
-Hud::Hud(std::filesystem::path file, Vao &vao)
+Hud::Hud(Renderer *renderer):
+renderer(*renderer),
+vao(renderer)
+{}
+Hud::Hud(Renderer *renderer, std::filesystem::path file):
+renderer(*renderer),
+vao(renderer)
 {
-	Load(file, vao);
+	Load(file);
 }
 
-void Hud::Load(std::filesystem::path file, Vao &vao)
+void Hud::Load(std::filesystem::path file)
 {
-	this->vao = &vao;
 	sol::state lua;
 	lua.open_libraries(sol::lib::base);
 	auto result = lua.script_file(file.string());
@@ -123,7 +128,7 @@ void Hud::Load(std::filesystem::path file, Vao &vao)
 		}
 	}
 
-	startId = -1;
+	int startId = -1;
 	for(int i = 0; i < coords.size(); i+=6)
 	{
 		if(barSet.count(i))
@@ -134,23 +139,58 @@ void Hud::Load(std::filesystem::path file, Vao &vao)
 			continue;
 		}
 
-		int id = vao.Prepare(sizeof(Coord)*6, &coords[i]);
+		int id = vao.Prepare(sizeof(Coord)*6, sizeof(Coord), &coords[i]);
 		if(startId == -1)
 			startId = id;
 	}
-
+	
 	for(auto &data : barData)
-		data.id = vao.Prepare(sizeof(Coord)*6, &coords[data.pos]);
+		data.id = vao.Prepare(sizeof(Coord)*6, sizeof(Coord), &coords[data.pos]);
+	vao.LoadHostVisible();
+	location = vao.Index(startId).first;
 
-	auto textureFile = file.parent_path()/textureT["file"].get<std::string>();
-	texture_options opt;
-	opt.linearFilter = true;
-	texture.LoadLzs3(textureFile, opt);
+	Renderer::LoadTextureInfo opt{
+		.path = file.parent_path()/textureT["file"].get<std::string>()
+	};
+	texture = std::move(renderer.LoadTextureSingle(opt));
+
+	CreatePipeline();
+}
+
+void Hud::CreatePipeline()
+{
+	sampler = renderer.CreateSampler(vk::Filter::eLinear);
+	auto pBuilder = renderer.GetPipelineBuilder();
+	pBuilder
+		.SetShaders("data/spirv/hud.vert.bin", "data/spirv/hud.frag.bin")
+		.SetInputLayout(true, {vk::Format::eR32G32Sfloat, vk::Format::eR32G32Sfloat})
+		.SetPushConstants({
+			{.stageFlags = vk::ShaderStageFlagBits::eVertex /* | vk::ShaderStageFlagBits::eFragment */, .size = sizeof(pushConstants)},
+		})
+	;
+
+	pipe.accessor = pBuilder.Build(pipe.pipeline, pipe.pipelineLayout, pipe.sets, pipe.setLayouts);
+
+	std::vector<PipelineBuilder::WriteSetInfo> updateSetParams;
+	updateSetParams.push_back({vk::DescriptorImageInfo{
+		.sampler = *sampler,
+		.imageView = *texture.view,
+		.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
+	}, 0, 0});
+
+	pBuilder.UpdateSets(updateSetParams);
 }
 
 void Hud::Draw()
 {
-	vao->DrawCount(startId, staticCount);
+	auto &cmd = *renderer.GetCommand();
+	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipe.pipeline);
+	cmd.bindVertexBuffers(0, vao.buffer.buffer, {0});
+	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipe.pipelineLayout, 0, {
+		pipe.sets[pipe.accessor(0,0)]
+	}, nullptr);
+	cmd.pushConstants(*pipe.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
+	cmd.draw(staticCount, 1, location, 0);	
 }
 
 void Hud::ResizeBarId(int id, float horizPercentage)
@@ -178,5 +218,10 @@ void Hud::ResizeBarId(int id, float horizPercentage)
 			coords[start+i].s = (bar.tx + bar.w*(1 - tX[i]*horizPercentage))/width;
 		}
 
-	vao->UpdateBuffer(bar.id, &coords[start], sizeof(Coord)*6);
-} */
+	vao.UpdateBuffer(bar.id, &coords[start], sizeof(Coord)*6);
+}
+
+void Hud::SetMatrix(const glm::mat4 &matrix)
+{
+	pushConstants.transform = matrix;
+}

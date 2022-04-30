@@ -34,4 +34,6 @@ compile_shader(Common
 		shader/particle.frag
 		shader/box.vert
 		shader/box.frag
+		shader/hud.vert
+		shader/hud.frag
 ) 

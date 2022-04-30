@@ -4,8 +4,9 @@
 #include <vector>
 #include <cstdint>
 #include <utility> //pair
-#include "vk/renderer.h"
+#include "allocation.h"
 
+class Renderer;
 //More like builder/indexer, but w/e
 class VertexBuffer
 {
@@ -20,10 +21,8 @@ private:
 		size_t location;
 		size_t stride;
 	};
-
 	
 	size_t totalSize = 0;
-	size_t eboSize = 0;
 	std::vector<memPtr> dataPointers;
 
 public:
@@ -36,9 +35,8 @@ public:
 	int Prepare(size_t size, unsigned int stride, void *ptr);
 	std::pair<size_t,size_t> Index(int which) const;
 	void UpdateBuffer(int which, void *data, size_t count = 0);
-	void UpdateElementBuffer(void *data, size_t count);
-	void Load();
-	
+	void Load(); //GPU only
+	void LoadHostVisible();
 };
 
 #endif /* VERTEX_BUFFER_H_GUARD */

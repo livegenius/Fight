@@ -72,24 +72,17 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	timerString.precision(6);
 	timerString.setf(std::ios::fixed, std::ios::floatfield);
 
-	Hud hud;
+	Hud hud(&mainWindow->renderer);
 
-	int stageId, textId;
-/* 	std::vector<float> textVertData;
+ 	/* std::vector<float> textVertData;
 	textVertData.resize(24*80);
-	Vao vaoTexOnly(Vao::F2F2, GL_DYNAMIC_DRAW );
-	{
-		hud.Load("data/hud/hud.lua", vaoTexOnly);
-		textId = vaoTexOnly.Prepare(sizeof(float)*textVertData.size(), nullptr);
-		vaoTexOnly.Load();
-	} */
-
+	textId = vaoTexOnly.Prepare(sizeof(float)*textVertData.size(), nullptr); */
+	
+	hud.Load("data/hud/hud.lua");
+	hud.SetMatrix(projection);
+		
 	player.Load(1, "data/char/vaki/vaki.char", 0);
 	player2.Load(-1, "data/char/vaki/vaki.char", 1);
-	
-	//For rendering purposes only.
-	std::vector<float> hitboxData;
-
 	
 	sfx.LoadFromDef("data/sfx/sfx.lua");
 	
@@ -240,12 +233,9 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			draw(actor,viewMatrix);
 		}
 
-		//glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 		gfx.SetMatrix(projection*viewMatrix);
-
 		gfx.DrawParticles(particles.particles);
-	
-		//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA); 
+
 		gfx.End();
 
 		//Draw boxes
@@ -256,19 +246,13 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		}
 				
 		//Draw HUD
-		/*SetModelView(glm::mat4(1));
-		vaoTexOnly.Bind();
-		defaultS.Use();
-
-		//Draw lifebars.
-		glBindTexture(GL_TEXTURE_2D, hud.texture.id);
 		// hud.ResizeBarId(0, (gameTicks%120)/119.f);
 		// hud.ResizeBarId(1, (gameTicks%240)/239.f);
 		hud.ResizeBarId(2, player.GetHealthRatio());
 		hud.ResizeBarId(3, player2.GetHealthRatio());
 		hud.Draw();
 
-		//Draw fps bar
+/* 		//Draw fps bar
 		timerString.seekp(0);
 		timerString << "SFP: " << mainWindow->GetSpf() << " FPS: " << 1/mainWindow->GetSpf()<<"      Entities:"<<drawList.v.size()<<
 			"   Particles:"<<particles.size()<<"  ";
