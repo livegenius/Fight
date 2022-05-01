@@ -208,6 +208,9 @@ void GfxHandler::SetupSpritePipeline()
 	;
 	
 	spritePipe.accessor = pBuilder.Build(spritePipe.pipeline, spritePipe.pipelineLayout, spritePipe.sets, spritePipe.setLayouts);
+	pBuilder.colorBlendAttachment.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha;
+	pBuilder.colorBlendAttachment.dstColorBlendFactor = vk::BlendFactor::eOne;
+	pBuilder.BuildDerivate(spriteAdditive);
 
 	std::vector<PipelineBuilder::WriteSetInfo> updateSetParams;
 	updateSetParams.reserve(textureAtlas.size()+1);
@@ -258,16 +261,16 @@ void GfxHandler::SetupParticlePipeline()
 
 	std::vector<PipelineBuilder::WriteSetInfo> updateSetParams;
 	updateSetParams.reserve(textureQuads.size()+2);
-	for(short i = 0; i < renderer.bufferedFrames; i++)
+	for(short i = 0; i < renderer.bufferedFrames; i++) //Particle pos uniform buffer
 	{
-		updateSetParams.push_back({vk::DescriptorBufferInfo{ //Palette
+		updateSetParams.push_back({vk::DescriptorBufferInfo{ 
 			.buffer = particleProperties.buffer,
 			.offset = renderer.PadToAlignment(bufSize)*i,
 			.range = bufSize,
 		}, 0, 0, i});
 	}
-	//for(short j = 0; j < 2; ++j)
-	for(int i = 0; i < textureQuads.size(); ++i) //Indexed
+
+	for(int i = 0; i < textureQuads.size(); ++i) //Textures
 	{
 		updateSetParams.push_back({vk::DescriptorImageInfo{
 			.sampler = *sampler,
@@ -278,11 +281,11 @@ void GfxHandler::SetupParticlePipeline()
 	pBuilder.UpdateSets(updateSetParams);
 }
 
-void GfxHandler::Begin()
+bool GfxHandler::Begin()
 {
 	cmd = renderer.GetCommand();
 	if(!cmd)
-		return;
+		return false;
 
 	void *propMem = particleProperties.Map();
 
@@ -291,17 +294,12 @@ void GfxHandler::Begin()
 	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *spritePipe.pipelineLayout, 0, {
 		spritePipe.sets[spritePipe.accessor(0,0)]
 	}, nullptr);
-}
-
-void GfxHandler::End()
-{
-	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	boundPipe = normal;
+	return true;
 }
 
 void GfxHandler::Draw(int id, int defId)
 {
-	if(!cmd)
-		return;
 	auto search = idMapList[defId].find(id);
 	if (search != idMapList[defId].end())
 	{
@@ -327,7 +325,7 @@ void GfxHandler::Draw(int id, int defId)
 
 void GfxHandler::DrawParticles(const std::vector<ParticleGroup::Particle> &data)
 {
-	if(!cmd || data.empty())
+	if(data.empty())
 		return;
 	auto frame = renderer.CurrentFrame();
 	auto buf = particleProperties.Map(frame);
@@ -377,4 +375,21 @@ void GfxHandler::SetPaletteSlot(int slot)
 void GfxHandler::SetPaletteIndex(int index)
 {
 	pushConstants.paletteIndex = index;
+}
+
+void GfxHandler::SetBlendingMode(int mode)
+{
+	if(boundPipe != mode)
+	{
+		boundPipe = mode;
+		switch(mode)
+		{
+			case normal:			
+				cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *spritePipe.pipeline);
+				break;
+			case additive:
+				cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *spriteAdditive);
+				break;
+		};
+	}
 }

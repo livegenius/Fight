@@ -34,9 +34,9 @@ public:
 	//Returns index of object that can be drawn.
 	int Prepare(size_t size, unsigned int stride, void *ptr);
 	std::pair<size_t,size_t> Index(int which) const;
-	void UpdateBuffer(int which, void *data, size_t count = 0);
+	void UpdateBuffer(int which, void *data, size_t count = 0, int index = 0);
 	void Load(); //GPU only
-	void LoadHostVisible();
+	void LoadHostVisible(int copies = 1);
 };
 
 #endif /* VERTEX_BUFFER_H_GUARD */

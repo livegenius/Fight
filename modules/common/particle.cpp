@@ -93,7 +93,7 @@ void ParticleGroup::PushNormalHit(int amount, float x, float y)
 		particle.pos[0] = x;
 		particle.pos[1] = y;
 		particle.scale[0] = 2;
-		particle.scale[1] = 2;
+		particle.scale[1] = 1;
 		param.growRate[0] = 1.025;
 		param.growRate[1] = 0.70;
 		param.rotSin = 0;

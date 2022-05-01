@@ -38,12 +38,12 @@ std::pair<size_t,size_t> VertexBuffer::Index(int which) const
 	return{data.location, data.size/data.stride};
 }
 
-void VertexBuffer::UpdateBuffer(int which, void *src, size_t count)
+void VertexBuffer::UpdateBuffer(int which, void *src, size_t count, int index)
 {
 	if(count == 0)
 		count = dataPointers[which].size;
 
-	uint8_t* dst = (uint8_t*)buffer.Map();
+	uint8_t* dst = (uint8_t*)buffer.Map(index);
 	memcpy(dst+dataPointers[which].location*dataPointers[which].stride, src, count);
 }
 
@@ -64,15 +64,16 @@ void VertexBuffer::Load()
 	renderer.TransferBuffer(stagingBuffer, buffer, totalSize);
 }
 
-void VertexBuffer::LoadHostVisible()
+void VertexBuffer::LoadHostVisible(int copies)
 {
-	buffer.Allocate(&renderer, totalSize, vk::BufferUsageFlagBits::eVertexBuffer, vma::MemoryUsage::eCpuToGpu);
+	buffer.Allocate(&renderer, totalSize, vk::BufferUsageFlagBits::eVertexBuffer, vma::MemoryUsage::eCpuToGpu, copies);
 	uint8_t *data = (uint8_t*)buffer.Map();
 	size_t where = 0;
 	for(auto &subData : dataPointers)
 	{
 		if(subData.ptr)
-			memcpy(data+where, subData.ptr, subData.size);
+			for(int i = 0; i < copies; ++i)
+				memcpy(data+where+buffer.copySize*i, subData.ptr, subData.size);
 		where += subData.size;
 	}
 	buffer.Unmap();

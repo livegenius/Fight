@@ -146,7 +146,7 @@ void Hud::Load(std::filesystem::path file)
 	
 	for(auto &data : barData)
 		data.id = vao.Prepare(sizeof(Coord)*6, sizeof(Coord), &coords[data.pos]);
-	vao.LoadHostVisible();
+	vao.LoadHostVisible(renderer.bufferedFrames);
 	location = vao.Index(startId).first;
 
 	Renderer::LoadTextureInfo opt{
@@ -183,14 +183,17 @@ void Hud::CreatePipeline()
 
 void Hud::Draw()
 {
-	auto &cmd = *renderer.GetCommand();
-	cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, *pipe.pipeline);
-	cmd.bindVertexBuffers(0, vao.buffer.buffer, {0});
-	cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipe.pipelineLayout, 0, {
+	auto cmd = renderer.GetCommand();
+	if(!cmd)
+		return;
+
+	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *pipe.pipeline);
+	cmd->bindVertexBuffers(0, vao.buffer.buffer, renderer.PadToAlignment(vao.buffer.copySize)*renderer.CurrentFrame());
+	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipe.pipelineLayout, 0, {
 		pipe.sets[pipe.accessor(0,0)]
 	}, nullptr);
-	cmd.pushConstants(*pipe.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
-	cmd.draw(staticCount, 1, location, 0);	
+	cmd->pushConstants(*pipe.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
+	cmd->draw(staticCount, 1, location, 0);	
 }
 
 void Hud::ResizeBarId(int id, float horizPercentage)
@@ -218,7 +221,7 @@ void Hud::ResizeBarId(int id, float horizPercentage)
 			coords[start+i].s = (bar.tx + bar.w*(1 - tX[i]*horizPercentage))/width;
 		}
 
-	vao.UpdateBuffer(bar.id, &coords[start], sizeof(Coord)*6);
+	vao.UpdateBuffer(bar.id, &coords[start], sizeof(Coord)*6, renderer.CurrentFrame());
 }
 
 void Hud::SetMatrix(const glm::mat4 &matrix)

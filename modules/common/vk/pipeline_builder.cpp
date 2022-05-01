@@ -364,6 +364,7 @@ std::function<int(int, int)> PipelineBuilder::Build(vk::raii::Pipeline &pipeline
 	pipelineLayoutInfo.pSetLayouts = setLayoutsNonRaii.data();
 
 	std::tie(pipeline, pLayout) = renderer->RegisterPipelines(pipelineInfo, pipelineLayoutInfo);
+	pipelineInfo.basePipelineHandle = *pipeline;
 
 	return([actualSetIndices=actualSetIndices, accum](int set, int which){
 		assert(actualSetIndices[set]+which < accum);

@@ -189,54 +189,47 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		//Start rendering
 		drawList.Init(player, player2);
 		
-		gfx.Begin();
-		//Draw stage quad
-		auto center = view.GetCameraCenterScale();
-		stage.Draw(projection*viewMatrix, center);
-
-
-		int p1Pos = players[1]->FillDrawList(drawList);
-		int p2Pos = players[0]->FillDrawList(drawList);
-
-		auto draw = [this,&gfx](Actor *actor, glm::mat4 &viewMatrix)
+		if(gfx.Begin())
 		{
-			gfx.SetMatrix(projection*viewMatrix*actor->GetSpriteTransform());
-			auto options = actor->GetRenderOptions();
-			/* switch(options.blendingMode) //Maybe should go inside draw.
+			//Draw stage quad
+			auto center = view.GetCameraCenterScale();
+			stage.Draw(projection*viewMatrix, center);
+
+
+			int p1Pos = players[1]->FillDrawList(drawList);
+			int p2Pos = players[0]->FillDrawList(drawList);
+
+			auto draw = [this,&gfx](Actor *actor, glm::mat4 &viewMatrix)
 			{
-				case RenderOptions::normal:
-					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-					break;
-				case RenderOptions::additive:
-					glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-					break;
-			}; */
-			if(options.paletteIndex == 0)
-				gfx.SetPaletteSlot(0);
-			else
-				gfx.SetPaletteSlot(3);
-			gfx.Draw(actor->GetSpriteIndex(), 0);
-		};
+				gfx.SetMatrix(projection*viewMatrix*actor->GetSpriteTransform());
+				auto options = actor->GetRenderOptions();
+				gfx.SetBlendingMode(options.blendingMode);
+				
+				if(options.paletteIndex == 0)
+					gfx.SetPaletteSlot(0);
+				else
+					gfx.SetPaletteSlot(3);
+				gfx.Draw(actor->GetSpriteIndex(), 0);
+			};
 
-		auto invertedView = glm::translate(glm::scale(viewMatrix, glm::vec3(1,-1,1)), glm::vec3(0,-64,0));
+			auto invertedView = glm::translate(glm::scale(viewMatrix, glm::vec3(1,-1,1)), glm::vec3(0,-64,0));
 
-		//Draw player reflection?
+			//Draw player reflection?
 
-		gfx.SetMulColor(1, 1, 1, 0.2);
-		draw(drawList.v[p1Pos], invertedView);
-		draw(drawList.v[p2Pos], invertedView);
-		gfx.SetMulColor(1, 1, 1, 1);
-	
-		//Draw all actors
-		for(auto actor : drawList.v)
-		{
-			draw(actor,viewMatrix);
+			gfx.SetMulColor(1, 1, 1, 0.2);
+			draw(drawList.v[p1Pos], invertedView);
+			draw(drawList.v[p2Pos], invertedView);
+			gfx.SetMulColor(1, 1, 1, 1);
+		
+			//Draw all actors
+			for(auto actor : drawList.v)
+			{
+				draw(actor,viewMatrix);
+			}
+
+			gfx.SetMatrix(projection*viewMatrix);
+			gfx.DrawParticles(particles.particles);
 		}
-
-		gfx.SetMatrix(projection*viewMatrix);
-		gfx.DrawParticles(particles.particles);
-
-		gfx.End();
 
 		//Draw boxes
 		if(drawBoxes)
@@ -246,8 +239,8 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		}
 				
 		//Draw HUD
-		// hud.ResizeBarId(0, (gameTicks%120)/119.f);
-		// hud.ResizeBarId(1, (gameTicks%240)/239.f);
+		hud.ResizeBarId(0, (gameTicks%120)/119.f);
+		hud.ResizeBarId(1, (gameTicks%240)/239.f);
 		hud.ResizeBarId(2, player.GetHealthRatio());
 		hud.ResizeBarId(3, player2.GetHealthRatio());
 		hud.Draw();

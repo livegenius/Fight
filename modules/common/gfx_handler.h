@@ -37,6 +37,7 @@ private:
 		std::vector<vk::DescriptorSet> sets;
 		std::function <int(int,int)> accessor;
 	}spritePipe, particlePipe;
+	vk::raii::Pipeline spriteAdditive = nullptr;
 
 
 	std::vector<std::unique_ptr<VertexData4[]>> tempVDContainer;
@@ -89,11 +90,19 @@ public:
 	void SetMatrix(const glm::mat4 &matrix);
 	void Draw(int id, int defId = 0);
 	void DrawParticles(const std::vector<ParticleGroup::Particle> &data);
-	void Begin();
-	void End();
+
+	//Returns true if you're allowed to draw.
+	bool Begin();
 
 	bool isLoaded(){return loaded;}
 	void SetMulColor(float r, float g, float b, float a = 1.f);
+
+	enum{
+		normal,
+		additive
+	};
+	int boundPipe;
+	void SetBlendingMode(int mode);
 
 	int GetVirtualId(int id, int defId = 0); //Avoid using this
 };
