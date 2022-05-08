@@ -5,16 +5,12 @@
 #include <chrono>
 #include "main_frame.h"
 
-
+class Renderer;
 class Window
 {
-public:
-	bool fullscreen;
-	bool vsync;
-
 private:
+	Renderer *renderer;
 	SDL_Window* window;
-	SDL_GLContext glcontext;
 	std::unique_ptr<MainFrame> mf;
 
 	int frameRateChoice;

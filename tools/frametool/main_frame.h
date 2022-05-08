@@ -1,5 +1,6 @@
 #ifndef MAINFRAME_H_GUARD
 #define MAINFRAME_H_GUARD
+
 #include "render.h"
 #include "draw_window.h"
 #include "framedata.h"
@@ -35,12 +36,12 @@ private:
 	int style_idx = 0;
 	int zoom_idx = 3;
 
-	Render render;
+	//Render render;
 	FrameState currState;
 
 	std::string currentFilePath;
 
-	void DrawBack();
+	void DrawBack(const vk::CommandBuffer &cmd);
 	void DrawUi();
 	void Menu(unsigned int errorId);
 

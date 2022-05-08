@@ -73,10 +73,6 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	timerString.setf(std::ios::fixed, std::ios::floatfield);
 
 	Hud hud(&mainWindow->renderer);
-
- 	/* std::vector<float> textVertData;
-	textVertData.resize(24*80);
-	textId = vaoTexOnly.Prepare(sizeof(float)*textVertData.size(), nullptr); */
 	
 	hud.Load("data/hud/hud.lua");
 	hud.SetMatrix(projection);
@@ -245,15 +241,16 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		hud.ResizeBarId(3, player2.GetHealthRatio());
 		hud.Draw();
 
-/* 		//Draw fps bar
-		timerString.seekp(0);
+ 		//Draw fps bar
+/* 		timerString.seekp(0);
 		timerString << "SFP: " << mainWindow->GetSpf() << " FPS: " << 1/mainWindow->GetSpf()<<"      Entities:"<<drawList.v.size()<<
-			"   Particles:"<<particles.size()<<"  ";
+			"   Particles:"<<particles.particles.size()<<"  ";
+
 		glBindTexture(GL_TEXTURE_2D, activeTextures[0].id);
 		int count = DrawText(timerString.str(), textVertData, 2, 10);
 		vaoTexOnly.UpdateBuffer(textId, textVertData.data());
-		vaoTexOnly.Draw(textId);
- */
+		vaoTexOnly.Draw(textId); */
+
 		//End drawing.
 		++gameTicks;
 		mainWindow->SwapBuffers();
@@ -341,12 +338,14 @@ bool BattleScene::KeyHandle(const SDL_KeyboardEvent &e)
 		return false;
 
 	switch (e.keysym.scancode){
-/* 	case SDL_SCANCODE_F1: 
-		SaveState();
+ 	case SDL_SCANCODE_F1: 
+	 	//if(!ggpo)
+			SaveState(savedState);
 		break;
 	case SDL_SCANCODE_F2:
-		LoadState();
-		break; */
+		//if(!ggpo)
+			LoadState(savedState);
+		break;
 	case SDL_SCANCODE_H:
 		drawBoxes = !drawBoxes;
 		break;
@@ -444,14 +443,11 @@ bool BattleScene::SetupGgpo(int playerId, const std::string &address)
 			std::cout << "Remote port :"<< p.u.remote.port <<"\n";
 			std::cout << "Remote address :"<< p.u.remote.ip_address <<"\n";
 		}
-
 		ggpo_add_player(ggpo, &p, &h);
 		
 	}
-
 	
 	ggpo_set_disconnect_timeout(ggpo, 3000);
 	ggpo_set_disconnect_notify_start(ggpo, 1000);
-
 	return true;
 }

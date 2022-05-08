@@ -26,10 +26,13 @@ endfunction()
 
 add_library(vulkan-pch INTERFACE)
 target_compile_definitions(vulkan-pch INTERFACE VULKAN_HPP_NO_CONSTRUCTORS)
-target_precompile_headers(vulkan-pch INTERFACE
-	<vulkan/vulkan.hpp>
-	<vulkan/vulkan_raii.hpp>
-)
+
+if(false)
+	target_precompile_headers(vulkan-pch INTERFACE
+		<vulkan/vulkan.hpp>
+		<vulkan/vulkan_raii.hpp>
+	)
+endif()
 
 add_subdirectory(submodules/vk-bootstrap)
 
@@ -39,10 +42,13 @@ add_library(vma-hpp STATIC
 )
 target_include_directories(vma-hpp PUBLIC submodules/vma-hpp)
 target_link_libraries(vma-hpp PRIVATE Vulkan::Vulkan vulkan-pch)
-target_precompile_headers(vma-hpp PUBLIC
-	#vk_mem_alloc.h doesn't play well with precompiled headers
-	[["vk_mem_alloc.hpp"]]
-)
+
+if(false)
+	target_precompile_headers(vma-hpp PUBLIC
+		#vk_mem_alloc.h doesn't play well with precompiled headers
+		[["vk_mem_alloc.hpp"]]
+	)
+endif()
 
 #Add SPIRV-Reflect
 add_library(spirv-reflect STATIC

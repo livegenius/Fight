@@ -1,6 +1,7 @@
 #include "format_info.h"
+#include <cassert>
 
-FormatInfo FormatInfo::GetFormatInfo(const VkFormat format)
+FormatInfo FormatInfo::GetFormatInfo(const VkFormat &format)
 {
 	switch(format)
 	{

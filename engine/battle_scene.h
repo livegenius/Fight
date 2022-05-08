@@ -1,8 +1,6 @@
 #ifndef BATTLE_SCENE_H_GUARD
 #define BATTLE_SCENE_H_GUARD
 
-#include <vk/renderer.h>
-
 #include <hitbox_renderer.h>
 #include "battle_interface.h"
 #include "chara.h"
@@ -51,6 +49,8 @@ private:
 	GGPOPlayerHandle playerHandle[2];
 	GGPOSession *ggpo = nullptr;
 	glm::mat4 viewMatrix; //Camera view.
+
+	State savedState;
 
 public:
 	BattleScene(ENetHost *local);

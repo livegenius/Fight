@@ -1,11 +1,11 @@
 #ifndef PIPELINE_BUILDER_H_GUARD
 #define PIPELINE_BUILDER_H_GUARD
 
-#include <vulkan/vulkan_raii.hpp>
+#include <vulkan/vulkan.hpp>
+#include "forward.h"
 #include <unordered_map>
 #include <tuple>
 #include <filesystem>
-
 
 class Renderer;
 class PipelineBuilder

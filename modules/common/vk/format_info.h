@@ -11,8 +11,7 @@ struct FormatInfo {
 		int size; // bits
 	} components[4];
 
-	static FormatInfo GetFormatInfo(const VkFormat format);
-	static FormatInfo GetFormatInfo(const vk::Format format){return GetFormatInfo((VkFormat)format);}
+	static FormatInfo GetFormatInfo(const VkFormat &format);
 
 	enum {
 		NONE,

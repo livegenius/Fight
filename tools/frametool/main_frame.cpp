@@ -9,7 +9,6 @@
 #include <SDL_scancode.h>
 #include <nfd.h>
 
-#include <glad/glad.h>
 #include <glm/vec3.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 

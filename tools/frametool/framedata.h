@@ -1,7 +1,6 @@
 #ifndef CHARACTER_H_INCLUDED
 #define CHARACTER_H_INCLUDED
 
-#include "types.h"
 #include <cstdint>
 #include <string>
 #include <vector>

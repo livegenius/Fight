@@ -1,5 +1,7 @@
 #include "pipeline_builder.h"
 #include "renderer.h"
+#include <vulkan/vulkan_raii.hpp>
+
 #include <fstream>
 #include "format_info.h"
 #include <spirv_reflect.h>
@@ -259,7 +261,7 @@ PipelineBuilder& PipelineBuilder::SetInputLayout(bool interleaved, std::initiali
 		uint32_t stride = 0;
 		for(const auto &format : formats)
 		{	
-			auto info = FormatInfo::GetFormatInfo(format);
+			auto info = FormatInfo::GetFormatInfo((VkFormat)format);
 			stride += info.bytes;
 		}
 
@@ -273,7 +275,7 @@ PipelineBuilder& PipelineBuilder::SetInputLayout(bool interleaved, std::initiali
 		uint32_t offset = 0, location = 0;
 		for(const auto &format : formats)
 		{
-			auto info = FormatInfo::GetFormatInfo(format);
+			auto info = FormatInfo::GetFormatInfo((VkFormat)format);
 			vk::VertexInputAttributeDescription attribute = {
 				.location = location,
 				.binding = 0,

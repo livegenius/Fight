@@ -1,12 +1,15 @@
 #ifndef VK_CONTEXT_H_GUARD
 #define VK_CONTEXT_H_GUARD
-  
-#include <unordered_map>
-#include <SDL.h>
+
+#include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_raii.hpp>
-#include <filesystem>
 #include "allocation.h"
 #include "pipeline_builder.h"
+
+#include <unordered_map>
+#include <SDL.h>
+#include <filesystem>
+
 
 constexpr int internalWidth = 480;
 constexpr int internalHeight = 270;
@@ -126,15 +129,13 @@ private:
 	void BeginDrawing(int imageIndex);
 	void EndDrawing(int imageIndex);
 
-	void ExecuteCommand(std::function<void(vk::CommandBuffer)>&& function);
-
-	
-
 public:
 	//Renderer();
 	~Renderer();
 	bool Init(SDL_Window *, int syncMode);
 	
+	void ExecuteCommand(std::function<void(vk::CommandBuffer)>&& function);
+
 	bool Acquire();
 	void Submit();
 	bool HandleEvents(SDL_Event);
@@ -158,6 +159,25 @@ public:
 	void Wait();
 
 	static size_t PadToAlignment(size_t originalSize);
+
+	struct ImguiInfo
+	{
+		VkInstance                      Instance;
+		VkPhysicalDevice                PhysicalDevice;
+		VkDevice                        Device;
+		uint32_t                        QueueFamily;
+		VkQueue                         Queue;
+		VkPipelineCache                 PipelineCache;
+		VkDescriptorPool                DescriptorPool;
+		uint32_t                        Subpass;
+		uint32_t                        MinImageCount;          // >= 2
+		uint32_t                        ImageCount;             // >= MinImageCount
+		VkSampleCountFlagBits           MSAASamples;            // >= VK_SAMPLE_COUNT_1_BIT (0 -> default to VK_SAMPLE_COUNT_1_BIT)
+		const VkAllocationCallbacks*    Allocator;
+		void                            (*CheckVkResultFn)(VkResult err);
+	};
+	VkRenderPass GetRenderPass();
+	ImguiInfo GetImguiInfo();
 };
 
 #endif /* VK_CONTEXT_H_GUARD */

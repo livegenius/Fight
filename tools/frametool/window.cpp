@@ -1,12 +1,12 @@
 #include "window.h"
 #include "ini.h"
-#include <shader.h>
+#include <vk/renderer.h>
 
 #include <glad/glad.h>
 #include <SDL.h>
 
 #include <imgui.h>
-#include <imgui_impl_opengl3.h>
+#include <imgui_impl_vulkan.h>
 #include <imgui_impl_sdl.h>
 
 #include <assert.h>
@@ -17,8 +17,6 @@
 Window *mainWindow = nullptr;
 
 Window::Window() :
-fullscreen(false),
-vsync(false),
 window(nullptr),
 frameRateChoice(0),
 targetSpf(0.01600),
@@ -37,20 +35,11 @@ startClock(std::chrono::high_resolution_clock::now())
 	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	io.IniFilename = "frametool.ini";
 	InitIni();
-	
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG);
-	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
-	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
-	SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
-	
 	window = SDL_CreateWindow(
 		"Frametool",
 		gSettings.posX, gSettings.posY, gSettings.winSizeX, gSettings.winSizeY,
-		SDL_WINDOW_OPENGL|SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI | (gSettings.maximized ? SDL_WINDOW_MAXIMIZED : 0));
+		SDL_WINDOW_VULKAN|SDL_WINDOW_RESIZABLE|SDL_WINDOW_ALLOW_HIGHDPI | (gSettings.maximized ? SDL_WINDOW_MAXIMIZED : 0));
 
 	if(!window)
 	{
@@ -59,24 +48,18 @@ startClock(std::chrono::high_resolution_clock::now())
 		throw std::runtime_error("Couldn't create window.");
 	}
 
-	glcontext = SDL_GL_CreateContext(window);
-	if (!gladLoadGLLoader((GLADloadproc) SDL_GL_GetProcAddress))
-	{
-		SDL_DestroyWindow( window );
-		SDL_Quit();
-		throw std::runtime_error("Glad couldn't initialize OpenGL context.");
-	}
+	renderer = new Renderer();
+	renderer->Init(window, true);
 
-	std::cout << "OpenGL " << GLVersion.major <<"."<< GLVersion.minor <<"\n";
+	ImGui_ImplSDL2_InitForVulkan(window);
+	auto info = renderer->GetImguiInfo();
+	static_assert(sizeof(ImGui_ImplVulkan_InitInfo) == sizeof(info));
+	ImGui_ImplVulkan_Init((ImGui_ImplVulkan_InitInfo*)&info, renderer->GetRenderPass());
 
-	if(vsync)
-	{
-		SDL_GL_SetSwapInterval(1);
-		vsync = SDL_GL_GetSwapInterval();
-	}
-
-	ImGui_ImplSDL2_InitForOpenGL(window, glcontext);
-	ImGui_ImplOpenGL3_Init("#version 330");
+	renderer->ExecuteCommand([](vk::CommandBuffer cmd){
+		ImGui_ImplVulkan_CreateFontsTexture(cmd);
+	});
+	ImGui_ImplVulkan_DestroyFontUploadObjects();
 
 	mf.reset(new MainFrame);
 	UpdateClientRect();
@@ -85,12 +68,12 @@ startClock(std::chrono::high_resolution_clock::now())
 Window::~Window()
 {
 	mf.reset();
-	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplSDL2_Shutdown();
 	ImGui::DestroyContext();
 
-	SDL_GL_DeleteContext(glcontext);
-	SDL_DestroyWindow( window );
+	delete renderer;
+	SDL_DestroyWindow(window);
 	SDL_Quit();
 }
 
@@ -100,6 +83,8 @@ bool Window::PollEvents()
 	while (SDL_PollEvent(&event))
 	{
 		ImGui_ImplSDL2_ProcessEvent(&event);
+		renderer->HandleEvents(event);
+		
 		switch(event.type)
 		{
 			case SDL_QUIT:
@@ -158,36 +143,34 @@ void Window::UpdateClientRect()
 
 void Window::Render()
 {
-	ImGui_ImplOpenGL3_NewFrame();
-	ImGui_ImplSDL2_NewFrame(window);
+	ImGui_ImplVulkan_NewFrame();
+	ImGui_ImplSDL2_NewFrame();
 	ImGui::NewFrame();
 
-	mf->Draw();
+	
 
 	ImGui::Render();
-	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+	//auto dispSize = ImGui::GetDrawData()->DisplaySize;
+	renderer->Acquire();
+	auto *cmd = renderer->GetCommand();
+	if(cmd)
+	{
+		mf->Draw();
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *cmd);
+	}
+	renderer->Submit();
 }
 
 void Window::SleepUntilNextFrame()
 {
-	if(!vsync)
-	{
-		std::chrono::duration<double> targetDur(targetSpf);
-		std::chrono::duration<double> dur; 
+	std::chrono::duration<double> targetDur(targetSpf);
+	std::chrono::duration<double> dur; 
 
-		auto now = std::chrono::high_resolution_clock::now();
-		if((dur = now - startClock) < targetDur)
-		{
-			std::this_thread::sleep_for((targetDur-dur));
-		}
-		//while( (dur = std::chrono::high_resolution_clock::now() - startClock) <= targetDur); 
+	auto now = std::chrono::high_resolution_clock::now();
+	if((dur = now - startClock) < targetDur)
+		std::this_thread::sleep_for((targetDur-dur));
 	
-		realSpf = dur.count();
-	}
-	else
-	{
-		realSpf = std::chrono::duration<double>(std::chrono::high_resolution_clock::now()-startClock).count();
-	}
+	realSpf = dur.count();
 	startClock = std::chrono::high_resolution_clock::now();
 }
 

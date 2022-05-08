@@ -1,4 +1,5 @@
 #include "hitbox_renderer.h"
+#include <vk/renderer.h>
 
 constexpr size_t maxBoxes = 128;
 constexpr size_t vertexBufferSize = sizeof(float)*6*4*maxBoxes;

@@ -1,5 +1,6 @@
 #include "renderer.h"
 #include <VkBootstrap.h>
+#include <vulkan/vulkan_raii.hpp>
 #include <SDL_vulkan.h>
 #include <iostream>
 #include <image.h>
@@ -782,4 +783,39 @@ size_t Renderer::PadToAlignment(size_t originalSize)
 		alignedSize = (alignedSize + uniformBufferAlignment - 1) & ~(uniformBufferAlignment - 1);
 	}
 	return alignedSize;
+}
+
+VkRenderPass Renderer::GetRenderPass()
+{
+	return *renderPass;
+}
+
+static void check_vk_result(VkResult err)
+{
+	if (err == 0)
+		return;
+	std::cerr << "[imgui] vulkan error: VkResult = "<<err<<"\n";
+	if (err < 0)
+		throw std::runtime_error("Imgui-Vulkan error");
+}
+
+
+
+Renderer::ImguiInfo Renderer::GetImguiInfo()
+{
+	return ImguiInfo{
+		.Instance = *instance,
+		.PhysicalDevice = *pDevice,
+		.Device = *device,
+		.QueueFamily = indices.graphics,
+		.Queue = qGraphics,
+		.PipelineCache = VK_NULL_HANDLE,
+		.DescriptorPool = *descriptorPool,
+		.Subpass = 0,
+		.MinImageCount = bufferedFrames,
+		.ImageCount = (uint32_t)swapchain.images.size(),
+		.MSAASamples = VK_SAMPLE_COUNT_1_BIT,
+		.Allocator = nullptr,
+		.CheckVkResultFn = check_vk_result,
+	};
 }

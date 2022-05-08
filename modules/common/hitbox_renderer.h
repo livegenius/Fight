@@ -1,10 +1,12 @@
 #ifndef HITBOX_RENDER_H_GUARD
 #define HITBOX_RENDER_H_GUARD
+
 #include <vector>
 #include "vertex_buffer.h"
-#include "vk/renderer.h"
 #include <glm/mat4x4.hpp>
+#include <vulkan/vulkan_raii.hpp>
 
+class Renderer;
 //Holds the state needed to render hitboxes for debug purposes.
 class HitboxRenderer
 {
