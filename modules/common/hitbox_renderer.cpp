@@ -2,8 +2,8 @@
 #include <vk/renderer.h>
 
 constexpr size_t maxBoxes = 128;
-constexpr size_t vertexBufferSize = sizeof(float)*6*4*maxBoxes;
-constexpr size_t indexBufferSize = sizeof(uint16_t)*(6+8)*maxBoxes;
+constexpr size_t vertexBufferSize = sizeof(float)*6*4*maxBoxes + 6*4*sizeof(float);
+constexpr size_t indexBufferSize = sizeof(uint16_t)*(6+8)*maxBoxes + 4*sizeof(uint16_t);
 static_assert(4*maxBoxes <= 0xFFFFu, "16 bit element buffer can't hold all box vertices.");
 
 HitboxRenderer::HitboxRenderer(Renderer &renderer):
@@ -32,8 +32,25 @@ renderer(renderer)
 				data[i+offset] = lineIndexOffset[offset] + li;
 		}
 
+		//Axis indices.
+		auto offset = (6+8)*maxBoxes;
+		for(size_t i = 0; i < 4; ++i)
+			data[offset+i] = 4*maxBoxes+i;
+
 		renderer.TransferBuffer(stagingBuffer, indices, indexBufferSize);
 	}
+
+	//Axis vertices
+	float axisData[]
+	{
+		-100000, 0, 1,	1,1,1,
+		100000, 0, 1,	1,1,1,
+		0, 100000, 1,	1,1,1,
+		0, -100000, 1,	1,1,1,
+	};
+	float *quadVertices = (float *)vertices.Map();
+	memcpy(&quadVertices[6*4*maxBoxes], axisData, sizeof(axisData));
+	vertices.Unmap();
 
 	auto pBuilder = renderer.GetPipelineBuilder();
 	pBuilder
@@ -72,6 +89,17 @@ void HitboxRenderer::Draw(const glm::mat4 &transform)
 		cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *lines.pipeline);
 		cmd->drawIndexed(quadsToDraw*8, 1, 6*maxBoxes, 0, 0);
 	}
+}
+
+void HitboxRenderer::DrawAxisOnly(const glm::mat4 &transform, float alpha)
+{
+	PushConstants pushConstants {transform, alpha};
+	auto cmd = renderer.GetCommand();
+	cmd->bindVertexBuffers(0, vertices.buffer, {0});
+	cmd->bindIndexBuffer(indices.buffer, 0, vk::IndexType::eUint16);
+	cmd->pushConstants(*lines.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
+	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *lines.pipeline);
+	cmd->drawIndexed(4, 1, (8+6)*maxBoxes, 0, 0);
 }
 
 void HitboxRenderer::GenerateHitboxVertices(const std::vector<float> &hitboxes, int pickedColor)

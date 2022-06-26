@@ -2,7 +2,6 @@
 #include "ini.h"
 #include <vk/renderer.h>
 
-#include <glad/glad.h>
 #include <SDL.h>
 
 #include <imgui.h>
@@ -61,7 +60,7 @@ startClock(std::chrono::high_resolution_clock::now())
 	});
 	ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-	mf.reset(new MainFrame);
+	mf.reset(new MainFrame(renderer));
 	UpdateClientRect();
 }
 
@@ -147,15 +146,13 @@ void Window::Render()
 	ImGui_ImplSDL2_NewFrame();
 	ImGui::NewFrame();
 
-	
-
-	ImGui::Render();
 	//auto dispSize = ImGui::GetDrawData()->DisplaySize;
 	renderer->Acquire();
 	auto *cmd = renderer->GetCommand();
 	if(cmd)
 	{
 		mf->Draw();
+		ImGui::Render();
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *cmd);
 	}
 	renderer->Submit();

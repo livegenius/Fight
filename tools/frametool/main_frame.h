@@ -9,10 +9,12 @@
 #include <glm/mat4x4.hpp>
 #include <string>
 
+
+class Renderer;
 class MainFrame
 {
 public:
-	MainFrame();
+	MainFrame(Renderer *renderer);
 	~MainFrame();
 	
 	void Draw();
@@ -32,16 +34,17 @@ private:
 		int x, y;
 	}clientRect;
 
-	float clearColor[3];
+	float clearColor[4] = {1,1,1,1};
 	int style_idx = 0;
 	int zoom_idx = 3;
 
-	//Render render;
+	Renderer *backendRenderer;
+	Render render;
 	FrameState currState;
 
 	std::string currentFilePath;
 
-	void DrawBack(const vk::CommandBuffer &cmd);
+	void DrawBack();
 	void DrawUi();
 	void Menu(unsigned int errorId);
 

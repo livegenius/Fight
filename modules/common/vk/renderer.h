@@ -118,6 +118,8 @@ private:
 	vk::Pipeline lastPipeline = VK_NULL_HANDLE;
 	uint32_t imageIndex;
 
+	std::array<float,4> clearColor;
+
 private:
 	void RecreateSwapchain();
 	void CreateSwapchain();
@@ -139,6 +141,8 @@ public:
 	bool Acquire();
 	void Submit();
 	bool HandleEvents(SDL_Event);
+
+	void SetClearColor(float color[4]);
 	
 	Renderer::Texture LoadTextureSingle(const LoadTextureInfo& info);
 	void LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vector<Texture> &textures);

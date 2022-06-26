@@ -12,9 +12,13 @@
 #include <glm/vec3.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include <renderer.h>
+
 bool show_demo_window = true;
 
-MainFrame::MainFrame():
+MainFrame::MainFrame(Renderer *renderer):
+render(renderer),
+backendRenderer(renderer),
 currState{},
 mainPane(&render, &fd, currState),
 x(0),y(-150)
@@ -22,8 +26,7 @@ x(0),y(-150)
 	LoadSettings();
 
 	render.LoadGraphics("data/char/vaki/def.lua");
-	render.LoadPalette("data/palettes/play2.act");
-	
+
 	currentFilePath = "data/char/vaki/vaki.char";
 	fd.Load(currentFilePath);
 }
@@ -49,6 +52,7 @@ void MainFrame::SetClientRect(int x, int y)
 
 void MainFrame::Draw()
 {
+	backendRenderer->SetClearColor(clearColor);
 	DrawUi();
 	DrawBack();
 
@@ -59,8 +63,6 @@ void MainFrame::Draw()
 
 void MainFrame::DrawBack()
 {
-	glClearColor(clearColor[0], clearColor[1], clearColor[2], 1.f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	render.x = (x+clientRect.x/2)/render.scale;
 	render.y = (y+clientRect.y/2)/render.scale;
 	render.Draw();
@@ -143,9 +145,11 @@ void MainFrame::RenderUpdate()
 		auto &frame =  fd.sequences[currState.seq].frames[currState.frame];
 		render.spriteId = frame.frameProp.spriteIndex;
 		
-		render.GenerateHitboxVertices(frame.colbox, Render::gray);
-		render.GenerateHitboxVertices(frame.greenboxes, Render::green);
+		
+		
 		render.GenerateHitboxVertices(frame.redboxes, Render::red);
+		render.GenerateHitboxVertices(frame.greenboxes, Render::green);
+		render.GenerateHitboxVertices(frame.colbox, Render::gray);
 		render.LoadHitboxVertices();
 		render.offsetX = frame.frameProp.spriteOffset[0];
 		render.offsetY = -frame.frameProp.spriteOffset[1];
@@ -185,7 +189,7 @@ void MainFrame::AdvanceFrame(int dir)
 void MainFrame::UpdateBackProj(float x, float y)
 {
 	render.UpdateProj(x, y);
-	glViewport(0, 0, x, y);
+	//glViewport(0, 0, x, y);
 }
 
 void MainFrame::HandleMouseDrag(int x_, int y_, bool dragLeft, bool dragRight)

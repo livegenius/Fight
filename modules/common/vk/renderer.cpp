@@ -456,6 +456,11 @@ void Renderer::Submit()
 	currentFrame = (currentFrame + 1) % bufferedFrames;
 }
 
+void Renderer::SetClearColor(float color[4])
+{
+	memcpy(clearColor.data(), color, sizeof(float)*4);
+}
+
 void Renderer::BeginDrawing(int imageIndex)
 {
 	auto &cmd = cmds[currentFrame];
@@ -468,7 +473,7 @@ void Renderer::BeginDrawing(int imageIndex)
 
 	//float add = (currentFrame+1)/5.f;
 	const vk::ClearValue clearValues[2] = {
-		vk::ClearColorValue{{{ 0.5f, 0.5f, 0.5f, 1.0f }}},
+		vk::ClearColorValue{{clearColor}},
 		{.depthStencil = vk::ClearDepthStencilValue{1.f, 0}}
 	};
 

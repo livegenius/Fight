@@ -67,7 +67,7 @@ private:
 		int textureIndex = 0;
 		int paletteSlot = 0;
 		int paletteIndex = 0;
-		glm::vec4 mulColor ;
+		glm::vec4 mulColor = {1,1,1,1};
 	} pushConstants;
 
 	void LoadToVertexBuffer(std::filesystem::path file, int mapId, int textureIndex);

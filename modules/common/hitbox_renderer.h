@@ -24,6 +24,7 @@ public:
 	void LoadHitboxVertices();
 	void DontDraw();
 	void Draw(const glm::mat4 &transform);
+	void DrawAxisOnly(const glm::mat4 &transform, float alpha);
 
 private:
 	Renderer &renderer;

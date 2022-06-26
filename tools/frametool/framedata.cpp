@@ -289,7 +289,7 @@ std::string Framedata::GetDecoratedName(int n)
 	std::stringstream ss;
 	ss.flags(std::ios_base::right);
 	
-	ss << std::setfill('0') << std::setw(3) << n << " " << sequences[n].name;
+	ss << std::setfill('0') << std::setw(3) << n << " - " << sequences[n].name;
 	return ss.str();
 }
 

@@ -5,18 +5,21 @@
 #include <filesystem>
 #include <unordered_map>
 #include <glm/mat4x4.hpp>
-#include <gfx_handler.h>
+#include <memory>
+
+class GfxHandler;
+class Renderer;
+class HitboxRenderer;
 
 class Render
 {
 private:
 	glm::mat4 projection;
-	GfxHandler gfx;
+	std::unique_ptr<GfxHandler> gfx;
+	std::unique_ptr<HitboxRenderer> hr;
 
 	float colorRgba[4];
 	
-	void SetModelView(glm::mat4&& view);
-
 public:
 	int spriteId;
 	int x, offsetX;
@@ -27,7 +30,8 @@ public:
 	int highLightN = -1;
 	
 	
-	Render();
+	Render(Renderer*);
+	~Render();
 
 	void Draw();
 	void UpdateProj(float w, float h);
@@ -36,7 +40,15 @@ public:
 	void SetImageColor(float *rgbaArr);
 
 	void LoadGraphics(std::filesystem::path path);
-	void LoadPalette(std::filesystem::path path);
+
+	enum // Dupe code, but whatever
+	{
+		gray = 0,
+		green,
+		red,
+	};
+	void GenerateHitboxVertices(const std::vector<int> &boxes, int color);
+	void LoadHitboxVertices();
 };
 
 #endif /* RENDER_H_GUARD */
