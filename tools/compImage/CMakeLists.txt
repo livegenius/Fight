@@ -4,7 +4,7 @@ target_link_libraries(compImage PRIVATE
 	Image
 	squish
 	lz4_static
-	args
+	header_only
 )
 
 #target_include_directories(PackImage PRIVATE ".")
