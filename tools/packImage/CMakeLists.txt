@@ -3,7 +3,7 @@ add_executable(PackImage)
 target_link_libraries(PackImage PRIVATE
 	Geometry
 	Image
-	args
+	header_only
 )
 
 #target_include_directories(PackImage PRIVATE ".")
