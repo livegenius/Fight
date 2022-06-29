@@ -175,6 +175,15 @@ function hurtSound(actor)
 			g.PlaySound(str)
 		end
 	end
+	
+	if actor.subframeCount == 0 then
+		if ((actor.currentSequence == 26 and actor.currentFrame == 7) or
+			(actor.currentSequence == 29 and actor.currentFrame == 5) or
+			(actor.currentSequence == 30 and actor.currentFrame == 11)
+			) then
+			global.PlaySound("bounce")
+		end
+	end
 end
 
 --Standing only
@@ -198,7 +207,17 @@ function crouch(actor)
 	end
 end
 
-function slide1(actor)
+function doubleJump(actor)
+	if actor.totalSubframeCount == 0 then
+		if actor.currentSequence == 38 then --fwd
+			global.TurnAround(40)
+		elseif actor.currentSequence == 40 then --bak
+			global.TurnAround(38)
+		end
+	end
+end
+
+function slide1(actor) --First neutral jump
 	local frame = actor.currentFrame
 	if(frame > 5 and frame < 12) then
 		local x, y = actor:GetVel()
@@ -212,9 +231,13 @@ function slide1(actor)
 	end
 end
 
-function slide2(actor)
+function neutralDoubleJump(actor)
 	local frame = actor.currentFrame
-	if(frame > 2 and frame < 7) then
+	if (actor.totalSubframeCount == 0) then
+		global.TurnAround(-1)
+	
+	--slide
+	elseif(frame > 2 and frame < 7) then
 		local x, y = actor:GetVel()
 		local input = global.GetInput()
 		if(input & key.right ~= 0) then
@@ -234,8 +257,18 @@ function speedLim(actor)
 end
 
 function blocking(actor)
+	--[[
+	if(actor.totalSubframeCount == 0) then
+		actor:GotoFrame(2)
+	end --]]--
 	if(global.GetBlockTime() > 0) then
 		actor:GotoFrame(2)
+	end
+end
+
+function blockingAir(actor)
+	if(actor.totalSubframeCount == 0) then
+		global.SetBlockTime(0)
 	end
 end
 
@@ -321,6 +354,8 @@ function s2a (actor)
 		hitdef.damage = 350
 		hitdef.attackFlags = g.hit.hitsStand
 		hitdef.sound = "punchWeak"
+	elseif(actor.currentFrame == 1 and actor.subframeCount == 0) then
+		A_spawnPosRel(actor, 113)
 	end
 end
 
@@ -332,6 +367,8 @@ function s2b (actor)
 		hitdef.blockStun = 14
 		hitdef.damage = 250
 		hitdef.sound = "slash"
+	elseif(actor.currentFrame == 3 and actor.subframeCount == 0) then
+		A_spawnPosRel(actor, 104)
 	end
 end
 
@@ -362,6 +399,21 @@ function s4c (actor)
 		hitdef.shakeTime = 12
 		hitdef.attackFlags = g.hit.hitsAir
 		hitdef.sound = "punchStrong"
+	elseif actor.currentFrame == 3 and actor.subframeCount == 0 then
+		A_spawnPosRel(actor, 110, 0, 8)
+	end
+end
+
+function s6c (actor)
+	if(actor.totalSubframeCount == 0) then
+		local hitdef = actor.hitDef
+		strongHit(hitdef, true)
+		hitdef.hitStop = histopTbl.strong
+		hitdef.damage = 1700
+		hitdef.blockStun = 20
+		hitdef.shakeTime = 15
+		hitdef.attackFlags = global.hit.hitsCrouch
+		hitdef.sound = "kickStrong"
 	end
 end
 
@@ -406,6 +458,9 @@ function sjc (actor)
 		hitdef.shakeTime = 12
 		hitdef.attackFlags = g.hit.hitsCrouch
 		hitdef.sound = "punchStrong"
+	elseif(actor.currentFrame == 4 and actor.subframeCount == 0) then
+		A_spawnPosRel(actor, 138,0,0,a_flag.followParent):Attach(actor)
+		A_spawnPosRel(actor, 139,0,0,a_flag.followParent):Attach(actor)
 	end
 end
 
@@ -420,15 +475,27 @@ function s3c (actor)
 		hitdef.damage = 700
 		hitdef.shakeTime = 8
 		hitdef.sound = "punchStrong"
+	elseif(actor.currentFrame == 4 and actor.subframeCount == 0) then
+		A_spawnPosRel(actor, 102)
 	end
 end
 
 --------------------- Other --------------------------
-function sgthrow(actor)
-	frame = actor.currentFrame
-	if(frame == 3 and actor.subframeCount == 0) then
+local t_sgthrow = {
+	[0] = function (actor)
+		local hitdef = actor.hitDef
+		hitdef:SetVectors(s.stand, v.wallSlam, v.block3)
+		hitdef:SetVectors(s.air, v.wallSlam, v.airBlock)
+		hitdef:SetVectors(s.crouch, v.wallSlam, v.croBlock3)
+		hitdef.hitStop = histopTbl.strong
+		hitdef.blockStun = 20
+		hitdef.damage = 700
+		hitdef.shakeTime = 4
+		hitdef.attackFlags = g.hit.wallBounce | g.hit.hitsAir | g.hit.disableCollision
+		hitdef.sound = "slash"
+	end,
+	[3] = function (actor)
 		if(actor:ThrowCheck(g.GetTarget(), 50, 0 ,0)) then
-			
 			actor.userData.t = g.GetTarget()
 			if((g.GetInputRelative() & key.left) ~= 0) then
 				actor:SetSide(-actor:GetSide())
@@ -437,8 +504,130 @@ function sgthrow(actor)
 			g.SetPriority(1)
 			actor:GotoFrame(13)
 			g.PlaySound("kickWeak")
+			
+			local enemy = actor.userData.t
+			enemy:GotoSequence(350)
+			enemy.frozen = true
+			
+			local x,y = actor:GetPos()
+			enemy:SetPos(x+(26<<16)*actor:GetSide(), y)
+		end
+	end,
+	[13] = function (actor) --TODO: Fix on engine side???
+		print("fuck")
+	end,
+	[19] = function (actor)
+		A_spawnPosRel(actor, 64, 43, 86)
+		global.PlaySound("slash")
+	end,
+	[20] = function (actor)
+		local enemy = actor.userData.t
+		local x,y = actor:GetPos()
+		enemy:SetPos(x+(41<<16)*actor:GetSide(), (89-40)<<16)
+		global.ParticlesNormalRel(10, 45, 86)
+		global.DamageTarget(170)
+	end,
+	[21] = function (actor)
+		local enemy = actor.userData.t
+		local x,y = actor:GetPos()
+		enemy:SetPos(x+(43<<16)*actor:GetSide(), (89-40)<<16)
+	end,
+	[22] = function (actor)
+		local enemy = actor.userData.t
+		local x,y = actor:GetPos()
+		enemy:SetPos(x+(41<<16)*actor:GetSide(), (89-40)<<16)
+		enemy.frozen = false
+		enemy:SetVector(_vectors.trip, actor:GetSide())
+		enemy:GotoSequence(29)
+	end
+}
+function sgthrow(actor)
+	runFrameTable(actor, t_sgthrow)
+	
+	--Grabbed one follows the arm
+	if actor.currentFrame >= 14 and actor.currentFrame <= 16 and actor.subframeCount == 0 then
+		local enemy = actor.userData.t
+		local x,y = actor:GetPos()
+		local offset = actor.currentFrame-14
+		enemy:SetPos(
+			x+((42 + offset)<<16)*actor:GetSide(),
+			(88-40 -offset)<<16
+		)
+	end
+end
+
+local t_sathrow_pre = {
+	[0] = function(actor)
+		speedLim(actor)
+	end,
+	[1] = function(actor)
+		if(actor:ThrowCheck(global.GetTarget(), 60, 120, -30)) then
+			actor.userData.t = global.GetTarget()
+			actor:GotoSequence(272)
+			global.SetPriority(1)
+			global.PlaySound("kickWeak")
 		end
 	end
+}
+function sathrow_pre(actor)
+	runFrameTable(actor, t_sathrow_pre)
+end
+
+
+
+local t_sathrow = {
+	[1] = function(actor)
+		local enemy = actor.userData.t
+		enemy.frozen = true
+		enemy:Attach(actor)
+		enemy:SetPosRelTo(actor, 27, 79-45)
+		enemy:GotoSequence(350)
+		enemy:SetSide(-actor:GetSide())
+	end,
+	[2] = function(actor)
+		local enemy = actor.userData.t
+		enemy:SetPosRelTo(actor, 27, 80-45)
+		enemy:RotateZP(20,0,60)
+	end,
+	[3] = function(actor)
+		local enemy = actor.userData.t
+		enemy:SetPosRelTo(actor, 35, 70-45)
+		enemy:RotateZP(30,0,60)
+	end,
+	[4] = function(actor)
+		local enemy = actor.userData.t
+		enemy:SetPosRelTo(actor, 32, 57-45)
+		enemy:RotateZP(55,0,60)
+	end,
+	[5] = function(actor)
+		local enemy = actor.userData.t
+		enemy:SetPosRelTo(actor, 22, 30-45)
+		enemy:RotateZP(70,0,60)
+	end,
+	[6] = function(actor)
+		local enemy = actor.userData.t
+		enemy:SetPosRelTo(actor, 14, 20-45)
+		enemy:RotateZP(90,0,60)
+	end,
+	[9] = function(actor)
+		actor.landingFrame = 19
+		local enemy = actor.userData.t
+		enemy:Detach()
+		enemy:GroundLevel()
+		enemy:SetVector(_vectors.down, actor:GetSide())
+		enemy:GotoSequence(26)
+		enemy.frozen = false
+		enemy:ResetTransform()
+		actor.userData.t = nil
+	end,
+	[10] = function(actor)
+		global.DamageTarget(1000)
+		global.ParticlesNormalRel(20, 14, 20)
+		global.PlaySound("punchStrong")
+	end
+}
+function sathrow(actor)
+	runFrameTable(actor, t_sathrow)
 end
 
 
@@ -499,8 +688,8 @@ end
 
 function s236c(actor)
 	local fc = actor.totalSubframeCount
-	if(fc > 8 and fc < 20 and actor.subframeCount == 0) then
-		local hd = A_spawnPosRel(actor, 508, 60+(fc-8)*20, 120+(fc-8)*5).hitDef
+	if(fc == 16) then
+		local hd = A_spawnPosRel(actor, 508, 280, 80).hitDef
 		weakHit(hd)
 		hd.damage = 100
 		hd.blockStun = 14
@@ -511,8 +700,8 @@ end
 
 function s236a(actor)
 	local fc = actor.totalSubframeCount
-	if(fc > 8 and fc < 20 and fc%2==0) then
-		local hd = A_spawnPosRel(actor, 508, 60+(fc-8)*30, 0+(fc-8)*10).hitDef
+	if(fc == 16) then
+		local hd = A_spawnPosRel(actor, 508, 140, 80).hitDef
 		weakHit(hd)
 		hd.damage = 100
 		hd.blockStun = 14
@@ -545,9 +734,10 @@ end
 
 
 --[[
+rot = 0
 function _update()
 	rot = rot+10
-	player:RotateZP(rot,90,0)
+	player:RotateZP(rot,0,50)
 end
 --]]
 

@@ -4,33 +4,32 @@
 #include "imgui_utils.h"
 
 
-MainPane::MainPane(Render* render, Framedata *framedata, FrameState &fs) : DrawWindow(render, framedata, fs),
-decoratedNames(nullptr)
+MainPane::MainPane(Render* render, Framedata *framedata, FrameState &fs) : DrawWindow(render, framedata, fs)
 {
 	
 }
 
 void MainPane::RegenerateNames()
 {
-	delete[] decoratedNames;
+	decoratedNames.clear();
+	decoratedNameInfos.clear();
 	
 	if(frameData)
 	{
 		int count = frameData->sequences.size();
-		decoratedNames = new std::string[count];
+		decoratedNames.resize(count);
+		decoratedNameInfos.resize(count);
 
 		for(int i = 0; i < count; i++)
 		{
-			decoratedNames[i] = frameData->GetDecoratedName(i);
+			std::tie(decoratedNames[i], decoratedNameInfos[i]) = frameData->GetDecoratedName(i);
 		}
 	}
-	else
-		decoratedNames = nullptr;
 }
 
 void MainPane::Draw()
 {	
-	if(!decoratedNames)
+	if(decoratedNames.empty())
 		RegenerateNames();
 		
 	namespace im = ImGui;
@@ -47,11 +46,20 @@ void MainPane::Draw()
 		for (int n = 0; n < count; n++)
 		{
 			const bool is_selected = (cs.seq == n);
+			constexpr ImVec4 textColors[] = {
+				{0,0,0,1},
+				{1,0.5,0.5,1}
+			};
+			assert(decoratedNameInfos[n] < sizeof(textColors)/sizeof(ImVec4));
+
+
+			im::PushStyleColor(ImGuiCol_Text, textColors[decoratedNameInfos[n]]);
 			if (im::Selectable(decoratedNames[n].c_str(), is_selected))
 			{
 				cs.seq = n;
 				cs.frame = 0;
 			}
+			im::PopStyleColor();
 
 			// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
 			if (is_selected)
@@ -102,7 +110,7 @@ void MainPane::Draw()
 		{
 			if(im::InputText("Pattern name", &seq.name))
 			{
-				decoratedNames[cs.seq] = frameData->GetDecoratedName(cs.seq);
+				std::tie(decoratedNames[cs.seq], decoratedNameInfos[cs.seq]) = frameData->GetDecoratedName(cs.seq);
 			}
 
 			im::InputText("Function name", &seq.function);

@@ -50,17 +50,6 @@ void MainFrame::SetClientRect(int x, int y)
 	render.UpdateProj(clientRect.x, clientRect.y);
 }
 
-void MainFrame::Draw()
-{
-	backendRenderer->SetClearColor(clearColor);
-	DrawUi();
-	DrawBack();
-
-	gSettings.theme = style_idx;
-	gSettings.zoomLevel = zoom_idx;
-	memcpy(gSettings.color, clearColor, sizeof(float)*3);
-}
-
 void MainFrame::DrawBack()
 {
 	render.x = (x+clientRect.x/2)/render.scale;
@@ -136,6 +125,11 @@ void MainFrame::DrawUi()
 		ImGui::ShowDemoWindow(&show_demo_window);
 
 	RenderUpdate();
+	
+	gSettings.theme = style_idx;
+	gSettings.zoomLevel = zoom_idx;
+	memcpy(gSettings.color, clearColor, sizeof(float)*3);
+	backendRenderer->SetClearColor(clearColor);
 }
 
 void MainFrame::RenderUpdate()

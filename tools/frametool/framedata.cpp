@@ -284,13 +284,21 @@ void Framedata::Save(std::string charFile)
 	return;
 }
 
-std::string Framedata::GetDecoratedName(int n)
+std::pair<std::string, int> Framedata::GetDecoratedName(int n)
 {
 	std::stringstream ss;
 	ss.flags(std::ios_base::right);
 	
 	ss << std::setfill('0') << std::setw(3) << n << " - " << sequences[n].name;
-	return ss.str();
+
+	bool hasScript = false;
+	for(const auto& f : sequences[n].frames)
+		if(!f.frameScript.empty())
+		{
+			hasScript = true;
+			break;
+		}
+	return {ss.str(), hasScript};
 }
 
 void Framedata::Clear()

@@ -91,7 +91,7 @@ public:
 	void Close();
 	void Save(std::string charFile);
 	
-	std::string GetDecoratedName(int n);
+	std::pair<std::string, int> GetDecoratedName(int n);
 	bool loaded = false;
 };
 

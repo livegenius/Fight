@@ -66,6 +66,7 @@ startClock(std::chrono::high_resolution_clock::now())
 
 Window::~Window()
 {
+	renderer->Wait();
 	mf.reset();
 	ImGui_ImplVulkan_Shutdown();
 	ImGui_ImplSDL2_Shutdown();
@@ -145,15 +146,20 @@ void Window::Render()
 	ImGui_ImplVulkan_NewFrame();
 	ImGui_ImplSDL2_NewFrame();
 	ImGui::NewFrame();
-
+	mf->DrawUi();
+	ImGui::Render();
+	
 	//auto dispSize = ImGui::GetDrawData()->DisplaySize;
 	renderer->Acquire();
 	auto *cmd = renderer->GetCommand();
 	if(cmd)
 	{
-		mf->Draw();
-		ImGui::Render();
+		mf->DrawBack();
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *cmd);
+	}
+	else
+	{
+		std::cout << "no\n";
 	}
 	renderer->Submit();
 }
@@ -169,11 +175,6 @@ void Window::SleepUntilNextFrame()
 	
 	realSpf = dur.count();
 	startClock = std::chrono::high_resolution_clock::now();
-}
-
-void Window::SwapBuffers()
-{
-	SDL_GL_SwapWindow(window);
 }
 
 double Window::GetSpf()

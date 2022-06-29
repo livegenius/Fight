@@ -23,7 +23,6 @@ public:
 	~Window();
 
 	void Render();
-	void SwapBuffers();
 	void ChangeFramerate();
 
 	//Sleeps until it's time to process the next frame.

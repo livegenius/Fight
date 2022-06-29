@@ -17,7 +17,9 @@ public:
 	MainFrame(Renderer *renderer);
 	~MainFrame();
 	
-	void Draw();
+	void DrawBack();
+	void DrawUi();
+
 	void UpdateBackProj(float x, float y);
 	void HandleMouseDrag(int x, int y, bool dragLeft, bool dragRight);
 	bool HandleKeys(uint64_t vkey);
@@ -44,8 +46,7 @@ private:
 
 	std::string currentFilePath;
 
-	void DrawBack();
-	void DrawUi();
+
 	void Menu(unsigned int errorId);
 
 	void RenderUpdate();

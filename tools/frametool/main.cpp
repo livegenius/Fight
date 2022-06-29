@@ -11,7 +11,6 @@ int main(int, char**)
 	while (window.PollEvents())
 	{
 		window.Render();
-		window.SwapBuffers();
 		window.SleepUntilNextFrame();
 	}
 	

@@ -4,6 +4,7 @@
 #include "framedata.h"
 #include "render.h"
 #include <string>
+#include <vector>
 
 //This is the main pane on the left
 class MainPane : DrawWindow
@@ -18,7 +19,8 @@ private:
 
 	void DrawFrame(Frame &frame);
 	bool copyThisFrame = true;
-	std::string *decoratedNames;
+	std::vector<std::string> decoratedNames;
+	std::vector<unsigned int> decoratedNameInfos;
 };
 
 #endif /* MAINPANE_H_GUARD */
