@@ -8,40 +8,13 @@
 #include <filesystem>
 #include <sol/sol.hpp>
 #include <glm/mat4x4.hpp>
+#include <framedata_io.h>
 
 constexpr int speedMultiplier = 240;
 
-struct Frame_property
-{
-	int32_t spriteIndex = 0;
-	int32_t duration = 0;
-	int32_t jumpTo = 0;
-	int32_t jumpType = 0;
-	int32_t relativeJump = false;
-
-	uint32_t flags = 0;
-	int32_t vel[2] = {0}; // x,y
-	int32_t accel[2] = {0};
-	int32_t movementType[2] = {0}; //0 None. 1 Set-set. 2 Add-set. 3 Add-add
-
-	int16_t cancelType[2] = {};
-	int32_t state = 0;
-	
-	float spriteOffset[2]; //x,y
-	int16_t loopN;
-	int16_t chType;
-	float scale[2];
-	float color[4];
-	int32_t blendType = 0;
-	float rotation[3]; //XYZ
-};
-
 struct Frame
 {
-	
-	Frame_property frameProp;
-	sol::protected_function frameScript;
-	bool hasFunction = false;
+	io::FrameProperty frameProp;
 	//Attack_property attackProp;
 	//Boxes are defined by BL, BR, TR, TL points, in that order.
 	typedef std::vector<Rect2d<FixedPoint>> boxes_t;
@@ -51,19 +24,11 @@ struct Frame
 	glm::mat4 transform;
 };
 
-struct seqProp
-{
-	int level = 0;
-	int landFrame = 0;
-	int zOrder = 0;
-	uint32_t flags = 0;
-};
-
 struct Sequence
 {
-	seqProp props;
+	io::SequenceProperty props;
 	std::vector<Frame> frames;
-	std::string name;
+	//std::string name;
 	sol::protected_function function;
 	bool hasFunction = false;
 };

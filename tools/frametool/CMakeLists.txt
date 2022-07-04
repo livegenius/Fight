@@ -19,7 +19,6 @@ target_sources(Frametool PRIVATE
 	render.cpp
 	window.cpp
 	ini.cpp
-	framedata.cpp
 	main_pane.cpp
 	imgui_utils.cpp
 )

@@ -84,17 +84,6 @@ bool Actor::GotoFrame(int frame)
 	}
 
 	frameDuration = framePointer->frameProp.duration;
-
-	if(framePointer->hasFunction)
-	{
-		auto result = framePointer->frameScript(this);
-		if(!result.valid())
-		{
-			sol::error err = result;
-			std::cerr << "Sequence("<<currSeq<<"), frame("<<currFrame<<"):\n";
-			std::cerr << err.what() << "\n";
-		}
-	}
 	return true;
 }
 

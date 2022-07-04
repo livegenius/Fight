@@ -77,8 +77,8 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	hud.Load("data/hud/hud.lua");
 	hud.SetMatrix(projection);
 		
-	player.Load(1, "data/char/vaki/vaki.char", 0);
-	player2.Load(-1, "data/char/vaki/vaki.char", 1);
+	player.Load(1, "data/char/vaki/vaki.fdat", 0);
+	player2.Load(-1, "data/char/vaki/vaki.fdat", 1);
 	
 	sfx.LoadFromDef("data/sfx/sfx.lua");
 	

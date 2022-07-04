@@ -1,7 +1,7 @@
 #ifndef MAINPANE_H_GUARD
 #define MAINPANE_H_GUARD
 #include "draw_window.h"
-#include "framedata.h"
+#include <framedata_io.h>
 #include "render.h"
 #include <string>
 #include <vector>

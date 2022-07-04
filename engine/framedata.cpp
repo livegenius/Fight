@@ -4,23 +4,6 @@
 #include <glm/mat4x4.hpp>
 #include <glm/ext/matrix_transform.hpp>
 
-#define rv(X) ((char*)&X)
-#define rptr(X) ((char*)X)
-
-struct CharFileHeader //header for .char files.
-{
-	char signature[32];
-	uint32_t version;
-	uint16_t sequences_n;
-};
-
-struct BoxSizes
-{
-	int8_t greens;
-	int8_t reds;
-	int8_t collision;
-};
-
 glm::mat4 CalculateTransform(float offset[2], float rotation[3], float scale[2])
 {
 	float rotX = rotation[0];
@@ -44,113 +27,66 @@ bool LoadSequences(std::vector<Sequence> &sequences, std::filesystem::path charF
 	constexpr const char *charSignature = "AFGECharacterFile";
 	constexpr uint32_t currentVersion = 99'6;
 
-	//loads character from a file and fills sequences/frames and all that yadda.
-	std::ifstream file(charFile, std::ios_base::in | std::ios_base::binary);
-	if (!file.is_open())
+	io::Framedata fd;
+
+	if(!fd.LoadFD(charFile))
 	{
-		std::cerr << "Couldn't open character file.\n";
+		std::cerr << "Couldn't load character file.\n";
 		return false;
 	}
 
-	CharFileHeader header;
-	file.read(rv(header), sizeof(CharFileHeader));
-	if(strcmp(charSignature, header.signature))
+	auto seqN = fd.sequences.size();
+	sequences.resize(seqN);
+	for(size_t seqI = 0; seqI < seqN; ++seqI)
 	{
-		std::cerr << "Signature mismatch.\n";
-		return false;
-	}
-	if(header.version != currentVersion)
-	{
-		std::cerr << "Format version mismatch.\n";
-		return false;
-	}
+		auto &seq = sequences[seqI];
+		auto &inputSeq = fd.sequences[seqI];
+		seq.props = std::move(inputSeq.props);
 
-	sequences.resize(header.sequences_n);
-	for (uint16_t i = 0; i < header.sequences_n; ++i)
-	{
-		auto &currSeq = sequences[i];
-		uint8_t strSize;
-		file.read(rv(strSize), sizeof(strSize));
-		currSeq.name.resize(strSize);
-		file.read(rptr(currSeq.name.data()), strSize);
-
-		file.read(rv(strSize), sizeof(strSize));
-		std::string funcName((int)strSize, '\0');
-		file.read(rptr(funcName.data()), strSize);
-
-		////Game only////
-		if(!funcName.empty())
+		if(!inputSeq.function.empty())
 		{
-			currSeq.function = lua[funcName];
-			if(currSeq.function.get_type() == sol::type::function)
-				currSeq.hasFunction = true;
+			seq.function = lua[inputSeq.function];
+			if(seq.function.get_type() == sol::type::function)
+				seq.hasFunction = true;
 			else
-				std::cerr << "Unknown function "<<funcName<<" in sequence "<<i<<"\n";
+				std::cerr << "Unknown function "<<inputSeq.function<<" in sequence "<<seqI<<"\n";
 		}
-		////Game only////
-
-		file.read(rv(currSeq.props), sizeof(seqProp));
-
-		uint8_t seqlength;
-		file.read(rv(seqlength), sizeof(seqlength));
-		currSeq.frames.resize(seqlength);
-		for (uint8_t i2 = 0; i2 < seqlength; ++i2)
+		
+		auto frameN = inputSeq.frames.size();
+		seq.frames.resize(frameN);
+		for (size_t frameI = 0; frameI < frameN; ++frameI)
 		{
-			auto &currFrame = currSeq.frames[i2];
+			auto &frame = seq.frames[frameI];
+			auto &inputFrame = inputSeq.frames[frameI];
+			frame.frameProp = std::move(inputFrame.frameProp);
 
-			file.read(rv(strSize), sizeof(strSize));
-			std::string frameScript((int)strSize, '\0');
-			file.read(rptr(frameScript.data()), strSize);
-			////Game only////
-			if(!frameScript.empty())
+			//Precalculate matrix transformation
+			auto &fp = frame.frameProp;
+			frame.transform = CalculateTransform(fp.spriteOffset, fp.rotation, fp.scale);
+			
+			auto boxN = inputFrame.greenboxes.size();
+			frame.greenboxes.resize(boxN/4);
+			for(int bi = 0; bi < boxN; bi+=4)
 			{
-				currFrame.frameScript = lua.load(frameScript);
-				if(currFrame.frameScript.get_type() == sol::type::function && currFrame.frameScript.valid())
-					currFrame.hasFunction = true;
-				else
-					std::cerr << "Invalid script in sequence "<<i<<" : frame "<<i2<<"\n";
+				frame.greenboxes[bi/4] = Rect2d<FixedPoint>(
+					inputFrame.greenboxes[bi+0],inputFrame.greenboxes[bi+1],
+					inputFrame.greenboxes[bi+2],inputFrame.greenboxes[bi+3]);
 			}
-			////Game only////
-
-			BoxSizes bs;
-			file.read(rv(bs), sizeof(BoxSizes));
-			std::vector<int> greens(bs.greens);
-			std::vector<int> reds(bs.reds);
-			std::vector<int> collision(bs.collision);
-
-			file.read(rv(currFrame.frameProp), sizeof(Frame_property));
-
-			//This side only. Precalculate matrix transformation
-			auto &fp = currFrame.frameProp;
-			currFrame.transform = CalculateTransform(fp.spriteOffset, fp.rotation, fp.scale);
-
-			file.read(rptr(greens.data()), sizeof(int) * bs.greens);
-			file.read(rptr(reds.data()), sizeof(int) * bs.reds);
-			file.read(rptr(collision.data()), sizeof(int) * bs.collision);
-
-			for(int bi = 0; bi < bs.greens; bi+=4)
+			boxN = inputFrame.redboxes.size();
+			frame.redboxes.resize(boxN/4);
+			for(int bi = 0; bi < boxN; bi+=4)
 			{
-				currFrame.greenboxes.push_back(
-					Rect2d<FixedPoint>(
-						Point2d<FixedPoint>(greens[bi+0],greens[bi+1]),
-						Point2d<FixedPoint>(greens[bi+2],greens[bi+3]))
-				);
-			}
-			for(int bi = 0; bi < bs.reds; bi+=4)
-			{
-				currFrame.redboxes.push_back(
-					Rect2d<FixedPoint>(
-						Point2d<FixedPoint>(reds[bi+0],reds[bi+1]),
-						Point2d<FixedPoint>(reds[bi+2],reds[bi+3]))
-				);
+				frame.redboxes[bi/4] = Rect2d<FixedPoint>(
+					inputFrame.redboxes[bi+0],inputFrame.redboxes[bi+1],
+					inputFrame.redboxes[bi+2],inputFrame.redboxes[bi+3]);
 			}
 
-			if(bs.collision>0)
+			if(inputFrame.colbox.size()>=4)
 			{
-				sequences[i].frames[i2].colbox.bottomLeft.x = collision[0];
-				sequences[i].frames[i2].colbox.bottomLeft.y = collision[1];
-				sequences[i].frames[i2].colbox.topRight.x = collision[2];
-				sequences[i].frames[i2].colbox.topRight.y = collision[3];
+				frame.colbox.bottomLeft.x = inputFrame.colbox[0];
+				frame.colbox.bottomLeft.y = inputFrame.colbox[1];
+				frame.colbox.topRight.x   = inputFrame.colbox[2];
+				frame.colbox.topRight.y   = inputFrame.colbox[3];
 			}
 		}
 	}

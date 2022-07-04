@@ -18,10 +18,12 @@ target_sources(Common PRIVATE
 	
 	particle.cpp
 	xorshift.cpp
+
+	framedata_io.cpp
 )
 
-target_link_libraries(Common PUBLIC Image SDL2::SDL2 glm::glm)
-target_link_libraries(Common PUBLIC sol2::sol2)
+target_link_libraries(Common PUBLIC Image SDL2::SDL2 glm::glm sol2::sol2)
+target_link_libraries(Common PRIVATE header_only lz4_static)
 
 
 

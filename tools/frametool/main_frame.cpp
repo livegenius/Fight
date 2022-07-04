@@ -16,6 +16,54 @@
 
 bool show_demo_window = true;
 
+enum class FileDialogType{
+	Char,
+	FD
+};
+static void OpenFileDialog(std::function<void(nfdchar_t*)>func, FileDialogType type = FileDialogType::Char)
+{
+	nfdchar_t* path = nullptr;
+	nfdresult_t result;
+	nfdfilteritem_t filterItem[2] = {};
+	switch(type){
+		case FileDialogType::Char:
+			filterItem[0] = {"Character file", "char"};
+			break;
+		case FileDialogType::FD:
+			filterItem[0] = {"Framedata file", "fdat"};
+			break;
+	}
+	result = NFD_OpenDialog(&path, filterItem, 1, "data/char");
+	if(path)
+	{
+		if(result == NFD_OKAY)
+			func(path);
+		NFD_FreePath(path);
+	}
+}
+static void SaveFileDialog(const nfdu8char_t* defaultPath, std::function<void(nfdchar_t*)>func, FileDialogType type = FileDialogType::Char)
+{
+	nfdchar_t* path = nullptr;
+	nfdfilteritem_t filterItem[2] = {};
+	nfdresult_t result;
+	switch(type){
+		case FileDialogType::Char:
+			filterItem[0] = {"Character file", "char"};
+			break;
+		case FileDialogType::FD:
+			filterItem[0] = {"Framedata file", "fdat"};
+			break;
+	}
+	result = NFD_SaveDialog(&path, filterItem, 1, "data/char", defaultPath);
+	if(path)
+	{
+		if(result == NFD_OKAY)
+			func(path);
+		NFD_FreePath(path);
+	}
+}
+
+
 MainFrame::MainFrame(Renderer *renderer):
 render(renderer),
 backendRenderer(renderer),
@@ -27,8 +75,8 @@ x(0),y(-150)
 
 	render.LoadGraphics("data/char/vaki/def.lua");
 
-	currentFilePath = "data/char/vaki/vaki.char";
-	fd.Load(currentFilePath);
+	currentFilePath = "data/char/vaki/vaki.fdat";
+	fd.LoadFD(currentFilePath);
 }
 
 MainFrame::~MainFrame()
@@ -283,76 +331,65 @@ void MainFrame::Menu(unsigned int errorPopupId)
 			}
 
 			ImGui::Separator();
-			if (ImGui::MenuItem("Load char file... (OLD)"))
+			if (ImGui::MenuItem("Open file..."))
 			{
-				nfdchar_t* outPath = nullptr;
-				nfdfilteritem_t filterItem[2] = {{"Character file", "char"}};
-				nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, "data/char");
-				if (result == NFD_OKAY && outPath) {
-					if(!fd.LoadOld(outPath))
+				OpenFileDialog([&](auto path){
+					if(!fd.LoadFD(path))
 					{
 						ImGui::OpenPopup(errorPopupId);
 					}
 					else
 					{
-						currentFilePath = outPath;
+						currentFilePath = path;
 						mainPane.RegenerateNames();
 					}
-					NFD_FreePath(outPath);
-				}
+				});
 			}
 
-			if (ImGui::MenuItem("Load char file..."))
-			{
-				nfdchar_t* outPath = nullptr;
-				nfdfilteritem_t filterItem[2] = {{"Character file", "char"}};
-				nfdresult_t result = NFD_OpenDialog(&outPath, filterItem, 1, "data/char");
-				if (result == NFD_OKAY && outPath) {
-					if(!fd.Load(outPath))
-					{
-						ImGui::OpenPopup(errorPopupId);
-					}
-					else
-					{
-						currentFilePath = outPath;
-						mainPane.RegenerateNames();
-					}
-					NFD_FreePath(outPath);
-				}
-			}
-
-			ImGui::Separator();
 			//TODO: Implement hotkeys, someday.
 			if (ImGui::MenuItem("Save")) 
 			{
-				
 				if(currentFilePath.empty())
 				{
-					nfdchar_t* savePath = nullptr;
-					nfdfilteritem_t filterItem[2] = {{"Character file", "char"}};
-					nfdresult_t result = NFD_SaveDialog(&savePath, filterItem, 1, "data/char", currentFilePath.c_str());
-					if (result == NFD_OKAY && savePath) {
-						fd.Save(savePath);
-						currentFilePath = savePath;
-						NFD_FreePath(savePath);
-					}
+					SaveFileDialog(currentFilePath.c_str(), [&](auto path){
+						fd.SaveFD(path);
+						currentFilePath = path;
+					});
 				}
-				if(!currentFilePath.empty())
+				else
 				{
-					fd.Save(currentFilePath);
+					fd.SaveFD(currentFilePath);
 				}
 			}
-
 			if (ImGui::MenuItem("Save as...")) 
 			{
-				nfdchar_t* savePath = nullptr;
-				nfdfilteritem_t filterItem[2] = {{"Character file", "char"}};
-				nfdresult_t result = NFD_SaveDialog(&savePath, filterItem, 1, "data/char", currentFilePath.c_str());
-				if (result == NFD_OKAY && savePath) {
-					fd.Save(savePath);
-					currentFilePath = savePath;
-					NFD_FreePath(savePath);
-				}
+				SaveFileDialog(currentFilePath.c_str(), [&](auto path){
+					fd.SaveFD(path);
+					currentFilePath = path;
+				});
+			}
+
+			ImGui::Separator();
+			if (ImGui::MenuItem("Load char file..."))
+			{
+				OpenFileDialog([&](auto path){
+					if(!fd.LoadChar(path))
+					{
+						ImGui::OpenPopup(errorPopupId);
+					}
+					else
+					{
+						currentFilePath = path;
+						mainPane.RegenerateNames();
+					}
+				}, FileDialogType::FD);
+			}
+			if (ImGui::MenuItem("Save char as...")) 
+			{
+				SaveFileDialog(currentFilePath.c_str(), [&](auto path){
+					fd.SaveChar(path);
+					currentFilePath = path;
+				}, FileDialogType::FD);
 			}
 
 			ImGui::Separator();

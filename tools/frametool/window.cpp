@@ -157,10 +157,6 @@ void Window::Render()
 		mf->DrawBack();
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), *cmd);
 	}
-	else
-	{
-		std::cout << "no\n";
-	}
 	renderer->Submit();
 }
 

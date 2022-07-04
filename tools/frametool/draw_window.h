@@ -2,7 +2,9 @@
 #define DRAWWINDOW_H_GUARD
 
 #include "render.h"
-#include "framedata.h"
+#include <framedata_io.h>
+
+using namespace io;
 
 struct FrameState
 {
