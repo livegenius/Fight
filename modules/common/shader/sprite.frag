@@ -54,14 +54,18 @@ vec4 TruecolorShader()
 
 void main(void)
 {
+	vec4 color;
 	switch(shaderType)
 	{
 		case 0:
-			oColor = BilinearSmoothstepSample(iTexCoord)*mulColor;
+			color = BilinearSmoothstepSample(iTexCoord);
 			break;
 		case 1:
-			oColor = TruecolorShader()*mulColor;
+			color = TruecolorShader();
 			break;
 	}
+	//color.a = 1;
+	//color.a = pow(color.a,2.6);
+	oColor = color*mulColor;
 }
 

@@ -12,14 +12,8 @@
 #include <vector>
 #include <ggponet.h>
 
-#include <glm/gtc/type_ptr.hpp> //Uniform matrix load.
-
+#include <glm/gtc/type_ptr.hpp> //Just for glm::ortho.
 #include "audio.h"
-
-//TODO: Load from lua
-const char *texNames[] ={
-	"data/hud/font.lzs3"
-};
 
 int inputDelay = 0;
 
@@ -32,11 +26,9 @@ player(interface), player2(interface),
 hr(mainWindow->renderer)
 {
 	projection = glm::ortho<float>(0, internalWidth, internalHeight, 0, -32768, 32767);
+	//Zoomed out scene
 	//projection = glm::ortho<float>(-internalWidth*0.5, internalWidth*1.5, internalHeight*1.5, -internalHeight*0.5, -32768, 32767);
-/* 	projection = glm::perspective<float>(90, (float)internalWidth/(float)internalHeight, 1, 32767);
-	projection[1][1] = -projection[1][1];
-	projection = glm::rotate(projection, 0.3f, glm::vec3(0.f,1.f,0.f));
-	projection = glm::translate(projection, glm::vec3(-internalWidth/2.f,-internalHeight/2.f,-200)); */
+	//projection[1][1] = -projection[1][1]; //Perspective only.
 }
 
 BattleScene::~BattleScene()
@@ -46,6 +38,9 @@ BattleScene::~BattleScene()
 
 int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 {
+	float clearColor[] = {1,1,1,1};
+	mainWindow->renderer.SetClearColor(clearColor);
+
 	SoLoud::Wav music;
 	std::vector<uint32_t> inputs;
 	size_t inputSize;
@@ -139,7 +134,6 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			else
 				step = false;
 		}
-		mainWindow->renderer.Acquire(); //Prepare for rendering. Must be after the event because the window may get resized.
 		
 		if(replay)
 		{
@@ -183,14 +177,15 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		}
 		
 		//Start rendering
+		mainWindow->renderer.Acquire(); //Prepare for rendering. Must be here because the window may get resized and it requires a call to end drawing.
+		
 		drawList.Init(player, player2);
 		
 		if(gfx.Begin())
 		{
-			//Draw stage quad
+			//Draw stage
 			auto center = view.GetCameraCenterScale();
 			stage.Draw(projection*viewMatrix, center);
-
 
 			int p1Pos = players[1]->FillDrawList(drawList);
 			int p2Pos = players[0]->FillDrawList(drawList);
@@ -215,7 +210,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			gfx.SetMulColor(1, 1, 1, 0.2);
 			draw(drawList.v[p1Pos], invertedView);
 			draw(drawList.v[p2Pos], invertedView);
-			gfx.SetMulColor(1, 1, 1, 1);
+			gfx.SetMulColorRaw(1,1,1,1);
 		
 			//Draw all actors
 			for(auto actor : drawList.v)
@@ -223,8 +218,9 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 				draw(actor,viewMatrix);
 			}
 
+
 			gfx.SetMatrix(projection*viewMatrix);
-			gfx.DrawParticles(particles.particles);
+			gfx.DrawParticles(particles);
 		}
 
 		//Draw boxes
@@ -235,13 +231,15 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		}
 				
 		//Draw HUD
-		hud.ResizeBarId(0, (gameTicks%120)/119.f);
-		hud.ResizeBarId(1, (gameTicks%240)/239.f);
+		//Guard bar
+		hud.ResizeBarId(0, player.GetHealthRatio());
+		hud.ResizeBarId(1, player2.GetHealthRatio());
+		//Health bars
 		hud.ResizeBarId(2, player.GetHealthRatio());
 		hud.ResizeBarId(3, player2.GetHealthRatio());
 		hud.Draw();
 
- 		//Draw fps bar
+ 		//TODO: Goes in HUD. Draw fps bar
 /* 		timerString.seekp(0);
 		timerString << "SFP: " << mainWindow->GetSpf() << " FPS: " << 1/mainWindow->GetSpf()<<"      Entities:"<<drawList.v.size()<<
 			"   Particles:"<<particles.particles.size()<<"  ";
@@ -299,16 +297,6 @@ void BattleScene::AdvanceFrame()
 	particles.Update();
 
 	ggpo_advance_frame(ggpo);
-}
-
-void BattleScene::SetModelView(glm::mat4& view)
-{
-	//uniforms.SetData(glm::value_ptr(projection*view));
-}
-
-void BattleScene::SetModelView(glm::mat4&& view)
-{
-	//uniforms.SetData(glm::value_ptr(projection*view));
 }
 
 void BattleScene::SaveState(State &state)

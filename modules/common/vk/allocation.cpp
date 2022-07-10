@@ -124,6 +124,7 @@ void AllocatedBuffer::Unmap()
 	if(data)
 	{
 		allocator->unmapMemory(allocation);
+		//allocator->flushAllocation(allocation, 0, copySize*copies);
 		data = nullptr;
 	}
 }

@@ -65,8 +65,6 @@ private:
 	HitboxRenderer hr;
 	glm::mat4 projection;
 
-	void SetModelView(glm::mat4 &view);
-	void SetModelView(glm::mat4 &&view);
 	bool KeyHandle(const SDL_KeyboardEvent &e); //Returns false if it doesn't handle the event.
 	void AdvanceFrame();
 	bool SetupGgpo(int playerId, const std::string &address);

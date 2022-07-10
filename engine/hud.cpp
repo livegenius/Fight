@@ -168,7 +168,7 @@ void Hud::CreatePipeline()
 			{.stageFlags = vk::ShaderStageFlagBits::eVertex /* | vk::ShaderStageFlagBits::eFragment */, .size = sizeof(pushConstants)},
 		})
 	;
-
+	pBuilder.colorBlendAttachment.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha;
 	pipe.accessor = pBuilder.Build(pipe.pipeline, pipe.pipelineLayout, pipe.sets, pipe.setLayouts);
 
 	std::vector<PipelineBuilder::WriteSetInfo> updateSetParams;

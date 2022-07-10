@@ -234,7 +234,7 @@ bool ImageData::LoadPng(std::filesystem::path filename, Allocation alloc)
 	
 
 	/* This is required to initialize for progressive decoding */
-	r = spng_decode_image(ctx, NULL, 0, fmt, SPNG_DECODE_PROGRESSIVE | SPNG_DECODE_TRNS | SPNG_DECODE_GAMMA);
+	r = spng_decode_image(ctx, NULL, 0, fmt, SPNG_DECODE_PROGRESSIVE | SPNG_DECODE_TRNS);
 	if(r)
 	{
 		printf("progressive spng_decode_image() error: %s\n", spng_strerror(r));
@@ -364,17 +364,6 @@ bool ImageData::LoadLzs3(std::filesystem::path imageFile, Allocation alloc)
 bool ImageData::WriteRaw(std::filesystem::path filename) const
 {
 	uint32_t size = GetMemSize();
-
-	if(bytesPerPixel == 4) //Premultiply alpha
-	{
-		for(uint32_t a = 3; a<size; a+=4)
-		{
-			float alpha = (data[a]/255.f);
-			data[a-1] *= alpha;
-			data[a-2] *= alpha;
-			data[a-3] *= alpha;
-		}
-	}
 	std::ofstream out(filename, std::ios_base::binary);
 	if(!out.is_open())
 		return false;

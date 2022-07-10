@@ -5,5 +5,8 @@ layout(location = 0) out vec4 oColor;
 
 void main()
 {
+/* 	vec4 premul = iColor;
+	premul.rgb *= premul.a;
+	oColor = premul; */
 	oColor = iColor;
 };

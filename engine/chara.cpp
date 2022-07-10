@@ -79,15 +79,17 @@ int Character::ResolveHit(int keypress, Actor *hitter)
 	}
 
 	bool blocked = false;
+	int state = framePointer->frameProp.state;
 	//Can block
-	if (blockFlag || (framePointer->frameProp.flags & flag::canMove && keypress & left))
+	if ((blockFlag && hitstop > 0) || (framePointer->frameProp.flags & flag::canMove && keypress & left))
 	{
 		//Always for now.
 		const auto &st = framePointer->frameProp.state;
 		const auto &flag = hitData->attackFlags;
+		bool groundedState = st == state::crouch || st == state::stand;
 		if( (flag & HitDef::hitsAir && st == state::air) ||
-			(flag & HitDef::hitsCrouch && st == state::crouch) ||
-			(flag & HitDef::hitsStand && st == state::stand))
+			(flag & HitDef::hitsCrouch && groundedState && keypress & ~key::buf::DOWN) ||
+			(flag & HitDef::hitsStand && groundedState && keypress & key::buf::DOWN))
 			blockFlag = false;
 		else
 		{
@@ -98,12 +100,13 @@ int Character::ResolveHit(int keypress, Actor *hitter)
 			blockTime = hitData->blockstun;
 			scene->sfx.PlaySound("block");
 			retType = hitType::blocked;
+			if(groundedState)
+				state = keypress & key::buf::DOWN ? state::crouch : state::stand;
 		}
 	}
 	else
 		blockFlag = false;
 
-	int state = framePointer->frameProp.state;
 	if(hitData->vectorTables.count(state) == 0)
 		state = 0; //TODO: Fallback state from lua?
 	if(hitData->vectorTables.count(state) > 0)
@@ -216,7 +219,7 @@ bool Character::Update()
 		hurtSeq = -1;
 		gotHit = false;
 		if (root.y < floorPos) //Fixes a problem when you get hit under the floor.
-			root.y.value = floorPos.value;
+			root.y = floorPos;
 	}
 	if (hitstop > 0)
 	{

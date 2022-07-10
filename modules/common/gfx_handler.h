@@ -37,7 +37,7 @@ private:
 		std::vector<vk::DescriptorSet> sets;
 		std::function <int(int,int)> accessor;
 	}spritePipe, particlePipe;
-	vk::raii::Pipeline spriteAdditive = nullptr;
+	//vk::raii::Pipeline spriteAdditive = nullptr;
 
 
 	std::vector<std::unique_ptr<VertexData4[]>> tempVDContainer;
@@ -63,12 +63,19 @@ private:
 
 	struct{
 		glm::mat4 transform;
-		int shaderType = 0;
-		int textureIndex = 0;
-		int paletteSlot = 0;
-		int paletteIndex = 0;
-		glm::vec4 mulColor = {1,1,1,1};
-	} pushConstants;
+		int32_t shaderType = 0;
+		int32_t textureIndex = 0;
+		int32_t paletteSlot = 0;
+		int32_t paletteIndex = 0;
+		glm::vec4 mulColor;
+	} pcSprites;
+	glm::vec4 mulColor = {1,1,1,1};
+	float blendingModeFactor = 1.f;
+
+	struct{
+		glm::mat4 transform;
+		uint32_t textureId;
+	} pcParticles;
 
 	void LoadToVertexBuffer(std::filesystem::path file, int mapId, int textureIndex);
 
@@ -89,19 +96,22 @@ public:
 	void SetPaletteIndex(int index);
 	void SetMatrix(const glm::mat4 &matrix);
 	void Draw(int id, int defId = 0);
-	void DrawParticles(const std::vector<ParticleGroup::Particle> &data);
+	void DrawParticles(const ParticleGroup &data);
 
 	//Returns true if you're allowed to draw.
 	bool Begin();
 
 	bool isLoaded(){return loaded;}
 	void SetMulColor(float r, float g, float b, float a = 1.f);
+	void SetMulColorRaw(float r, float g, float b, float a = 1.f);
+
 
 	enum{
 		normal,
 		additive
 	};
-	int boundPipe;
+	//int boundPipe;
+	
 	void SetBlendingMode(int mode);
 
 	int GetVirtualId(int id, int defId = 0); //Avoid using this

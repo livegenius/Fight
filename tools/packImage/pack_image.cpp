@@ -60,9 +60,11 @@ int main(int argc, char **argv)
 	args::ValueFlag<int> tileSize(parser, "size",
 		"The size in pixel of a square tile. Defaults to 16.", {'s', "size"}, 16);
 	args::ValueFlag<std::string> center(parser, "'h' or 'v'", "Center the pivot horizontally and/or vertically. Overrides pivot offset.", {'c'});
+	args::Flag dontPremulAlpha(parser, "nopremul", "Don't premultiply alpha", {"nopremul"});
 	args::Group pickGroup(parser, "Optionally pick only one type:", args::Group::Validators::AtMostOne);
 	args::Flag only8(pickGroup, "only8", "Only process 8bpp images", {"8bpp"});
 	args::Flag only32(pickGroup, "only32", "Only process 32bpp images", {"32bpp"});
+	
 
 	try
 	{
@@ -90,6 +92,7 @@ int main(int argc, char **argv)
 		std::cerr << parser;
 		return 1;
 	}
+	bool premulAlpha = !dontPremulAlpha;
 	bool border = borderFlag;
 	xOffset = std::get<0>(args::get(pivot));
 	yOffset = std::get<1>(args::get(pivot));
@@ -264,6 +267,12 @@ int main(int argc, char **argv)
 		//Fill the atlas with image data.
 		for(auto &im: images32bpp)
 			atlas.CopyToAtlas(im);
+		
+		if(premulAlpha)
+		{
+			std::cout << "Premultiplying alpha...\n";
+			atlas.PremultiplyAlpha();
+		}
 
 		std::cout << "Writing file... ";
 		std::string pngO = filenameOut+"32.raw";

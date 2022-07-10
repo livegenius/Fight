@@ -6,6 +6,8 @@
 #include <list>
 #include <cstdint>
 #include <iostream>
+#include <cmath>
+#include <algorithm>
 
 typedef Rect2d<int> Rect;
 typedef Point2d<int> Point;
@@ -117,6 +119,27 @@ struct Atlas
 			}
 		}
 		return true;
+	}
+
+	void PremultiplyAlpha()
+	{
+		if(image.bytesPerPixel != 4)
+		{
+			std::cerr << "Premultiplied alpha only works for 4 ByPP images!\n";
+			return;
+		}
+
+		const size_t size = image.GetMemSize();
+		for(size_t i = 0; i < size; i+=4)
+		{
+			float factor = ((float)image.data[i+3])/255.f;
+			constexpr float gamma = 2.4f;
+			factor = powf(factor, 1.f/gamma);
+
+			image.data[i+0] = static_cast<uint8_t>(std::clamp((static_cast<float>(image.data[i+0])/255.f)*factor, 0.f, 1.f)*255);
+			image.data[i+1] = static_cast<uint8_t>(std::clamp((static_cast<float>(image.data[i+1])/255.f)*factor, 0.f, 1.f)*255);
+			image.data[i+2] = static_cast<uint8_t>(std::clamp((static_cast<float>(image.data[i+2])/255.f)*factor, 0.f, 1.f)*255);
+		}
 	}
 };
 

@@ -69,7 +69,7 @@ bool Renderer::Init(SDL_Window *window_, int syncMode)
 			.set_surface(*surface)
 			//.set_required_features(VkPhysicalDeviceFeatures{.wideLines = true})
 			.require_present()
-			.set_minimum_version(1, 2)
+			.set_minimum_version(1, 1)
 			.add_desired_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME)
 			.select ();
 	if (!phys_device_ret) {
@@ -103,6 +103,9 @@ bool Renderer::Init(SDL_Window *window_, int syncMode)
 	aInfo.instance = *instance,
 	vma::createAllocator(&aInfo, &allocator);
 
+/* 	vk::MemoryType a;
+	auto props = pDevice.getMemoryProperties();
+ */
 	CreateSwapchain();
 	CreateRenderPass();
 	CreateFramebuffers();
@@ -130,7 +133,7 @@ void Renderer::CreateSwapchain()
 	SDL_Vulkan_GetDrawableSize(window, &width, &height);
 	aspectRatio = (float)width/(float)height;
 	vkb::Swapchain vkbSwapchain = swapchainBuilder
-		.set_desired_format({VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
+		.set_desired_format({VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
 		.set_desired_extent(width, height)
 		.set_old_swapchain(*swapchain.handle)
@@ -588,11 +591,11 @@ void Renderer::LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vect
 		vk::Extent3D extent = {image.width, image.height, 1};
 		vk::Format format;
 		if(image.compressed)
-			format = vk::Format::eBc3UnormBlock;
+			format = vk::Format::eBc3SrgbBlock;
 		else if(image.bytesPerPixel == 1)
 			format = vk::Format::eR8Uint;
 		else if(image.bytesPerPixel == 4)
-			format = vk::Format::eR8G8B8A8Unorm;
+			format = vk::Format::eR8G8B8A8Srgb;
 		else
 			assert(0 && "Unsupported format: ");
 

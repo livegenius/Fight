@@ -39,6 +39,13 @@ private:
 	std::vector<int32_t> specValues;
 	std::vector<int> actualSetIndices;
 
+	struct intpairhash {
+		std::size_t operator()(const std::pair<uint32_t, uint32_t> &x) const{
+			return std::hash<uint64_t>()(((uint64_t)x.first << 32) & (uint64_t)x.second);
+		}
+	};
+	std::unordered_map<std::pair<uint32_t, uint32_t>, vk::DescriptorType, intpairhash> SetBindingTypeHints;
+
 	void BuildDescriptorSetsBindings(const void* code, size_t size, vk::ShaderStageFlagBits);
 public:
 	vk::PipelineVertexInputStateCreateInfo vertexInputInfo;
@@ -69,6 +76,7 @@ public:
 	PipelineBuilder& SetShaders(path vertex, path fragment);
 	PipelineBuilder& SetInputLayout(bool interleaved, std::initializer_list<vk::Format> formats);
 	PipelineBuilder& SetPushConstants(std::initializer_list<vk::PushConstantRange> ranges);
+	PipelineBuilder& HintDescriptorType(uint32_t set, uint32_t binding, vk::DescriptorType type);
 
 	//Returns set index (set number, which one);
 	std::function<int(int, int)> Build(vk::raii::Pipeline &pipeline, vk::raii::PipelineLayout &pLayout,

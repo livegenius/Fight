@@ -14,7 +14,7 @@
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}",
 			"environment": [],
-			"console": "integratedTerminal"
+			"console": "internalConsole"
 		},
 		{
 			"name": "Engine (REL)",

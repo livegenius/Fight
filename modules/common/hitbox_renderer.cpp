@@ -60,6 +60,10 @@ renderer(renderer)
 			{.stageFlags = vk::ShaderStageFlagBits::eVertex, .size = sizeof(PushConstants)},
 		})
 	;
+	auto &blend = pBuilder.colorBlendAttachment;
+	blend.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha;
+	blend.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
+
 	pBuilder.inputAssembly.topology = vk::PrimitiveTopology::eLineList;
 	pBuilder.Build(lines.pipeline, lines.pipelineLayout, lines.sets, lines.setLayouts);
 	auto &ds = pBuilder.depthStencil;
@@ -74,7 +78,7 @@ void HitboxRenderer::Draw(const glm::mat4 &transform)
 {
 	if(quadsToDraw > 0)
 	{
-		PushConstants pushConstants {transform, 0.2f};
+		PushConstants pushConstants {transform, 0.1f};
 
 		auto cmd = renderer.GetCommand();
 		cmd->bindVertexBuffers(0, vertices.buffer, {0});
@@ -121,7 +125,7 @@ void HitboxRenderer::GenerateHitboxVertices(const std::vector<float> &hitboxes, 
 	
 	//r, g, b, z order
 	constexpr float colors[][4]={
-		{0.8, 0.8, 0.8, 2},    //gray
+		{0.5, 0.5, 0.5, 2},    //gray
 		{0.0, 1, 0.0, 4},      //green
 		{1, 0.0, 0.0, 8}       //red
 	};

@@ -13,6 +13,7 @@
 		assert(x == SPV_REFLECT_RESULT_SUCCESS);\
 	}while(0)
 
+
 PipelineBuilder::~PipelineBuilder(){}
 PipelineBuilder::PipelineBuilder(vk::raii::Device *device, Renderer* renderer):
 device(device),
@@ -72,11 +73,11 @@ actualSetIndices(4, 0)
 
 	colorBlendAttachment = {
 		.blendEnable = VK_TRUE,
-		.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha,
+		.srcColorBlendFactor = vk::BlendFactor::eOne,
 		.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
 		.colorBlendOp = vk::BlendOp::eAdd,
-		.srcAlphaBlendFactor = vk::BlendFactor::eSrcAlpha,
-		.dstAlphaBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha,
+		.srcAlphaBlendFactor = vk::BlendFactor::eOne,
+		.dstAlphaBlendFactor = vk::BlendFactor::eOne,
 		.alphaBlendOp = vk::BlendOp::eAdd, 
 		.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA,
 	};
@@ -113,7 +114,8 @@ actualSetIndices(4, 0)
 	};
 
 	pipelineInfo = vk::GraphicsPipelineCreateInfo{
-		
+		.stageCount = 0,
+		.pStages = nullptr,
 		.pVertexInputState = &vertexInputInfo,
 		.pInputAssemblyState = &inputAssembly,
 		.pViewportState = &viewportState,
@@ -198,6 +200,15 @@ PipelineBuilder& PipelineBuilder::SetShaders(path vertex, path fragment)
 	return *this;
 }
 
+PipelineBuilder& PipelineBuilder::HintDescriptorType(uint32_t set, uint32_t binding, vk::DescriptorType type)
+{
+	//Only use this method before calling SetShaders
+	assert(pipelineInfo.stageCount == 0); 
+	
+	SetBindingTypeHints[{set,binding}] = type;
+	return *this;
+}
+
 void PipelineBuilder::BuildDescriptorSetsBindings(const void* code, size_t size, vk::ShaderStageFlagBits stage)
 {
 	SpvReflectShaderModule spvModule;
@@ -230,6 +241,11 @@ void PipelineBuilder::BuildDescriptorSetsBindings(const void* code, size_t size,
 			}
 			else
 			{
+				vk::DescriptorType descriptorType = (vk::DescriptorType)binding.descriptor_type;
+				auto hasHint = SetBindingTypeHints.find({set, binding.binding});
+				if(hasHint != SetBindingTypeHints.end())
+					descriptorType = hasHint->second;
+
 				uint32_t count = binding.count;
 				if(binding.count == 0xFFFFFFFF) //specialization constant
 				{
@@ -242,7 +258,7 @@ void PipelineBuilder::BuildDescriptorSetsBindings(const void* code, size_t size,
 				}
 				setBindings[set].emplace(binding.binding, vk::DescriptorSetLayoutBinding{
 					.binding = binding.binding,
-					.descriptorType = (vk::DescriptorType)binding.descriptor_type,
+					.descriptorType = descriptorType,
 					.descriptorCount = count,
 					.stageFlags = stage
 				});
