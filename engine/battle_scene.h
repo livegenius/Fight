@@ -18,6 +18,7 @@
 
 struct State
 {
+	uint32_t lastInputSize;
 	XorShift32 rng;
 	ParticleGroup particles;
 	Camera view;
@@ -34,6 +35,9 @@ private:
 	Camera view{1.55};
 	int timer;
 
+	static constexpr unsigned playersN = 2;
+	std::vector<uint32_t> inputs[playersN];
+	
 	int32_t gameTicks = 0;
 	bool pause = false;
 	bool step = false;

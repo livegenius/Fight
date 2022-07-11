@@ -1,6 +1,7 @@
 #ifndef INPUT_H_INCLUDED
 #define INPUT_H_INCLUDED
 
+#include <vector>
 #include <deque>
 #include <string>
 #include <map>
@@ -8,8 +9,7 @@
 #include <unordered_map>
 #include <sol/sol.hpp>
 
-typedef std::deque<uint32_t> input_deque;  //"Buffer" containing processed input.
-constexpr size_t max_input_size = 32;
+typedef std::vector<uint32_t> InputBuffer;  //"Buffer" containing processed input.
 
 struct MotionData
 {
@@ -21,6 +21,25 @@ struct MotionData
 	int seqRef = -1;
 	int flags = 0;
 	int priority = 0x7FFFFFFF; //Less is higher priority
+};
+
+struct ChargeState
+{
+	struct Charges{
+		uint16_t dirCharge[4];
+	} charges;
+	std::deque<Charges> chargeBuffer;
+
+	ChargeState();
+	void Charge(uint32_t keyPress);
+
+	enum dir{
+		up,
+		down,
+		left,
+		right
+	};
+	int GetCharge(dir which, int frame, int side = 1 ) const;
 };
 
 class CommandInputs
@@ -38,28 +57,20 @@ public:
 		int currentSequence;
 	};
 
-	CommandInputs();
+	CommandInputs() = default;
 
 	void LoadFromLua(std::filesystem::path defFile, sol::state &lua);
 
 	//Returns sequence number and flags.
-	MotionData ProcessInput(const input_deque &keyPresses, const char*motionType, int side, CancelInfo info);
-	void Charge(const input_deque &keyPresses);
+	MotionData ProcessInput(const InputBuffer &keyPresses, const ChargeState &charge, const char*motionType, int side, CancelInfo info);
+	
 
 private:
-	bool MotionInput(const MotionData& md, const input_deque &keyPresses, int side);
+	bool MotionInput(const MotionData& md, const InputBuffer &keyPresses, const ChargeState &charge, int side);
 
 
-	enum dir{
-		up,
-		down,
-		left,
-		right
-	};
-	input_deque chargeBuffer[4];
-	int charges[4];
-	int GetCharge(dir which, int frame, int side = 1 );
 
+	
 public:
 	enum //flags
 	{

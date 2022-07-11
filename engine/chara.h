@@ -50,7 +50,7 @@ public:
 	bool Update();
 	
 	void BoundaryCollision(); //Collision against stage
-	void Input(input_deque &keyPresses, CommandInputs &cmd);
+	void Input(InputBuffer &keyPresses, const ChargeState &charges, CommandInputs &cmd);
 
 private:
 	
@@ -58,7 +58,7 @@ private:
 	void Translate(FixedPoint x, FixedPoint y);
 	void GotoSequence(int seq);
 	void GotoSequenceMayTurn(int seq);
-	int ResolveHit(int keypress, Actor *hitter);
+	int ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock = false);
 	bool TurnAround(int sequence = -1);
 };
 
@@ -69,7 +69,7 @@ struct PlayerStateCopy
 	std::unique_ptr<Character> charObj;
 	std::vector<Actor> children;
 	Character* target;
-	input_deque keyBufDelayed;
+	ChargeState chargeState;
 	unsigned int lastKey[2]{};
 	int priority;
 };
@@ -79,6 +79,7 @@ class Player
 private:
 	sol::state lua;
 	sol::protected_function updateFunction;
+	sol::protected_function aiFunction;
 	bool hasUpdateFunction = false;
 
 	std::vector<Sequence> sequences;
@@ -87,12 +88,13 @@ private:
 	Character* charObj = nullptr;
 	Character* target = nullptr;
 	Player* pTarget = nullptr;
+	ChargeState chargeState;
 
-	input_deque keyBufDelayed;
 	unsigned int lastKey[2]{};
 	CommandInputs cmd;
 
-	bool ScriptSetup();
+	bool ScriptSetup(bool ai);
+	bool aiPlayer;
 
 public:
 	int priority = 0;
@@ -109,18 +111,17 @@ public:
 	
 	Player(BattleInterface& scene);
 	~Player();
-	Player(int side, std::string charFile, BattleInterface& scene, int paletteSlot);
-	void Load(int side, std::string charFile, int paletteSlot);
+	Player(int side, std::string charFile, BattleInterface& scene, int paletteSlot, bool ai = false);
+	void Load(int side, std::string charFile, int paletteSlot, bool ai = false);
 	void SetState(PlayerStateCopy &state);
 	PlayerStateCopy GetStateCopy();
 
 	void SetTarget(Player &target);
 	void Update(HitboxRenderer *hr);
 	int FillDrawList(DrawList &dl); //Returns player object index in the drawlist
-	void ProcessInput();
+	void ProcessInput(InputBuffer inputs);
 	Point2d<FixedPoint> GetXYCoords();
 	float GetHealthRatio();
-	void SendInput(int key);
 
 	static void HitCollision(Player &blue, Player &red); //Checks hit/hurt box collision and sets flags accordingly.
 	static void Collision(Player &blue, Player &red); //Detects and resolves collision between characters and/or the camera.

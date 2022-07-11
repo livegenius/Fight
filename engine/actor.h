@@ -144,7 +144,7 @@ public:
 protected:
 	void SeqFun();
 	void SetHitDef(sol::table onHit, sol::table onBlock);
-	virtual int ResolveHit(int keypress, Actor *hitter);
+	virtual int ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock = false);
 
 	bool ThrowCheck(Actor& enemy, int frontRange, int upRange, int downRange);
 	int SetVectorFromTable(const sol::table &table, int side);

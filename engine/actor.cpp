@@ -318,7 +318,7 @@ Actor& Actor::SpawnChild(int sequence)
 	return actorList.get().back();
 }
 
-int Actor::ResolveHit(int keypress, Actor *hitter)
+int Actor::ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock)
 {
 	//Todo call hit lua func
 	return none;
@@ -389,6 +389,12 @@ void Actor::DeclareActorLua(sol::state &lua)
 		"SetPos", [](Actor &actor, int x, int y){actor.root.x.value = x; actor.root.y.value = y;},
 		"GetVel", [](Actor &actor){return std::make_tuple(actor.vel.x.value, actor.vel.y.value);},
 		"SetVel", [](Actor &actor, int x, int y){actor.vel.x.value = x; actor.vel.y.value = y;},
+
+		"GetPosInt", [](Actor &actor){return std::make_tuple(actor.root.x.value>>16, actor.root.y.value>>16);},
+		"SetPosInt", [](Actor &actor, int x, int y){actor.root.x.value = x<<16; actor.root.y.value = y<<16;},
+		"GetVelInt", [](Actor &actor){return std::make_tuple(actor.vel.x.value>>16, actor.vel.y.value>>16);},
+		"SetVelInt", [](Actor &actor, int x, int y){actor.vel.x.value = x<<16; actor.vel.y.value = y<<16;},
+
 		"GetSide", &Actor::GetSide,
 		"SetSide", &Actor::SetSide,
 

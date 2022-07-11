@@ -58,7 +58,7 @@ void Character::BoundaryCollision()
 }
 
 
-int Character::ResolveHit(int keypress, Actor *hitter)
+int Character::ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock)
 {
 	int retType = hitType::hurt;
 	HitDef *hitData = &hitter->attack;
@@ -80,16 +80,26 @@ int Character::ResolveHit(int keypress, Actor *hitter)
 
 	bool blocked = false;
 	int state = framePointer->frameProp.state;
+
+	bool triesToBlock = keypress & left;
+	if(AlwaysBlock)
+	{
+		triesToBlock = true;
+		//Crouch block if necessary or already crouch blocking, unless the attack hits crouchers.
+		if(hitData->attackFlags & HitDef::hitsStand ||
+			(framePointer->frameProp.state == state::crouch && !(hitData->attackFlags & HitDef::hitsCrouch)))
+			keypress |= key::buf::DOWN;
+	}
 	//Can block
-	if ((blockFlag && hitstop > 0) || (framePointer->frameProp.flags & flag::canMove && keypress & left))
+	if ((blockFlag && hitstop > 0) || (framePointer->frameProp.flags & flag::canMove && triesToBlock))
 	{
 		//Always for now.
 		const auto &st = framePointer->frameProp.state;
 		const auto &flag = hitData->attackFlags;
 		bool groundedState = st == state::crouch || st == state::stand;
 		if( (flag & HitDef::hitsAir && st == state::air) ||
-			(flag & HitDef::hitsCrouch && groundedState && keypress & ~key::buf::DOWN) ||
-			(flag & HitDef::hitsStand && groundedState && keypress & key::buf::DOWN))
+			(flag & HitDef::hitsCrouch && groundedState && keypress & key::buf::DOWN) ||
+			(flag & HitDef::hitsStand && groundedState && !(keypress & key::buf::DOWN)))
 			blockFlag = false;
 		else
 		{
@@ -121,14 +131,18 @@ int Character::ResolveHit(int keypress, Actor *hitter)
 			accel.y.value = vt.yAccel*speedMultiplier;
 			pushTimer = vt.maxPushBackTime;	
 			friction = true;
-			hitFlags = hitData->attackFlags;
-			sol::optional<sol::table> t = lua.get()["_vectors"][vt.bounceTable];
-			if(t)
+
+			if(!blocked) // No wall/floor bounce or other weird stuff. Should be a separate flag maybe.
 			{
-				bounceVector = hitData->getVectorTableFromTable(t.value());
-				bounceVector.xSpeed *= hitter->side;
-				bounceVector.xAccel *= hitter->side;
-			}
+				hitFlags = hitData->attackFlags;
+				sol::optional<sol::table> t = lua.get()["_vectors"][vt.bounceTable];
+				if(t)
+				{
+					bounceVector = hitData->getVectorTableFromTable(t.value());
+					bounceVector.xSpeed *= hitter->side;
+					bounceVector.xAccel *= hitter->side;
+				}
+			}		
 
 			gotHit = true;
 			hurtSeq = seq;
@@ -309,7 +323,7 @@ bool Character::TurnAround(int sequence)
 	return false;
 }
 
-void Character::Input(input_deque &keyPresses, CommandInputs &cmd)
+void Character::Input(InputBuffer &keyPresses, const ChargeState &charges, CommandInputs &cmd)
 {	
 	int inputSide = GetSide();
 	if(mustTurnAround)
@@ -355,9 +369,9 @@ void Character::Input(input_deque &keyPresses, CommandInputs &cmd)
 	};
 
 	if(fp->frameProp.state == state::air)
-		command = cmd.ProcessInput(keyPresses, "air", inputSide, info);
+		command = cmd.ProcessInput(keyPresses, charges, "air", inputSide, info);
 	else
-		command = cmd.ProcessInput(keyPresses, "ground", inputSide, info);
+		command = cmd.ProcessInput(keyPresses, charges, "ground", inputSide, info);
 
 	if(hitstop)
 	{ 
@@ -378,7 +392,7 @@ void Character::Input(input_deque &keyPresses, CommandInputs &cmd)
 	{
 		GotoSequenceMayTurn(command.seqRef);
 		if(command.flags & CommandInputs::wipeBuffer) 
-			keyPresses.front() |= key::buf::CUT;
+			keyPresses.back() |= key::buf::CUT;
 
 		if(command.flags & CommandInputs::interruptible) 
 			interruptible = true;
@@ -386,8 +400,7 @@ void Character::Input(input_deque &keyPresses, CommandInputs &cmd)
 }
 
 Player::Player(BattleInterface& scene):
-scene(scene),
-keyBufDelayed(max_input_size, 0)
+scene(scene)
 {
 	//updateList.push_back((Actor*)this);
 }
@@ -397,19 +410,19 @@ Player::~Player()
 	delete charObj;
 }
 
-Player::Player(int side, std::string charFile, BattleInterface& scene, int paletteSlot):
-scene(scene),
-keyBufDelayed(max_input_size, 0)
+Player::Player(int side, std::string charFile, BattleInterface& scene, int paletteSlot, bool ai):
+scene(scene)
 {
-	Load(side, charFile, paletteSlot);
+	Load(side, charFile, paletteSlot, ai);
 }
 
-void Player::Load(int side, std::string charFile, int paletteSlot)
+void Player::Load(int side, std::string charFile, int paletteSlot, bool ai)
 {
 	charObj = new Character(FixedPoint(50*-side), side, scene, lua, sequences, newChildren);
 	charObj->paletteIndex = paletteSlot;
 	
-	if(!ScriptSetup())
+	aiPlayer = ai;
+	if(!ScriptSetup(ai))
 		abort();
 	cmd.LoadFromLua("data/char/vaki/moves.lua", lua);
 	LoadSequences(sequences, charFile, lua); //Sequences refer to script.
@@ -432,7 +445,7 @@ void Player::SetState(PlayerStateCopy &state)
 	*charObj = *state.charObj;
 	children = state.children;
 	target = state.target;
-	keyBufDelayed = state.keyBufDelayed;
+	chargeState = state.chargeState;
 	lastKey[0] = state.lastKey[0];
 	lastKey[1] = state.lastKey[1];
 	priority = state.priority;
@@ -479,7 +492,7 @@ PlayerStateCopy Player::GetStateCopy()
 		nullptr,
 		children,
 		target,
-		keyBufDelayed,
+		chargeState,
 		{lastKey[0], lastKey[1]},
 		priority
 	};
@@ -489,9 +502,9 @@ PlayerStateCopy Player::GetStateCopy()
 	return copy;
 }
 
-bool Player::ScriptSetup()
+bool Player::ScriptSetup(bool ai)
 {
-	lua.open_libraries(sol::lib::base);
+	lua.open_libraries(sol::lib::base, sol::lib::math);
 	auto global = lua["global"].get_or_create<sol::table>();
 	Actor::DeclareActorLua(lua);
 
@@ -504,6 +517,9 @@ bool Player::ScriptSetup()
 	key["right"] = key::buf::RIGHT;
 	key["any"] = key::buf::UP | key::buf::DOWN | key::buf::LEFT | key::buf::RIGHT;
 
+	global.set_function("RandomChance", [this](uint64_t percent){
+		return (uint64_t)scene.rng.GetU() < (((uint64_t)(std::numeric_limits<uint32_t>::max())+1)/100)*percent;
+	});
 	global.set_function("RandomInt", [this](uint64_t min, uint32_t max){
 		return min + scene.rng.GetU()/(std::numeric_limits<uint32_t>::max() / (max - min + 1) + 1);
 	});
@@ -543,7 +559,7 @@ bool Player::ScriptSetup()
 	auto result = lua.script_file("data/char/vaki/script.lua");
 	if(!result.valid()){
 		sol::error err = result;
-		std::cerr << "The code has failed to run!\n"
+		std::cerr << "The code has failed to run in script.lua!\n"
 		          << err.what() << "\nPanicking and exiting..."
 		          << std::endl;
 		return false;
@@ -552,6 +568,26 @@ bool Player::ScriptSetup()
 	updateFunction = lua["_update"];
 	hasUpdateFunction = updateFunction.get_type() == sol::type::function;
 	lua["player"] = (Actor*)charObj;
+
+
+	if(ai)
+	{
+		auto result = lua.script_file("data/char/vaki/ai.lua");
+		if(!result.valid()){
+			sol::error err = result;
+			std::cerr << "The code has failed to run in ai.lua!\n"
+					<< err.what() << "\nPanicking and exiting..."
+					<< std::endl;
+			return false;
+		}
+
+		aiFunction = lua["_ai"];
+		if(aiFunction.get_type() != sol::type::function)
+		{
+			std::cerr << "Player is AI, but there's no _main function in the ai script" << std::endl;
+			return false;
+		}
+	}
 	
 	return true;
 }
@@ -567,7 +603,7 @@ void Player::Update(HitboxRenderer *hr)
 {
 	if(hasUpdateFunction)
 	{
-		auto result = updateFunction();
+		auto result = updateFunction(charObj);
 		if(!result.valid())
 		{
 			sol::error err = result;
@@ -620,12 +656,39 @@ int Player::FillDrawList(DrawList &dl)
 	return dl.middle-1;
 }
 
-void Player::ProcessInput()
+void Player::ProcessInput(InputBuffer inputs)
 {
-	lastKey[0] = keyBufDelayed[0];
-	lastKey[1] = keyBufDelayed[1];
-	cmd.Charge(keyBufDelayed);
-	charObj->Input(keyBufDelayed, cmd);
+	if(aiPlayer)
+	{
+		auto result = aiFunction((Actor*)charObj, (Actor*)charObj->target);
+		if(!result.valid())
+		{
+			sol::error err = result;
+			std::cerr << err.what() << std::endl;
+			return;
+		}
+		InputBuffer aiInput = result.get<InputBuffer>();
+		if(!aiInput.empty())
+		{
+			auto lastInput = aiInput.size()-1;
+			lastKey[1] = lastKey[0];
+			lastKey[0] = aiInput[lastInput];
+
+			chargeState.Charge(aiInput.back());
+			charObj->Input(aiInput, chargeState, cmd); 
+		}
+		else
+			std::cerr << "Warning: aiFunction returned no inputs!" << std::endl;
+	}
+	else
+	{
+		auto lastInput = inputs.size()-1;
+		lastKey[1] = lastKey[0];
+		lastKey[0] = inputs[lastInput];
+
+		chargeState.Charge(inputs.back());
+		charObj->Input(inputs, chargeState, cmd);
+	}
 }
 
 Point2d<FixedPoint> Player::GetXYCoords()
@@ -641,14 +704,9 @@ float Player::GetHealthRatio()
 	return charObj->health * (1.f / 10000.f);
 }
 
-void Player::SendInput(int key)
-{
-	keyBufDelayed.pop_back();
-	keyBufDelayed.push_front(key);
-}
-
 void Player::HitCollision(Player &bluePlayer, Player &redPlayer)
 {
+
 	std::vector<Actor*> blueList; blueList.resize(bluePlayer.children.size()+1);
 	blueList[0] = bluePlayer.charObj;
 	for(int i = 1; i < blueList.size(); ++i)
@@ -658,8 +716,8 @@ void Player::HitCollision(Player &bluePlayer, Player &redPlayer)
 	for(int i = 1; i < redList.size(); ++i)
 		redList[i] = &redPlayer.children[i-1];
 
-	int blueKey = bluePlayer.keyBufDelayed.front();
-	int redKey = redPlayer.keyBufDelayed.front();
+	int blueKey = bluePlayer.lastKey[0];
+	int redKey = redPlayer.lastKey[0];
 	Player *player[][2] = {{&redPlayer, &bluePlayer},{&bluePlayer, &redPlayer}};
 	for(auto blue : blueList)
 	{
@@ -677,7 +735,7 @@ void Player::HitCollision(Player &bluePlayer, Player &redPlayer)
 					if(blue->attack.hitStop > blue->hitstop)
 						blue->hitstop = blue->attack.hitStop;
 					int particleAmount = blue->hitstop*2;
-					blue->comboType = red->ResolveHit(keys[i], blue);
+					blue->comboType = red->ResolveHit(keys[i], blue, player[i][0]->aiPlayer);
 					if(blue->comboType != Actor::none) //Set hitting player on top.
 					{
 						player[i][0]->priority = 0;

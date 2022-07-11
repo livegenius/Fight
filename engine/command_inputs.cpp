@@ -24,12 +24,36 @@ int SanitizeKey(int lever)
 	return lever;
 }
 
-CommandInputs::CommandInputs()
+ChargeState::ChargeState()
 {
-	for(int i = 0; i < 4; i++)
+	chargeBuffer.resize(chargeBufSize);
+}
+
+void ChargeState::Charge(uint32_t keyPress)
+{
+	auto key = SanitizeKey(keyPress);
+	for(int i = key::UP, b = 0; i <= key::RIGHT; ++i, ++b)
 	{
-		chargeBuffer[i].resize(chargeBufSize);
+		int dirBit = 1 << i;
+		if( key & dirBit)
+			charges.dirCharge[b] += 1;
+		else
+			charges.dirCharge[b] = 0;
 	}
+	chargeBuffer.pop_back();
+	chargeBuffer.push_front(charges);
+}
+
+int ChargeState::GetCharge(dir which, int frame, int side) const
+{
+	if(frame < 0 || frame >= chargeBufSize)
+		return 0;
+	
+	constexpr int invertIndex[] {up,down,right,left};
+	if(side == -1)
+		return chargeBuffer[frame].dirCharge[invertIndex[which]];
+	else
+		return chargeBuffer[frame].dirCharge[which];
 }
 
 void CommandInputs::LoadFromLua(std::filesystem::path defFile, sol::state &lua)
@@ -64,39 +88,9 @@ void CommandInputs::LoadFromLua(std::filesystem::path defFile, sol::state &lua)
 			motions[tableName].push_back(std::move(md));
 		}
 	}
-	
-
 }
 
-void CommandInputs::Charge(const input_deque &keyPresses)
-{
-	auto key = SanitizeKey(keyPresses[0]);
-	for(int i = key::UP, b = 0; i <= key::RIGHT; ++i, ++b)
-	{
-		int dirBit = 1 << i;
-		if( key & dirBit)
-            charges[b] += 1;
-		else
-			charges[b] = 0;
-		
-		chargeBuffer[b].pop_back();
-		chargeBuffer[b].push_front(charges[b]);
-	}
-}
-
-int CommandInputs::GetCharge(dir which, int frame, int side)
-{
-	if(frame < 0 || frame >= chargeBufSize)
-		return 0;
-	
-	constexpr int invertIndex[] {up,down,right,left};
-	if(side == -1)
-		return chargeBuffer[invertIndex[which]][frame];
-	else
-		return chargeBuffer[which][frame];
-}
-
-MotionData CommandInputs::ProcessInput(const input_deque &keyPresses, const char* motionType, int side, CancelInfo info)
+MotionData CommandInputs::ProcessInput(const InputBuffer &keyPresses, const ChargeState &charge, const char* motionType, int side, CancelInfo info)
 {
 	for(const auto &md : motions[motionType])
 	{
@@ -112,7 +106,7 @@ MotionData CommandInputs::ProcessInput(const input_deque &keyPresses, const char
 		//The sequence can't go to itself unless the move is flagged as repeteable.
 		canDo &= !!(md.flags & CommandInputs::repeatable) | (info.currentSequence != md.seqRef);
 		//Only then bother to check if you actually inputted the move
-		if(canDo && MotionInput(md, keyPresses, side))
+		if(canDo && MotionInput(md, keyPresses, charge, side))
 		{
 			if(md.hasCondition)
 			{
@@ -132,7 +126,7 @@ MotionData CommandInputs::ProcessInput(const input_deque &keyPresses, const char
 	return {}; //No matches
 }
 
-bool CommandInputs::MotionInput(const MotionData& md, const input_deque &keyPresses, int side)
+bool CommandInputs::MotionInput(const MotionData& md, const InputBuffer &keyPresses, const ChargeState &charge, int side)
 {
 	const std::string &motion = md.motionStr;
 	int left;
@@ -155,10 +149,11 @@ bool CommandInputs::MotionInput(const MotionData& md, const input_deque &keyPres
 	int heldButton = 0;
 	bool correct = false;
 
-	const int bufSize = keyPresses.size();
+	auto keyBufSize = keyPresses.size();
+	const int bufSize = std::min(keyBufSize, 60LLU); //Working buffer size. Will check up to last 60 inputs.
 	for(int i = 0; i < bufSize; i++)
 	{
-		auto key = keyPresses[i];
+		auto key = keyPresses[keyBufSize - 1 - i];
 		auto lever = SanitizeKey(key & ~(key::buf::NEUTRAL)); 
 
 		if(key & key::buf::CUT) //Stop reading inputs at the cut.
@@ -273,24 +268,24 @@ motionBufferProcessing:
 			if(c < 2)
 				return false;
 
-			dir toCheck;
+			ChargeState::dir toCheck;
 			switch(motion[c-1])
 			{
 			case 'U':
-				toCheck = dir::up;
+				toCheck = ChargeState::up;
 				break;
 			case 'D':
-				toCheck = dir::down;
+				toCheck = ChargeState::down;
 				break;
 			case 'L':
-				toCheck = dir::left;
+				toCheck = ChargeState::left;
 				break;
 			case 'R':
-				toCheck = dir::right;
+				toCheck = ChargeState::right;
 				break;
 			}
 			
-			if(GetCharge(toCheck, i, side) >= (unsigned char)motion[c-2])
+			if(charge.GetCharge(toCheck, i, side) >= (unsigned char)motion[c-2])
 			{
 				c -= 3;
 			}
