@@ -23,10 +23,7 @@
 	url = https://github.com/ocornut/imgui.git
 [submodule "submodules/enet"]
 	path = submodules/enet
-	url = https://github.com/meifuku/enet.git
-[submodule "submodules/ggpo"]
-	path = submodules/ggpo
-	url = https://github.com/meifuku/ggpo.git
+	url = https://github.com/livegenius/enet.git
 [submodule "submodules/soloud"]
 	path = submodules/soloud
-	url = https://github.com/meifuku/soloud.git
+	url = https://github.com/livegenius/soloud.git
