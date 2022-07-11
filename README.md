@@ -1,31 +1,26 @@
 # Fighting Game Engine #
 
-A fighting game engine inspired by airdashes using C++.
-- Online multiplayer uses rollback netcode thanks to GGPO, although it still needs to be tested.
-- Offline multiplayer is also supported.
-- Both, keyboard and controllers, can be used in any combination.
-- Lua scripting is used to define the behaviour of characters, among other things.
-- A character framedata editor is still in progress.
+A fighting game engine inspired by airdashers.
 
 ![screenshot](https://user-images.githubusercontent.com/39018575/134964719-4d5d5d1b-7689-4565-83db-55375132d0b8.png)
 
 ## How to play ##
 
-You can download the released binaries for Windows if you don't want to compile the game.
+To change your controls, do the following in-game:
 
-To configure your input, do the following while in the game:
-
-For keyboard, press F9 to configure player 1 controls or F10 for player 2 controls.
 For controller, press F7 to configure player 1 control or F8 for player 2 controls.
-Then input the key, button, etc. you want in the follower order: 
-Up Down Left Right A B C D. Yes, this is a four button fighter.
-You can swap the controllers by pressing F6.
+For keyboard, press F9 or F10 to configure player 1 and player 2 controls, respectively.
 
-H displays the hitboxes and P pauses the game. While the game is paused you can press
+After you've pressed the F key, input the key, button, etc. you want to bind to: 
+Up Down Left Right A B C D. - They must be inputted in that order.
+If there are two controllers, you can swap the controllers by pressing F6.
+
+The H key displays the hitboxes and P pauses the game. While the game is paused you can press
 space to advance one frame. F5 Changes the framerate. Escape quits the game.
-Sorry, these keys are hardcoded for now.
+F1 and F2 can save or load a savestate, respectively.
+Sorry, but these keys are hardcoded for now. 
 
-Whenever you play, a replay is saved. To play this replay, enter playdemo in the command line.
+Whenever you play, a replay is recorded to a file. To play this replay, enter playdemo in the command line.
 You can host a game by entering the port in the command line, and you can join a game by
 entering an IP address and the port, separated by spaces, not a colon.
 
@@ -40,5 +35,17 @@ entering an IP address and the port, separated by spaces, not a colon.
 ## Compiling ##
 
 Clone the repo, init the submodules, run cmake with your preferred settings and build.
+For example:
+
+```
+git clone --recursive [insert repo link here] fight
+cd fight
+mkdir build
+cmake -S. -Bbuild -GNinja -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
+
+The only external dependency that is required is the Vulkan SDK.
 Set AFGE_BUILD_TOOLS to true if you want to build the developer tools.
-It can be compiled for Linux, but it hasn't been tested thoroughly.
+~~It can be compiled for Linux~~. It hasn't been actively developed for
+linux, so it may require a few changes.
