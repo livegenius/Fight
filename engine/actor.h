@@ -120,7 +120,9 @@ public:
 	~Actor();
 
 	virtual bool Update();
-	bool AdvanceFrame();
+
+	//Returns 1 if the frame advanced, 0 if it didn't and -1 if there's no next frame available.
+	int AdvanceFrame();
 	virtual void GotoSequence(int seq);
 	bool GotoFrame(int frame);
 	void Translate(Point2d<FixedPoint> amount);

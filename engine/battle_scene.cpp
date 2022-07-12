@@ -55,7 +55,6 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			return 0;
 		}
 		{
-			size_t inputSize;
 			replayFile.read((char*)&inputSize, sizeof(size_t));
 			for(int i = 0; i < playersN; ++i)
 			{	
@@ -76,7 +75,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	hud.Load("data/hud/hud.lua");
 	hud.SetMatrix(projection);
 		
-	player.Load(1, "data/char/vaki/vaki.fdat", 0);
+	player.Load(1, "data/char/vaki/vaki.fdat", 0, true);
 	player2.Load(-1, "data/char/vaki/vaki.fdat", 1, true);
 	
 	sfx.LoadFromDef("data/sfx/sfx.lua");

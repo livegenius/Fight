@@ -28,7 +28,7 @@ private:
 	int hurtSeq = -1;
 	bool gotHit = false;
 
-	bool blockFlag = false;
+	bool isAlreadyBlocking = false;
 	int hitFlags = 0; //When getting hit
 
 	HitDef::Vector bounceVector;

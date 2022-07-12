@@ -63,8 +63,7 @@ int Character::ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock)
 	int retType = hitType::hurt;
 	HitDef *hitData = &hitter->attack;
 	keypress = SanitizeKey(keypress);
-	hitstop = hitData->hitStop;
-
+	
 	int left;
 	int right;
 	if (GetSide() < 0) //Inverts absolute input depending on side. Apparent input is corrected.
@@ -90,23 +89,26 @@ int Character::ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock)
 			(framePointer->frameProp.state == state::crouch && !(hitData->attackFlags & HitDef::hitsCrouch)))
 			keypress |= key::buf::DOWN;
 	}
+
 	//Can block
-	if ((blockFlag && hitstop > 0) || (framePointer->frameProp.flags & flag::canMove && triesToBlock))
+	if ((isAlreadyBlocking) || (framePointer->frameProp.flags & flag::canMove && triesToBlock))
 	{
-		//Always for now.
 		const auto &st = framePointer->frameProp.state;
 		const auto &flag = hitData->attackFlags;
 		bool groundedState = st == state::crouch || st == state::stand;
-		if( (flag & HitDef::hitsAir && st == state::air) ||
+		//Blocked successfully
+		if(!(
+			(flag & HitDef::hitsAir && st == state::air) ||
 			(flag & HitDef::hitsCrouch && groundedState && keypress & key::buf::DOWN) ||
-			(flag & HitDef::hitsStand && groundedState && !(keypress & key::buf::DOWN)))
-			blockFlag = false;
-		else
+			(flag & HitDef::hitsStand && groundedState && !(keypress & key::buf::DOWN))
+		))
 		{
 			if(hitData->blockStop>=0)
 				hitstop = hitData->blockStop;
+			else
+				hitstop = hitData->hitStop;
 			blocked	= true;
-			blockFlag = true;
+			isAlreadyBlocking = true;
 			blockTime = hitData->blockstun;
 			scene->sfx.PlaySound("block");
 			retType = hitType::blocked;
@@ -114,8 +116,6 @@ int Character::ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock)
 				state = keypress & key::buf::DOWN ? state::crouch : state::stand;
 		}
 	}
-	else
-		blockFlag = false;
 
 	if(hitData->vectorTables.count(state) == 0)
 		state = 0; //TODO: Fallback state from lua?
@@ -153,6 +153,8 @@ int Character::ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock)
 
 	if(!blocked)
 	{
+		isAlreadyBlocking = false;
+		hitstop = hitData->hitStop;
 		scene->view.SetShakeTime(hitData->shakeTime);
 		health -= hitData->damage;
 		if(!hitData->hitSound.empty())
@@ -197,12 +199,6 @@ void Character::GotoSequence(int seq)
 	landingFrame = seqPointer->props.landFrame;
 	flags &= ~noCollision; 
 	GotoFrame(0);
-	if(framePointer->frameProp.flags & flag::canMove)
-	{
-		friction = false;
-		blockFlag = false;
-		pushTimer = 0;
-	}
 }
 
 void Character::GotoSequenceMayTurn(int seq)
@@ -243,8 +239,16 @@ bool Character::Update()
 	}
 	else
 		shaking = false;
-	if(!AdvanceFrame()) //Died
+
+	int advanced = AdvanceFrame();
+	if(advanced == -1) //Died
 		return false;
+	else if(advanced == 1 && framePointer->frameProp.flags & flag::canMove)
+	{
+		friction = false;
+		isAlreadyBlocking = false;
+		pushTimer = 0;
+	}
 
 	if (root.y < floorPos && !hitstop) //Check collision with floor
 	{

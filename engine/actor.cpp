@@ -179,7 +179,7 @@ void Actor::SeqFun()
 	}
 }
 
-bool Actor::AdvanceFrame()
+int Actor::AdvanceFrame()
 {
 	if (frameDuration == 0)
 	{
@@ -217,10 +217,11 @@ bool Actor::AdvanceFrame()
 		{
 			currFrame += 1;	
 			if(!GotoFrame(currFrame)) //If dead don't continue;
-				return false;
+				return -1;
 		}
+		return 1;
 	}
-	return true;
+	return 0;
 }
 
 bool Actor::Update()
@@ -239,7 +240,7 @@ bool Actor::Update()
 	}
 	else
 		shaking = false;
-	if(!AdvanceFrame()) //Died
+	if(AdvanceFrame() == -1) //Died
 		return false;
 
 	if (flags & floorCheck && root.y + vel.y < floorPos) //Check collision with floor

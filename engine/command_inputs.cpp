@@ -92,7 +92,7 @@ void CommandInputs::LoadFromLua(std::filesystem::path defFile, sol::state &lua)
 
 MotionData CommandInputs::ProcessInput(const InputBuffer &keyPresses, const ChargeState &charge, const char* motionType, int side, CancelInfo info)
 {
-	for(const auto &md : motions[motionType])
+ 	for(const auto &md : motions[motionType])
 	{
 		//If can cancel and the next move is comboable into.
 		//TODO:
