@@ -26,6 +26,7 @@ void Character::BoundaryCollision()
 	Camera &currView = scene->view;
 	const FixedPoint wallOffset(10);
 	touchedWall = 0;
+	auto prevRootX = root.x;
 
 	if (root.x <= currView.GetWallPos(camera::leftWall) + wallOffset)
 	{
@@ -38,8 +39,11 @@ void Character::BoundaryCollision()
 		touchedWall = 1;
 		root.x = currView.GetWallPos(camera::rightWall) - wallOffset;
 	}
+
+	if(attachPoint)
+		attachPoint->root.x += root.x - prevRootX;
 	
-	if (touchedWall != 0 && hitFlags & HitDef::wallBounce)
+	if (touchedWall != 0 && hitFlags & HitDef::wallBounce) //TODO: Custom behavior
 	{
 		hitFlags &= ~HitDef::wallBounce;
 		vel.x.value = bounceVector.xSpeed*speedMultiplier;
@@ -49,7 +53,7 @@ void Character::BoundaryCollision()
 		pushTimer = bounceVector.maxPushBackTime;
 		GotoSequence(lua.get()["_seqTable"][bounceVector.sequenceName].get_or(-1));
 		touchedWall = 0;
-		hitstop = 6;
+		hitstop = 6; 
 		scene->view.SetShakeTime(12);
 		scene->sfx.PlaySound("wallBounce");
 	}
@@ -84,10 +88,14 @@ int Character::ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock)
 	if(AlwaysBlock)
 	{
 		triesToBlock = true;
+		//Stands up if already crouching.
 		//Crouch block if necessary or already crouch blocking, unless the attack hits crouchers.
-		if(hitData->attackFlags & HitDef::hitsStand ||
+		if(hitData->attackFlags & HitDef::hitsCrouch)
+			keypress &= ~key::buf::DOWN;
+		else if(hitData->attackFlags & HitDef::hitsStand ||
 			(framePointer->frameProp.state == state::crouch && !(hitData->attackFlags & HitDef::hitsCrouch)))
 			keypress |= key::buf::DOWN;
+		
 	}
 
 	//Can block
@@ -163,9 +171,15 @@ int Character::ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock)
 		{
 			hitstop = hitstop*2 + 2 + 5*(framePointer->frameProp.state == state::air);
 			scene->sfx.PlaySound("counter");
-			return hitType::counter;
+			retType = hitType::counter;
 		}
 	}
+
+	//Set attackers hitstop
+	if(hitData->selfHitStop >= 0)
+		hitter->hitstop = hitData->selfHitStop;
+	else
+		hitter->hitstop = hitData->hitStop;
 	return retType;
 }
 
@@ -182,12 +196,25 @@ void Character::Translate(FixedPoint x, FixedPoint y)
 	BoundaryCollision();
 }
 
+void Character::SetPos(FixedPoint x, FixedPoint y)
+{
+	root.x = x;
+	root.y = y;
+	BoundaryCollision();
+}
+
+
 void Character::GotoSequence(int seq)
 {
 	if (seq < 0)
 		return;
 	
 	interruptible = false;
+	if(comboType == none)
+		whiffed = true;
+	else
+		whiffed = false;
+
 	comboType = none;
 	currSeq = seq;
 	currFrame = 0;
@@ -392,11 +419,13 @@ void Character::Input(InputBuffer &keyPresses, const ChargeState &charges, Comma
 	}
 
 	//Finally perform the move, if there's any.
+	successfulInput = false;
 	if(command.seqRef != -1)
 	{
+		successfulInput = true;
 		GotoSequenceMayTurn(command.seqRef);
 		if(command.flags & CommandInputs::wipeBuffer) 
-			keyPresses.back() |= key::buf::CUT;
+			keyPresses.buffer[keyPresses.lastLoc] |= key::buf::CUT;
 
 		if(command.flags & CommandInputs::interruptible) 
 			interruptible = true;
@@ -558,6 +587,7 @@ bool Player::ScriptSetup(bool ai)
 			return (lastkey & ~0xC) | ((!!right) << key::LEFT) | ((!!left) << key::RIGHT);
 		}
 	});
+	global.set_function("GetWhiffed", [this](){return charObj->whiffed;});
 
 	lua.create_named_table("G");
 	auto result = lua.script_file("data/char/vaki/script.lua");
@@ -664,19 +694,20 @@ void Player::ProcessInput(InputBuffer inputs)
 {
 	if(aiPlayer)
 	{
-		auto result = aiFunction((Actor*)charObj, (Actor*)charObj->target);
+		auto result = aiFunction((Actor*)charObj, (Actor*)charObj->target, charObj->successfulInput);
 		if(!result.valid())
 		{
 			sol::error err = result;
 			std::cerr << err.what() << std::endl;
 			return;
 		}
-		InputBuffer aiInput = result.get<InputBuffer>();
-		if(!aiInput.empty())
+		InputBuffer aiInput;
+		aiInput.buffer = result.get<std::vector<uint32_t>>();
+		aiInput.lastLoc = aiInput.buffer.size()-1;
+		if(!aiInput.buffer.empty())
 		{
-			auto lastInput = aiInput.size()-1;
 			lastKey[1] = lastKey[0];
-			lastKey[0] = aiInput[lastInput];
+			lastKey[0] = aiInput.back();
 
 			chargeState.Charge(aiInput.back());
 			charObj->Input(aiInput, chargeState, cmd); 
@@ -686,9 +717,8 @@ void Player::ProcessInput(InputBuffer inputs)
 	}
 	else
 	{
-		auto lastInput = inputs.size()-1;
 		lastKey[1] = lastKey[0];
-		lastKey[0] = inputs[lastInput];
+		lastKey[0] = inputs.back();
 
 		chargeState.Charge(inputs.back());
 		charObj->Input(inputs, chargeState, cmd);
@@ -736,10 +766,8 @@ void Player::HitCollision(Player &bluePlayer, Player &redPlayer)
 				auto result = Actor::HitCollision(*red, *blue);
 				if (result.first)
 				{
-					if(blue->attack.hitStop > blue->hitstop)
-						blue->hitstop = blue->attack.hitStop;
-					int particleAmount = blue->hitstop*2;
 					blue->comboType = red->ResolveHit(keys[i], blue, player[i][0]->aiPlayer);
+					int particleAmount = std::max(blue->hitstop*2, 6);
 					if(blue->comboType != Actor::none) //Set hitting player on top.
 					{
 						player[i][0]->priority = 0;

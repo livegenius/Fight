@@ -49,15 +49,6 @@ bool Actor::GotoFrame(int frame)
 	if(framePointer->frameProp.flags & flag::startHit)
 		hitCount = 1;
 	
-	//Keep?
-	/* if (framePointer->frameProp.flags & flag::RESET_INFLICTED_VEL)
-	{
-		for (int i = 0; i <= 1; ++i)
-		{
-			impulses[i] = 0;
-		}
-	} */
-
 	int *spd[2] = {&vel.x.value, &vel.y.value};
 	int *acc[2] = {&accel.x.value, &accel.y.value};
 	
@@ -85,6 +76,12 @@ bool Actor::GotoFrame(int frame)
 
 	frameDuration = framePointer->frameProp.duration;
 	return true;
+}
+
+void Actor::SetPos(FixedPoint x, FixedPoint y)
+{
+	root.x = x;
+	root.y = y;
 }
 
 void Actor::Translate(Point2d<FixedPoint> amount)
@@ -321,7 +318,7 @@ Actor& Actor::SpawnChild(int sequence)
 
 int Actor::ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock)
 {
-	//Todo call hit lua func
+	//TODO: call hit lua func
 	return none;
 }
 
@@ -372,6 +369,7 @@ void Actor::DeclareActorLua(sol::state &lua)
 		"correctionType", &HitDef::correctionType, 
 		"meterGain", &HitDef::meterGain, 
 		"hitStop", &HitDef::hitStop, 
+		"selfHitStop", &HitDef::selfHitStop, 
 		"blockStop", &HitDef::blockStop, 
 		"untech", &HitDef::untech, 
 		"blockStun", &HitDef::blockstun,
@@ -382,18 +380,49 @@ void Actor::DeclareActorLua(sol::state &lua)
 		"shakeTime", &HitDef::shakeTime
 	);
 
+	lua.new_usertype<io::FrameProperty>("FrameProperty",
+		"spriteIndex", &io::FrameProperty::spriteIndex,
+		"duration", &io::FrameProperty::duration,
+		"jumpTo", &io::FrameProperty::jumpTo,
+		"jumpType", &io::FrameProperty::jumpType,
+		"relativeJump", &io::FrameProperty::relativeJump,
+		"flags", &io::FrameProperty::flags,
+		"vel", &io::FrameProperty::vel,
+		"accel", &io::FrameProperty::accel,
+		"movementType", &io::FrameProperty::movementType,
+		"cancelType", &io::FrameProperty::cancelType,
+		"state", &io::FrameProperty::state,
+		"spriteOffset", &io::FrameProperty::spriteOffset,
+		"loopN", &io::FrameProperty::loopN,
+		"chType", &io::FrameProperty::chType,
+		"scale", &io::FrameProperty::scale,
+		"color", &io::FrameProperty::color,
+		"blendType", &io::FrameProperty::blendType,
+		"rotation", &io::FrameProperty::rotation
+	);
+
 	lua.new_usertype<Actor>("Actor",
 		"GotoFrame", &Actor::GotoFrame,
 		"GotoSequence", &Actor::GotoSequence,
 		"GetSide", &Actor::GetSide,
-		"GetPos", [](Actor &actor){return std::make_tuple(actor.root.x.value, actor.root.y.value);},
-		"SetPos", [](Actor &actor, int x, int y){actor.root.x.value = x; actor.root.y.value = y;},
-		"GetVel", [](Actor &actor){return std::make_tuple(actor.vel.x.value, actor.vel.y.value);},
-		"SetVel", [](Actor &actor, int x, int y){actor.vel.x.value = x; actor.vel.y.value = y;},
 
+		"GetPos", [](Actor &actor){return std::make_tuple(actor.root.x.value, actor.root.y.value);},
 		"GetPosInt", [](Actor &actor){return std::make_tuple(actor.root.x.value>>16, actor.root.y.value>>16);},
-		"SetPosInt", [](Actor &actor, int x, int y){actor.root.x.value = x<<16; actor.root.y.value = y<<16;},
+		"SetPos", [](Actor &actor, int x, int y){
+			FixedPoint x_,y_;
+			x_.value=x,
+			y_.value=y;
+			actor.SetPos(x_,y_);
+		},
+		"SetPosInt", [](Actor &actor, int x, int y){actor.SetPos(FixedPoint{x},FixedPoint{y});},
+
+		//Set position without boundary collision.
+		"SetPosInt2", [](Actor &actor, int x, int y){actor.root.x.value = x<<16; actor.root.y.value = y<<16;},
+		"SetPos2", [](Actor &actor, int x, int y){actor.root.x.value = x; actor.root.y.value = y;},
+
+		"GetVel", [](Actor &actor){return std::make_tuple(actor.vel.x.value, actor.vel.y.value);},
 		"GetVelInt", [](Actor &actor){return std::make_tuple(actor.vel.x.value>>16, actor.vel.y.value>>16);},
+		"SetVel", [](Actor &actor, int x, int y){actor.vel.x.value = x; actor.vel.y.value = y;},
 		"SetVelInt", [](Actor &actor, int x, int y){actor.vel.x.value = x<<16; actor.vel.y.value = y<<16;},
 
 		"GetSide", &Actor::GetSide,
@@ -422,7 +451,9 @@ void Actor::DeclareActorLua(sol::state &lua)
 		"flags", &Actor::flags,
 		"frozen", &Actor::frozen,
 		"landingFrame", &Actor::landingFrame,
-		"hitStop", &Actor::hitstop
+		"hitStop", &Actor::hitstop,
+
+		"GetFrameProperty", [](Actor &actor){return actor.framePointer->frameProp;}
 	);
 
 	auto table = lua["global"]["hit"].get_or_create<sol::table>();

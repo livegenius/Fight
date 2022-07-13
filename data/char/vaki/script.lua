@@ -503,10 +503,12 @@ local t_sgthrow = {
 			end
 			g.SetPriority(1)
 			actor:GotoFrame(13)
+			
 			g.PlaySound("kickWeak")
 			
 			local enemy = actor.userData.t
 			enemy:GotoSequence(350)
+			enemy:Attach(actor)
 			enemy.frozen = true
 			
 			local x,y = actor:GetPos()
@@ -534,11 +536,13 @@ local t_sgthrow = {
 	end,
 	[22] = function (actor)
 		local enemy = actor.userData.t
+		enemy:Detach(actor)
 		local x,y = actor:GetPos()
 		enemy:SetPos(x+(41<<16)*actor:GetSide(), (89-40)<<16)
 		enemy.frozen = false
 		enemy:SetVector(_vectors.trip, actor:GetSide())
 		enemy:GotoSequence(29)
+		
 	end
 }
 function sgthrow(actor)
@@ -694,6 +698,7 @@ function s236c(actor)
 		hd.damage = 100
 		hd.blockStun = 14
 		hd.hitStop = histopTbl.medium
+		hd.selfHitStop = 4
 		hd.sound = "burn"
 	end
 end
@@ -706,6 +711,7 @@ function s236a(actor)
 		hd.damage = 100
 		hd.blockStun = 14
 		hd.hitStop = histopTbl.medium
+		hd.selfHitStop = 4
 		hd.sound = "burn"
 	end
 end

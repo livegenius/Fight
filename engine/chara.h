@@ -39,6 +39,8 @@ private:
 	
 	bool interruptible = false;
 	bool mustTurnAround = false;
+	bool successfulInput = false; //Set to true if action was performed successfully due to player input
+	bool whiffed = true;
 
 	//FixedPoint getAway; //Amount to move after collision
 	FixedPoint touchedWall; //left wall: -1, right wall = 1, no wall = 0;
@@ -54,6 +56,7 @@ public:
 
 private:
 	
+	void SetPos(FixedPoint x, FixedPoint y);
 	void Translate(Point2d<FixedPoint> amount);
 	void Translate(FixedPoint x, FixedPoint y);
 	void GotoSequence(int seq);

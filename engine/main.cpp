@@ -13,6 +13,7 @@ int gameState = GS_MENU;
 
 int main(int argc, char** argv)
 {
+	bool aiMatch = false;
 	bool playDemo = false;
 	int netState = 0;
 	ENetHost *local = nullptr;
@@ -22,6 +23,8 @@ int main(int argc, char** argv)
 	{
 		if(strcmp(argv[1],"playdemo")==0)
 			playDemo = true;
+		else if(strcmp(argv[1],"aionly")==0)
+			aiMatch = true;
 		else
 		{
 			netState = net::NetplayArgs(argc, argv, local, address);
@@ -78,7 +81,7 @@ int main(int argc, char** argv)
 					if(netState == net::Joining)
 						playerId = 1;
 					BattleScene bs(local);
-					gameState = bs.PlayLoop(playDemo, playerId, address);
+					gameState = bs.PlayLoop(playDemo, aiMatch, playerId, address);
 					break;
 				}
 			}

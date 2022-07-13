@@ -37,7 +37,7 @@ BattleScene::~BattleScene()
 }
 
 
-int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
+int BattleScene::PlayLoop(bool replay, bool aiOnlyMatch, int playerId, const std::string &address)
 {
 	float clearColor[] = {1,1,1,1};
 	mainWindow->renderer.SetClearColor(clearColor);
@@ -58,13 +58,13 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			replayFile.read((char*)&inputSize, sizeof(size_t));
 			for(int i = 0; i < playersN; ++i)
 			{	
-				inputs[i].resize(inputSize);
-				replayFile.read((char*)inputs[i].data(), sizeof(uint32_t)*inputSize);
+				inputs[i].buffer.resize(inputSize);
+				replayFile.read((char*)inputs[i].buffer.data(), sizeof(uint32_t)*inputSize);
 			}
 		}
 	}
 	else for (int i = 0; i < playersN; ++i)
-		inputs[i].reserve(0x8000); //About 9 minutes of gameplay.
+		inputs[i].buffer.reserve(0x8000); //About 9 minutes of gameplay.
 	
 	std::ostringstream timerString;
 	timerString.precision(6);
@@ -75,7 +75,7 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 	hud.Load("data/hud/hud.lua");
 	hud.SetMatrix(projection);
 		
-	player.Load(1, "data/char/vaki/vaki.fdat", 0, true);
+	player.Load(1, "data/char/vaki/vaki.fdat", 0, aiOnlyMatch);
 	player2.Load(-1, "data/char/vaki/vaki.fdat", 1, true);
 	
 	sfx.LoadFromDef("data/sfx/sfx.lua");
@@ -156,8 +156,8 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 			if (GGPO_SUCCEEDED(result))
 			{
 				result = ggpo_synchronize_input(ggpo, (void *)ginputs, sizeof(unsigned int) * 2, nullptr);
-				inputs[0].push_back(ginputs[0]);
-				inputs[1].push_back(ginputs[1]);
+				inputs[0].buffer.push_back(ginputs[0]);
+				inputs[1].buffer.push_back(ginputs[1]);
 				AdvanceFrame();
 				drawn = false;
 			}
@@ -168,8 +168,8 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 		}
 		else
 		{
-			inputs[0].push_back(keySend[0]);
-			inputs[1].push_back(keySend[1]);
+			inputs[0].buffer.push_back(keySend[0]);
+			inputs[1].buffer.push_back(keySend[1]);
 			AdvanceFrame();
 		}
 		
@@ -253,12 +253,12 @@ int BattleScene::PlayLoop(bool replay, int playerId, const std::string &address)
 
 	if(!replay)
 	{
-		assert(inputs[0].size() == inputs[1].size());
-		size_t inputSize = inputs[0].size();
+		assert(inputs[0].buffer.size() == inputs[1].buffer.size() && inputs[0].buffer.size() == gameTicks);
+		size_t inputSize = inputs[0].buffer.size();
 		std::ofstream replayFile("replay", std::ios_base::binary);
 		replayFile.write((char*)&inputSize, sizeof(size_t));
 		for(int i = 0; i < playersN; ++i)
-			replayFile.write((char*)inputs[i].data(), sizeof(uint32_t)*inputSize);
+			replayFile.write((char*)inputs[i].buffer.data(), sizeof(uint32_t)*inputSize);
 	}
 
 	return GS_WIN;
@@ -276,6 +276,8 @@ void BattleScene::AdvanceFrame()
 
 	Player::HitCollision(player, player2);
 
+	for(int i = 0; i < 2; ++i)
+		inputs[i].lastLoc = gameTicks;
 	player.ProcessInput(inputs[0]);
 	player2.ProcessInput(inputs[1]);
 
@@ -303,7 +305,8 @@ void BattleScene::AdvanceFrame()
 void BattleScene::SaveState(State &state)
 {
 	//TODO Add inputIterator to state
-	state.lastInputSize = inputs[0].size();
+	state.gameTicks = gameTicks;
+	state.lastInputSize = inputs[0].buffer.size();
 	state.rng = rng;
 	state.particles = particles;
 	state.p1 = player.GetStateCopy();
@@ -316,12 +319,13 @@ void BattleScene::LoadState(State &state)
 	if(!state.p1.charObj) //There are no saves.
 		return;
 	for(int i = 0; i < playersN; ++i)
-		inputs[i].resize(state.lastInputSize);
+		inputs[i].buffer.resize(state.lastInputSize);
 	rng = state.rng;
 	particles = state.particles;
 	player.SetState(state.p1);
 	player2.SetState(state.p2);
 	view = state.view;
+	gameTicks = state.gameTicks;
 }
 
 bool BattleScene::KeyHandle(const SDL_KeyboardEvent &e)
@@ -331,11 +335,11 @@ bool BattleScene::KeyHandle(const SDL_KeyboardEvent &e)
 
 	switch (e.keysym.scancode){
  	case SDL_SCANCODE_F1: 
-	 	//if(!ggpo)
+	 	if(!ggpo)
 			SaveState(savedState);
 		break;
 	case SDL_SCANCODE_F2:
-		//if(!ggpo)
+		if(!ggpo)
 			LoadState(savedState);
 		break;
 	case SDL_SCANCODE_H:
@@ -362,8 +366,8 @@ bool BattleScene::SetupGgpo(int playerId, const std::string &address)
 	cb.advance_frame   = [this](int)->bool{ //Rollback only advance.
 		unsigned int ginputs[2];
 		ggpo_synchronize_input(ggpo, (void *)ginputs, sizeof(unsigned int) * 2, nullptr);
-		inputs[0].push_back(ginputs[0]);
-		inputs[1].push_back(ginputs[1]);
+		inputs[0].buffer.push_back(ginputs[0]);
+		inputs[1].buffer.push_back(ginputs[1]);
 		AdvanceFrame();
 		return true;
 	};

@@ -18,6 +18,7 @@
 
 struct State
 {
+	int32_t gameTicks;
 	uint32_t lastInputSize;
 	XorShift32 rng;
 	ParticleGroup particles;
@@ -36,7 +37,7 @@ private:
 	int timer;
 
 	static constexpr unsigned playersN = 2;
-	std::vector<uint32_t> inputs[playersN];
+	InputBuffer inputs[playersN];
 	
 	int32_t gameTicks = 0;
 	bool pause = false;
@@ -62,7 +63,7 @@ public:
 	void SaveState(State &state);
 	void LoadState(State &state);
 
-	int PlayLoop(bool replay, int playerId, const std::string &address);
+	int PlayLoop(bool replay, bool aiOnlyMatch, int playerId, const std::string &address);
 
 private:
 	//Renderer stuff

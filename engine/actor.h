@@ -30,6 +30,7 @@ struct HitDef
 	int correctionType = 0;
 	int meterGain = 0;
 	int hitStop = 0;
+	int selfHitStop = -1;
 	int blockStop = -1;
 	int untech = 0;
 	int blockstun = 0; //Untech and block
@@ -125,8 +126,9 @@ public:
 	int AdvanceFrame();
 	virtual void GotoSequence(int seq);
 	bool GotoFrame(int frame);
-	void Translate(Point2d<FixedPoint> amount);
-	void Translate(FixedPoint x, FixedPoint y);
+	virtual void SetPos(FixedPoint x, FixedPoint y);
+	virtual void Translate(Point2d<FixedPoint> amount);
+	virtual void Translate(FixedPoint x, FixedPoint y);
 	void SetSide(int side);
 	int GetSide();
 

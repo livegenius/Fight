@@ -9,7 +9,20 @@
 #include <unordered_map>
 #include <sol/sol.hpp>
 
-typedef std::vector<uint32_t> InputBuffer;  //"Buffer" containing processed input.
+struct InputBuffer{
+	size_t lastLoc = 0;
+	std::vector<uint32_t> buffer;
+
+	uint32_t back() const{
+		return buffer[lastLoc];
+	}
+
+	uint32_t operator[](size_t index) const{
+		return buffer[index];
+	}
+
+	size_t size() const{return lastLoc+1;}
+}; //"Buffer" containing processed input.
 
 struct MotionData
 {

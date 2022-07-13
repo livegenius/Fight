@@ -5,24 +5,24 @@ stage = {
 	layers = {
 		{ --Lowermost layer
 			y = 160,
-			xParallax = 0.3,
+			xParallax = 0.0,
 			yParallax = 0.7,
-			xScroll = 0.5,
+			xScroll = 1.0,
 			elements = {
 				{id = 2}
 			}
 		},
 		{
-			y = 0,
-			xParallax = 0.8,
-			yParallax = 0.8,
+			xParallax = 0.6,
+			yParallax = 0.9,
 			elements = {
 				{id = 1}
 			}
 		},
 		{
-			xParallax = 0.9,
-			yParallax = 0.9,
+			y = 32,
+			xParallax = 0.8,
+			yParallax = 1.0,
 			mode = additive,
 			elements = {
 				{	id = 4; x = 456, y = 225;

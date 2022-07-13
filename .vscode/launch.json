@@ -11,10 +11,11 @@
 			"request": "launch",
 			"program": "${workspaceFolder}/build/bin/Fight.exe",
 			//"args": ["127.0.0.1", "7000"],
+			//"args": ["playdemo"],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}",
 			"environment": [],
-			"console": "internalConsole"
+			"console": "newExternalWindow"
 		},
 		{
 			"name": "Engine (REL)",

@@ -93,8 +93,6 @@ void Stage::Draw(const glm::mat4 &view, centerScale camera)
  	float wRange = width - internalWidth*camera.scale;
 	//float hRange = height - internalHeight*camera.scale;
 	//std::cout <<"\tRange: "<<wRange<<" - "<<hRange<<"\n";
-	int blendMode = -1;
-	
 	auto scaledView = view * glm::scale(glm::translate(glm::mat4(1.f), glm::vec3(-width/2,0,1)), glm::vec3(globalScale, globalScale, 1.f));
 	
 	for(auto &layer : layers)
@@ -102,15 +100,11 @@ void Stage::Draw(const glm::mat4 &view, centerScale camera)
 		float TexureScaling = (internalWidth*camera.scale)/width;
 		float parallaxFactor = 1.f + layer.xParallax*((width/((float)internalWidth*camera.scale)) - 1.f);
 
-/* 		if(blendMode != layer.mode)
-		{
-			blendMode = layer.mode;
-			if(layer.mode == 1)
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-			else
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		}
- */
+		if(layer.mode == additive) //TODO: Unify enum.
+			gfx->SetMulColorRaw(1,1,1,0.6); 
+		else
+			gfx->SetMulColorRaw(1, 1, 1);
+
 		auto parallaxedView = glm::translate(glm::scale(
 			glm::translate(glm::mat4(1.f),glm::vec3((camera.x*2+wRange)*(1.f-layer.xParallax), (camera.y*2)*(1.f-layer.yParallax), 0.f)),
 			glm::vec3(TexureScaling*parallaxFactor, TexureScaling*parallaxFactor, 1.f)
