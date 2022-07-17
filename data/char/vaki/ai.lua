@@ -74,11 +74,22 @@ function etcetc() ]]
 	end
 
 	
+	
 	local combo = actor.comboType;
 	combo = combo == eComboType.hurt or combo == eComboType.counter
 	if combo then 
 		--print (yV .. " " .. distXrel .. " " .. distY )
-		if distXrel > 0 and distXrel < 70 and y == 32 and distY < 50 then
+		if distXrel > 0 and distXrel < 80 and ey > 32 and ey-y < 40 and ey-y > -20 then
+			return execSeq(actor, enemy,{
+				{{key.UP| keyRight}, 0},
+				{{0, key.A}, 10, sflags.enterOnWhiff},
+				{{0, key.C}},
+				{{0, key.UP | keyRight}, 0},
+				{{0, key.B}, 10, sflags.enterOnWhiff},
+				{{0, key.C}, 0},
+				{{0, key.D}, 0},
+			})
+		elseif g.RandomChance(25) and distXrel > 0 and distXrel < 70 and y == 32 and distY < 50 then
 			return execSeq(actor, enemy,{
 				{{0, key.DOWN | keyRight | key.C}},
 				{{key.UP| keyRight}, 0},
@@ -102,8 +113,9 @@ function etcetc() ]]
 			})
 		end
 	end
+	
 
-	if idle and g.RandomChance(15) then --decide on next action
+ 	if idle then --decide on next action
 		idle = false
 		timer = 0
 
@@ -220,7 +232,7 @@ function nextAction(actor, enemy)
 			elseif what == 2 then
 				if(ey > y+10) then
 					return {0, key.B}
-				elseif y < 150 then
+				elseif y < 150 and yV <= 0 then
 					return {0, key.C}
 				else
 					return {0, key.A}
@@ -249,7 +261,7 @@ function nextAction(actor, enemy)
 			timer = g.RandomInt(5, 20)
 			action = {keyRight}
 		elseif what == 2 then
-			return{0, keyRight | key.A | key.B}, {0}, 20
+			return{0, keyRight | key.A | key.B}, {0}, 10
 		elseif what == 3 then --jump
 			return tryJump()
 		elseif what == 4 then
@@ -299,7 +311,7 @@ function nextAction(actor, enemy)
 				return a, b, 0
 			end
 		end 
-
+		
 		local what = g.RandomInt(0, 7)
 		if what == 0 then
 			action = {0, key.DOWN | key.A}
@@ -316,10 +328,35 @@ function nextAction(actor, enemy)
 		elseif what == 6 then
 			action = {0, key.C}
 		elseif what == 7 then
-			timer = g.RandomInt(5,40)
-			action = {keyLeft}
-			if g.RandomChance(25) then
-				return {0, keyLeft, 0, keyLeft}, action, timer
+			if y == 32 and math.abs(x) > 230 and g.RandomChance(50) then
+				local what2 = g.RandomInt(0,3)
+				if what2 == 0 then
+					return execSeq(actor, enemy,{
+						{{key.UP| keyLeft}},
+						{{0, keyRight, 0, keyRight}, 6, sflags.enterOnWhiff},
+						{{0, key.C}, 0, sflags.enterOnWhiff},
+					}), {0}, 0
+				elseif what2 == 1 then
+					return execSeq(actor, enemy,{
+						{{key.UP| keyLeft}},
+						{{0, keyRight, 0, keyRight}, 6, sflags.enterOnWhiff},
+						{{0, keyRight, 0, keyRight}, 6, sflags.enterOnWhiff},
+						{{0, key.C}, 0, sflags.enterOnWhiff},
+					}), {0}, 0
+				elseif what2 == 2 then
+					return execSeq(actor, enemy,{
+						{{key.UP| keyLeft}},
+						{{0, keyRight, 0, keyRight}, 14, sflags.enterOnWhiff},
+						{{0, key.C}, 0, sflags.enterOnWhiff},
+					}), {0}, 0
+				else
+					return execSeq(actor, enemy,{
+						{{key.UP| keyLeft}},
+						{{0, keyRight, 0, keyRight}, 0, sflags.enterOnWhiff},
+					}), {0}, 0
+				end
+			else
+				return {keyRight}, {keyRight}, g.RandomInt(1,10)
 			end
 		end
 	end

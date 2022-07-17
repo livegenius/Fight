@@ -17,6 +17,7 @@ scene(&scene)
 	root.y = floorPos;
 	SetSide(side);
 	hittable = true;
+	wallpushable = true;
 	//userData = lua.create_table();
 	return;
 }
@@ -40,7 +41,7 @@ void Character::BoundaryCollision()
 		root.x = currView.GetWallPos(camera::rightWall) - wallOffset;
 	}
 
-	if(attachPoint)
+	if(attachPoint) //Do not go out of bounds when attached/thrown by something else
 		attachPoint->root.x += root.x - prevRootX;
 	
 	if (touchedWall != 0 && hitFlags & HitDef::wallBounce) //TODO: Custom behavior
@@ -139,8 +140,12 @@ int Character::ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock)
 			accel.y.value = vt.yAccel*speedMultiplier;
 			pushTimer = vt.maxPushBackTime;	
 			friction = true;
+			if(hitData->attackFlags & HitDef::flag::wallpushParent)
+				wallPushbackTarget = target;
+			else
+				wallPushbackTarget = hitter;
 
-			if(!blocked) // No wall/floor bounce or other weird stuff. Should be a separate flag maybe.
+			if(!blocked) // No wall/floor bounce or other weird stuff on block. Should be a separate flag maybe.
 			{
 				hitFlags = hitData->attackFlags;
 				sol::optional<sol::table> t = lua.get()["_vectors"][vt.bounceTable];
@@ -307,9 +312,9 @@ bool Character::Update()
 		accel.x.value = 0;
 	}
 
-	if (touchedWall != 0 && (pushTimer > 0)) //Push opponent away
+	if (touchedWall != 0 && pushTimer > 0 && wallPushbackTarget && wallPushbackTarget->wallpushable) //Push opponent/thing away
 	{
-		target->root.x -= vel.x;
+		wallPushbackTarget->root.x -= vel.x;
 	}
 	
 	Translate(vel);

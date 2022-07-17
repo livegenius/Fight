@@ -455,15 +455,6 @@ void Actor::DeclareActorLua(sol::state &lua)
 
 		"GetFrameProperty", [](Actor &actor){return actor.framePointer->frameProp;}
 	);
-
-	auto table = lua["global"]["hit"].get_or_create<sol::table>();
-	table["bounce"] = HitDef::canBounce;
-	table["wallBounce"] = HitDef::wallBounce;
-	table["hitsStand"] = HitDef::hitsStand;
-	table["hitsCrouch"] = HitDef::hitsCrouch;
-	table["hitsAir"] = HitDef::hitsAir;
-	table["unblockable"] = HitDef::unblockable;
-	table["disableCollision"] = HitDef::disableCollision;
 }
 
 void HitDef::SetVectors(int state, sol::table onHitTbl, sol::table onBlockTbl)

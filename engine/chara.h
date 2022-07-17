@@ -20,6 +20,7 @@ class Character : public Actor
 private:
 	friend class Player;
 	Character *target = nullptr;
+	Actor *wallPushbackTarget = nullptr;
 	//sol::state lua;
 
 	int health = 10000;
@@ -45,6 +46,8 @@ private:
 	//FixedPoint getAway; //Amount to move after collision
 	FixedPoint touchedWall; //left wall: -1, right wall = 1, no wall = 0;
 	MotionData lastCommand;
+
+
 
 
 public:

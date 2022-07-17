@@ -63,7 +63,7 @@ public:
 	void SaveState(State &state);
 	void LoadState(State &state);
 
-	int PlayLoop(bool replay, bool aiOnlyMatch, int playerId, const std::string &address);
+	int PlayLoop(bool replay, int matchType, int playerId, const std::string &address);
 
 private:
 	//Renderer stuff

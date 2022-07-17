@@ -37,7 +37,7 @@ BattleScene::~BattleScene()
 }
 
 
-int BattleScene::PlayLoop(bool replay, bool aiOnlyMatch, int playerId, const std::string &address)
+int BattleScene::PlayLoop(bool replay, int matchType, int playerId, const std::string &address)
 {
 	float clearColor[] = {1,1,1,1};
 	mainWindow->renderer.SetClearColor(clearColor);
@@ -74,9 +74,15 @@ int BattleScene::PlayLoop(bool replay, bool aiOnlyMatch, int playerId, const std
 	
 	hud.Load("data/hud/hud.lua");
 	hud.SetMatrix(projection);
+
+	bool p1ai = false, p2ai = false;
+	if(matchType >= 1)
+		p2ai = true;
+	if (matchType == 2)
+		p1ai = true;	
 		
-	player.Load(1, "data/char/vaki/vaki.fdat", 0, aiOnlyMatch);
-	player2.Load(-1, "data/char/vaki/vaki.fdat", 1, true);
+	player.Load(1, "data/char/vaki/vaki.fdat", 0, p1ai);
+	player2.Load(-1, "data/char/vaki/vaki.fdat", 1, p2ai);
 	
 	sfx.LoadFromDef("data/sfx/sfx.lua");
 	

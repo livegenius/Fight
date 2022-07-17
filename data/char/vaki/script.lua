@@ -1,3 +1,22 @@
+
+--Out of file
+actorFlag = {
+	floorCheck = 0x1,
+	followParent = 0x2,
+}
+
+attackFlag = {
+	bounce = 0x1,
+	hitsCrouch = 0x2,
+	hitsAir = 0x4,
+	hitsStand = 0x8,
+	--unblockable = hitsCrouch | hitsAir | hitsStand,
+	wallBounce = 0x10,
+	disableCollision = 0x20,
+	wallpushParent = 0x40,
+}
+attackFlag.unblockable = attackFlag.hitsCrouch | attackFlag.hitsAir | attackFlag.hitsStand
+
 _states = {
 	stand = 0,
 	crouch = 1,
@@ -106,10 +125,8 @@ local key = constant.key
 local g = global
 local s = _states
 local v = _vectors
-a_flag = {
-	floorCheck = 0x1,
-	followParent = 0x2,
-}
+local at = attackFlag
+
 
 local function runFrameTable(actor, table)
 	local func = table[actor.currentFrame]
@@ -310,7 +327,7 @@ function s5a (actor)
 		hitdef.hitStop = histopTbl.weak
 		hitdef.blockStun = 14
 		hitdef.damage = 300
-		hitdef.attackFlags = g.hit.hitsAir
+		hitdef.attackFlags = at.hitsAir
 		hitdef.sound = "punchWeak"
 	end
 end
@@ -322,7 +339,7 @@ function s5b (actor)
 		hitdef.hitStop = histopTbl.medium
 		hitdef.blockStun = 17
 		hitdef.damage = 700
-		hitdef.attackFlags = g.hit.hitsAir
+		hitdef.attackFlags = at.hitsAir
 		hitdef.sound = "kickMedium"
 	end
 end
@@ -335,7 +352,7 @@ function s5c (actor)
 		hitdef.blockStun = 20
 		hitdef.damage = 1400
 		hitdef.shakeTime = 12
-		hitdef.attackFlags = g.hit.hitsAir
+		hitdef.attackFlags = at.hitsAir
 		hitdef.sound = "kickStrong"
 	elseif(actor.currentFrame == 27 and actor.subframeCount == 0) then
 		local chance = g.Random(0,1)
@@ -352,7 +369,7 @@ function s2a (actor)
 		hitdef.hitStop = histopTbl.weak
 		hitdef.blockStun = 14
 		hitdef.damage = 350
-		hitdef.attackFlags = g.hit.hitsStand
+		hitdef.attackFlags = at.hitsStand
 		hitdef.sound = "punchWeak"
 	elseif(actor.currentFrame == 1 and actor.subframeCount == 0) then
 		A_spawnPosRel(actor, 113)
@@ -382,7 +399,7 @@ function s2c (actor)
 		hitdef.blockStun = 20
 		hitdef.damage = 1200
 		hitdef.shakeTime = 12
-		hitdef.attackFlags = g.hit.hitsStand | g.hit.hitsAir
+		hitdef.attackFlags = at.hitsStand | at.hitsAir
 		hitdef.sound = "kickStrong"
 	end
 end
@@ -397,7 +414,7 @@ function s4c (actor)
 		hitdef.blockStun = 17
 		hitdef.damage = 500
 		hitdef.shakeTime = 12
-		hitdef.attackFlags = g.hit.hitsAir
+		hitdef.attackFlags = at.hitsAir
 		hitdef.sound = "punchStrong"
 	elseif actor.currentFrame == 3 and actor.subframeCount == 0 then
 		A_spawnPosRel(actor, 110, 0, 8)
@@ -412,7 +429,7 @@ function s6c (actor)
 		hitdef.damage = 1700
 		hitdef.blockStun = 20
 		hitdef.shakeTime = 15
-		hitdef.attackFlags = global.hit.hitsCrouch
+		hitdef.attackFlags = at.hitsCrouch
 		hitdef.sound = "kickStrong"
 	end
 end
@@ -456,11 +473,11 @@ function sjc (actor)
 		hitdef.blockStun = 20
 		hitdef.damage = 1000
 		hitdef.shakeTime = 12
-		hitdef.attackFlags = g.hit.hitsCrouch
+		hitdef.attackFlags = at.hitsCrouch
 		hitdef.sound = "punchStrong"
 	elseif(actor.currentFrame == 4 and actor.subframeCount == 0) then
-		A_spawnPosRel(actor, 138,0,0,a_flag.followParent):Attach(actor)
-		A_spawnPosRel(actor, 139,0,0,a_flag.followParent):Attach(actor)
+		A_spawnPosRel(actor, 138,0,0,actorFlag.followParent):Attach(actor)
+		A_spawnPosRel(actor, 139,0,0,actorFlag.followParent):Attach(actor)
 	end
 end
 
@@ -491,7 +508,7 @@ local t_sgthrow = {
 		hitdef.blockStun = 20
 		hitdef.damage = 700
 		hitdef.shakeTime = 4
-		hitdef.attackFlags = g.hit.wallBounce | g.hit.hitsAir | g.hit.disableCollision
+		hitdef.attackFlags = at.wallBounce | at.hitsAir | at.disableCollision
 		hitdef.sound = "slash"
 	end,
 	[3] = function (actor)
@@ -646,7 +663,7 @@ local t_s623a = {
 		hitdef.blockStun = 20
 		hitdef.damage = 700
 		hitdef.shakeTime = 4
-		hitdef.attackFlags = g.hit.wallBounce | g.hit.hitsAir | g.hit.disableCollision
+		hitdef.attackFlags = at.wallBounce | at.hitsAir | at.disableCollision
 		hitdef.sound = "slash"
 	end
 }
@@ -686,7 +703,7 @@ function s623b (actor)
 		hitdef.blockStun = 20
 		hitdef.damage = 500
 		hitdef.sound = "kickStrong"
-		hitdef.attackFlags = g.hit.bounce
+		hitdef.attackFlags = at.bounce
 	end
 end
 
@@ -700,6 +717,7 @@ function s236c(actor)
 		hd.hitStop = histopTbl.medium
 		hd.selfHitStop = 4
 		hd.sound = "burn"
+		hd.attackFlags = at.wallpushParent
 	end
 end
 
@@ -713,6 +731,7 @@ function s236a(actor)
 		hd.hitStop = histopTbl.medium
 		hd.selfHitStop = 4
 		hd.sound = "burn"
+		hd.attackFlags = at.wallpushParent
 	end
 end
 

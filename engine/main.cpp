@@ -13,7 +13,7 @@ int gameState = GS_MENU;
 
 int main(int argc, char** argv)
 {
-	bool aiMatch = false;
+	int aiMatch = false;
 	bool playDemo = false;
 	int netState = 0;
 	ENetHost *local = nullptr;
@@ -23,8 +23,10 @@ int main(int argc, char** argv)
 	{
 		if(strcmp(argv[1],"playdemo")==0)
 			playDemo = true;
+		else if(strcmp(argv[1],"vsai")==0)
+			aiMatch = 1;
 		else if(strcmp(argv[1],"aionly")==0)
-			aiMatch = true;
+			aiMatch = 2;
 		else
 		{
 			netState = net::NetplayArgs(argc, argv, local, address);

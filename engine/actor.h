@@ -50,6 +50,7 @@ struct HitDef
 		unblockable = hitsCrouch | hitsAir | hitsStand,
 		wallBounce = 0x10,
 		disableCollision = 0x20,
+		wallpushParent = 0x40, //Wallpush is tranfered to parent.
 	};
 
 	static Vector getVectorTableFromTable(const sol::table &table);
@@ -104,6 +105,7 @@ protected:
 	bool frozen = false;
 	bool hittable = false;
 	bool shaking = false; //Shakes on hitstop.
+	bool wallpushable = false; //Enable wallpush transfer to this object
 	enum hitType {
 		none,
 		hurt,
