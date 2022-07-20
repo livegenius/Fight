@@ -181,9 +181,10 @@ int Character::ResolveHit(int keypress, Actor *hitter, bool AlwaysBlock)
 	}
 
 	//Set attackers hitstop
-	if(hitData->selfHitStop >= 0)
+	//The second condition prevents the double counterhits hitstop time from being overwritten. Maybe it's a bad hack.
+	if(hitData->selfHitStop >= 0 && hitter->hitstop < hitData->selfHitStop)
 		hitter->hitstop = hitData->selfHitStop;
-	else
+	else if(hitter->hitstop < hitData->hitStop)
 		hitter->hitstop = hitData->hitStop;
 	return retType;
 }

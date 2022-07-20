@@ -38,7 +38,7 @@ private:
 	std::vector<VkSpecializationMapEntry> specEntries;
 	vk::SpecializationInfo specInfo;
 	std::vector<int32_t> specValues;
-	std::vector<int> actualSetIndices;
+	std::vector<unsigned> actualSetIndices;
 
 	struct intpairhash {
 		std::size_t operator()(const std::pair<uint32_t, uint32_t> &x) const{

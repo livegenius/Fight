@@ -189,10 +189,10 @@ void Hud::Draw()
 
 	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline);
 	cmd->bindVertexBuffers(0, vao.buffer.buffer, renderer.PadToAlignment(vao.buffer.copySize)*renderer.CurrentFrame());
-	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipeset.pipelineLayout, 0, {
-		pipeset.GetSet(0, 0)
+	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipeset.layout, 0, {
+		pipeset.Get(0, 0)
 	}, nullptr);
-	cmd->pushConstants(*pipeset.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
+	cmd->pushConstants(*pipeset.layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
 	cmd->draw(staticCount, 1, location, 0);	
 }
 

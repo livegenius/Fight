@@ -7,11 +7,11 @@ struct PipeSet
 {
 	unsigned maxSetIndex;
 	unsigned setIndices[4];
-	vk::raii::PipelineLayout pipelineLayout = nullptr;
+	vk::raii::PipelineLayout layout = nullptr;
 	std::vector<vk::raii::DescriptorSetLayout> setLayouts;
 	std::vector<vk::DescriptorSet> sets;
 
-	const vk::DescriptorSet &GetSet(unsigned set, unsigned which) const;
+	const vk::DescriptorSet &Get(unsigned set, unsigned which) const;
 };
 
 #endif /* PIPESET_HPP_GUARD */

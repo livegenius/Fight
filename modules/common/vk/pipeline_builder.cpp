@@ -329,7 +329,7 @@ PipelineBuilder& PipelineBuilder::SetPushConstants(std::initializer_list<vk::Pus
 
 vk::raii::Pipeline PipelineBuilder::Build(PipeSet &pipeset, std::vector<int> numberOfCopies)
 {
-	assert(!*pipeset.pipelineLayout);
+	assert(!*pipeset.layout);
 	pipeset = {};
 
 	numberOfCopies.resize(4, 0);
@@ -385,12 +385,12 @@ vk::raii::Pipeline PipelineBuilder::Build(PipeSet &pipeset, std::vector<int> num
 	pipelineLayoutInfo.pSetLayouts = setLayoutsNonRaii.data();
 
 	vk::raii::Pipeline pipeline {nullptr};
-	std::tie(pipeline, pipeset.pipelineLayout) = renderer->RegisterPipelines(pipelineInfo, pipelineLayoutInfo);
+	std::tie(pipeline, pipeset.layout) = renderer->RegisterPipelines(pipelineInfo, pipelineLayoutInfo);
 	pipelineInfo.basePipelineHandle = *pipeline;
 
 	pipeset.maxSetIndex = accum;
 	assert(accum <= 4);
-	memcpy (pipeset.setIndices, actualSetIndices.data(), accum);
+	memcpy (pipeset.setIndices, actualSetIndices.data(), accum*sizeof(unsigned));
 
 	return pipeline;
 }

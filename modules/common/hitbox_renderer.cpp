@@ -84,12 +84,12 @@ void HitboxRenderer::Draw(const glm::mat4 &transform)
 		cmd->bindVertexBuffers(0, vertices.buffer, {0});
 		cmd->bindIndexBuffer(indices.buffer, 0, vk::IndexType::eUint16);
 
-		cmd->pushConstants(*pipeset.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
+		cmd->pushConstants(*pipeset.layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
 		cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *filling);
 		cmd->drawIndexed(quadsToDraw*6, 1, 0, 0, 0);
 		
 		pushConstants.alpha = 1.0;
-		cmd->pushConstants(*pipeset.pipelineLayout, vk::ShaderStageFlagBits::eVertex, offsetof(PushConstants, alpha), sizeof(float), &pushConstants.alpha);
+		cmd->pushConstants(*pipeset.layout, vk::ShaderStageFlagBits::eVertex, offsetof(PushConstants, alpha), sizeof(float), &pushConstants.alpha);
 		cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *lines);
 		cmd->drawIndexed(quadsToDraw*8, 1, 6*maxBoxes, 0, 0);
 	}
@@ -101,7 +101,7 @@ void HitboxRenderer::DrawAxisOnly(const glm::mat4 &transform, float alpha)
 	auto cmd = renderer.GetCommand();
 	cmd->bindVertexBuffers(0, vertices.buffer, {0});
 	cmd->bindIndexBuffer(indices.buffer, 0, vk::IndexType::eUint16);
-	cmd->pushConstants(*pipeset.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
+	cmd->pushConstants(*pipeset.layout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
 	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *lines);
 	cmd->drawIndexed(4, 1, (8+6)*maxBoxes, 0, 0);
 }
