@@ -169,7 +169,7 @@ void Hud::CreatePipeline()
 		})
 	;
 	pBuilder.colorBlendAttachment.srcColorBlendFactor = vk::BlendFactor::eSrcAlpha;
-	pipe.accessor = pBuilder.Build(pipe.pipeline, pipe.pipelineLayout, pipe.sets, pipe.setLayouts);
+	pipeline = pBuilder.Build(pipeset);
 
 	std::vector<PipelineBuilder::WriteSetInfo> updateSetParams;
 	updateSetParams.push_back({vk::DescriptorImageInfo{
@@ -187,12 +187,12 @@ void Hud::Draw()
 	if(!cmd)
 		return;
 
-	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *pipe.pipeline);
+	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *pipeline);
 	cmd->bindVertexBuffers(0, vao.buffer.buffer, renderer.PadToAlignment(vao.buffer.copySize)*renderer.CurrentFrame());
-	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipe.pipelineLayout, 0, {
-		pipe.sets[pipe.accessor(0,0)]
+	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *pipeset.pipelineLayout, 0, {
+		pipeset.GetSet(0, 0)
 	}, nullptr);
-	cmd->pushConstants(*pipe.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
+	cmd->pushConstants(*pipeset.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
 	cmd->draw(staticCount, 1, location, 0);	
 }
 

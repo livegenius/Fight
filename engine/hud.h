@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <vertex_buffer.h>
 #include <renderer.h>
+#include <pipeset.hpp>
 #include <glm/mat4x4.hpp>
 
 class Hud
@@ -24,13 +25,8 @@ class Hud
 	};
 
 	vk::raii::Sampler sampler = nullptr;
-	struct {
-		vk::raii::Pipeline pipeline = nullptr;
-		vk::raii::PipelineLayout pipelineLayout = nullptr;
-		std::vector<vk::raii::DescriptorSetLayout> setLayouts;
-		std::vector<vk::DescriptorSet> sets;
-		std::function <int(int,int)> accessor;
-	}pipe;
+	vk::raii::Pipeline pipeline = nullptr;
+	PipeSet pipeset;
 
 	struct{
 		glm::mat4 transform;

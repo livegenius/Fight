@@ -1,9 +1,10 @@
 #include "pipeline_builder.h"
 #include "renderer.h"
+#include "format_info.h"
+#include "pipeset.hpp"
 #include <vulkan/vulkan_raii.hpp>
 
 #include <fstream>
-#include "format_info.h"
 #include <spirv_reflect.h>
 #include <map>
 
@@ -326,9 +327,11 @@ PipelineBuilder& PipelineBuilder::SetPushConstants(std::initializer_list<vk::Pus
 	return *this;
 }
 
-std::function<int(int, int)> PipelineBuilder::Build(vk::raii::Pipeline &pipeline, vk::raii::PipelineLayout &pLayout,
-	std::vector<vk::DescriptorSet> &sets, std::vector<vk::raii::DescriptorSetLayout> &setLayouts, std::vector<int> numberOfCopies)
+vk::raii::Pipeline PipelineBuilder::Build(PipeSet &pipeset, std::vector<int> numberOfCopies)
 {
+	assert(!*pipeset.pipelineLayout);
+	pipeset = {};
+
 	numberOfCopies.resize(4, 0);
 	std::vector<vk::DescriptorSetLayout> createSetWLayout;
 	int accum = 0;
@@ -349,10 +352,10 @@ std::function<int(int, int)> PipelineBuilder::Build(vk::raii::Pipeline &pipeline
 		};
 		
 
-		setLayouts.emplace_back(*device, setInfo);
+		pipeset.setLayouts.emplace_back(*device, setInfo);
 		int copies = numberOfCopies[i]; 
 		do{ //At least once.
-			createSetWLayout.push_back(*setLayouts.back());
+			createSetWLayout.push_back(*pipeset.setLayouts.back());
 			copies--;
 		}while (copies > 0);
 	}
@@ -365,8 +368,8 @@ std::function<int(int, int)> PipelineBuilder::Build(vk::raii::Pipeline &pipeline
 	} */
 	if(!createSetWLayout.empty())
 	{
-		sets = renderer->CreateDescriptorSets(createSetWLayout);
-		setsCached = sets;
+		pipeset.sets = renderer->CreateDescriptorSets(createSetWLayout);
+		setsCached = pipeset.sets;
 	}
 	assert(accum == setsCached.size());
 
@@ -375,24 +378,26 @@ std::function<int(int, int)> PipelineBuilder::Build(vk::raii::Pipeline &pipeline
 	vertexInputInfo.pVertexBindingDescriptions = viBindings.data();
 	vertexInputInfo.vertexBindingDescriptionCount = viBindings.size();
 
-	std::vector<vk::DescriptorSetLayout>setLayoutsNonRaii(setLayouts.size());
-	for(int i = 0; i < setLayouts.size(); ++i)
-		setLayoutsNonRaii[i] = *setLayouts[i];
+	std::vector<vk::DescriptorSetLayout>setLayoutsNonRaii(pipeset.setLayouts.size());
+	for(int i = 0; i < pipeset.setLayouts.size(); ++i)
+		setLayoutsNonRaii[i] = *pipeset.setLayouts[i];
 	pipelineLayoutInfo.setLayoutCount = setLayoutsNonRaii.size();
 	pipelineLayoutInfo.pSetLayouts = setLayoutsNonRaii.data();
 
-	std::tie(pipeline, pLayout) = renderer->RegisterPipelines(pipelineInfo, pipelineLayoutInfo);
+	vk::raii::Pipeline pipeline {nullptr};
+	std::tie(pipeline, pipeset.pipelineLayout) = renderer->RegisterPipelines(pipelineInfo, pipelineLayoutInfo);
 	pipelineInfo.basePipelineHandle = *pipeline;
 
-	return([actualSetIndices=actualSetIndices, accum](int set, int which){
-		assert(actualSetIndices[set]+which < accum);
-		return actualSetIndices[set]+which;
-	});
+	pipeset.maxSetIndex = accum;
+	assert(accum <= 4);
+	memcpy (pipeset.setIndices, actualSetIndices.data(), accum);
+
+	return pipeline;
 }
 
-void PipelineBuilder::BuildDerivate(vk::raii::Pipeline &pipeline)
+vk::raii::Pipeline PipelineBuilder::BuildDerivate()
 {
-	pipeline = renderer->RegisterPipelines(pipelineInfo);
+	return renderer->RegisterPipelines(pipelineInfo);
 }
 
 void PipelineBuilder::UpdateSets(const std::vector<WriteSetInfo> &parameters)

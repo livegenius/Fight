@@ -206,7 +206,7 @@ void GfxHandler::SetupSpritePipeline()
 			{.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, .size = sizeof(pcSprites)},
 		})
 	;
-	spritePipe.accessor = pBuilder.Build(spritePipe.pipeline, spritePipe.pipelineLayout, spritePipe.sets, spritePipe.setLayouts);
+	spritePipe.pipeline = pBuilder.Build(spritePipe.pipeset);
 /* 	pBuilder.colorBlendAttachment.srcColorBlendFactor = vk::BlendFactor::eOne;
 	pBuilder.colorBlendAttachment.dstColorBlendFactor = vk::BlendFactor::eOne;
 	pBuilder.BuildDerivate(spriteAdditive); */
@@ -248,8 +248,8 @@ bool GfxHandler::Begin()
 
 	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *spritePipe.pipeline);
 	cmd->bindVertexBuffers(0, vertices.buffer.buffer, {0});
-	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *spritePipe.pipelineLayout, 0, {
-		spritePipe.sets[spritePipe.accessor(0,0)]
+	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *spritePipe.pipeset.pipelineLayout, 0, {
+		spritePipe.pipeset.GetSet(0,0)
 	}, nullptr);
 	//boundPipe = normal;
 	return true;
@@ -275,7 +275,7 @@ void GfxHandler::Draw(int id, int defId)
 		pcSprites.mulColor = mulColor;
 		pcSprites.mulColor.a *= blendingModeFactor;
 		
-		cmd->pushConstants(*spritePipe.pipelineLayout, vk::ShaderStageFlagBits::eFragment |  vk::ShaderStageFlagBits::eVertex,
+		cmd->pushConstants(*spritePipe.pipeset.pipelineLayout, vk::ShaderStageFlagBits::eFragment |  vk::ShaderStageFlagBits::eVertex,
 			0, sizeof(pcSprites), &pcSprites);
 
 		auto what = vertices.Index(meta.trueId);
@@ -296,7 +296,7 @@ void GfxHandler::SetupParticlePipeline()
 			{.stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, .size = sizeof(pcParticles)},
 		})
 	;
-	particlePipe.accessor = pBuilder.Build(particlePipe.pipeline, particlePipe.pipelineLayout, particlePipe.sets, particlePipe.setLayouts, {2});
+	particlePipe.pipeline = pBuilder.Build(particlePipe.pipeset, {2});
 
 	size_t bufSize = 16 * maxParticles * sizeof(ParticleGroup::Particle);
 	particleProperties.Allocate(&renderer, bufSize,
@@ -335,12 +335,12 @@ void GfxHandler::DrawParticles(const ParticleGroup &data)
 		return;
 
 	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *particlePipe.pipeline);
-	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *particlePipe.pipelineLayout, 1, 
-		particlePipe.sets[particlePipe.accessor(1,0)], nullptr);
+	cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *particlePipe.pipeset.pipelineLayout, 1, 
+		particlePipe.pipeset.GetSet(1,0), nullptr);
 
 	pcParticles.transform = pcSprites.transform,
 	pcParticles.textureId = -1;
-	cmd->pushConstants(*particlePipe.pipelineLayout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
+	cmd->pushConstants(*particlePipe.pipeset.pipelineLayout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
 		offsetof(decltype(pcParticles), transform), sizeof(pcParticles.transform), &pcParticles.transform);
 
 	for(const ParticleGroup::DrawInfo &drawInfo : drawList)
@@ -352,11 +352,11 @@ void GfxHandler::DrawParticles(const ParticleGroup &data)
 		if(pcParticles.textureId != drawInfo.particleType)
 		{
 			pcParticles.textureId = drawInfo.particleType;
-			cmd->pushConstants(*particlePipe.pipelineLayout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 
+			cmd->pushConstants(*particlePipe.pipeset.pipelineLayout, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 
 				offsetof(decltype(pcParticles), textureId), sizeof(pcParticles.textureId), &pcParticles.textureId);
 		}
-		cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *particlePipe.pipelineLayout,
-			0, particlePipe.sets[particlePipe.accessor(0,frame)], drawInfo.bufferOffset);
+		cmd->bindDescriptorSets(vk::PipelineBindPoint::eGraphics, *particlePipe.pipeset.pipelineLayout,
+			0, particlePipe.pipeset.GetSet(0,frame), drawInfo.bufferOffset);
 		cmd->draw(drawInfo.particleAmount*6, 1, 0, 0);
 	}
 }

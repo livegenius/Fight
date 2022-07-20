@@ -7,6 +7,7 @@ target_sources(Common PRIVATE
 	vk/allocation.cpp
 	vk/pipeline_builder.cpp
 	vk/format_info.cpp
+	vk/pipeset.cpp
 )
 
 target_include_directories(Common PUBLIC ".")

@@ -65,13 +65,13 @@ renderer(renderer)
 	blend.dstColorBlendFactor = vk::BlendFactor::eOneMinusSrcAlpha;
 
 	pBuilder.inputAssembly.topology = vk::PrimitiveTopology::eLineList;
-	pBuilder.Build(lines.pipeline, lines.pipelineLayout, lines.sets, lines.setLayouts);
+	lines = pBuilder.Build(pipeset);
 	auto &ds = pBuilder.depthStencil;
 	ds.depthTestEnable = VK_TRUE;
 	ds.depthCompareOp = vk::CompareOp::eNotEqual;
 	ds.depthWriteEnable = VK_TRUE;
 	pBuilder.inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
-	pBuilder.BuildDerivate(filling);
+	filling = pBuilder.BuildDerivate();
 }
 
 void HitboxRenderer::Draw(const glm::mat4 &transform)
@@ -84,13 +84,13 @@ void HitboxRenderer::Draw(const glm::mat4 &transform)
 		cmd->bindVertexBuffers(0, vertices.buffer, {0});
 		cmd->bindIndexBuffer(indices.buffer, 0, vk::IndexType::eUint16);
 
-		cmd->pushConstants(*lines.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
+		cmd->pushConstants(*pipeset.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
 		cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *filling);
 		cmd->drawIndexed(quadsToDraw*6, 1, 0, 0, 0);
 		
 		pushConstants.alpha = 1.0;
-		cmd->pushConstants(*lines.pipelineLayout, vk::ShaderStageFlagBits::eVertex, offsetof(PushConstants, alpha), sizeof(float), &pushConstants.alpha);
-		cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *lines.pipeline);
+		cmd->pushConstants(*pipeset.pipelineLayout, vk::ShaderStageFlagBits::eVertex, offsetof(PushConstants, alpha), sizeof(float), &pushConstants.alpha);
+		cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *lines);
 		cmd->drawIndexed(quadsToDraw*8, 1, 6*maxBoxes, 0, 0);
 	}
 }
@@ -101,8 +101,8 @@ void HitboxRenderer::DrawAxisOnly(const glm::mat4 &transform, float alpha)
 	auto cmd = renderer.GetCommand();
 	cmd->bindVertexBuffers(0, vertices.buffer, {0});
 	cmd->bindIndexBuffer(indices.buffer, 0, vk::IndexType::eUint16);
-	cmd->pushConstants(*lines.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
-	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *lines.pipeline);
+	cmd->pushConstants(*pipeset.pipelineLayout, vk::ShaderStageFlagBits::eVertex, 0, sizeof(pushConstants), &pushConstants);
+	cmd->bindPipeline(vk::PipelineBindPoint::eGraphics, *lines);
 	cmd->drawIndexed(4, 1, (8+6)*maxBoxes, 0, 0);
 }
 

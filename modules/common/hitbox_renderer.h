@@ -1,10 +1,11 @@
 #ifndef HITBOX_RENDER_H_GUARD
 #define HITBOX_RENDER_H_GUARD
 
-#include <vector>
+#include "pipeset.hpp"
 #include "vertex_buffer.h"
 #include <glm/mat4x4.hpp>
 #include <vulkan/vulkan_raii.hpp>
+#include <vector>
 
 class Renderer;
 //Holds the state needed to render hitboxes for debug purposes.
@@ -29,13 +30,8 @@ public:
 private:
 	Renderer &renderer;
 	
-	struct Pipeline{
-		vk::raii::Pipeline pipeline = nullptr;
-		vk::raii::PipelineLayout pipelineLayout = nullptr;
-		std::vector<vk::raii::DescriptorSetLayout> setLayouts;
-		std::vector<vk::DescriptorSet> sets;
-		std::function <int(int,int)> accessor;
-	}lines;
+	PipeSet pipeset;
+	vk::raii::Pipeline lines = nullptr;
 	vk::raii::Pipeline filling = nullptr;
 
 	AllocatedBuffer vertices;

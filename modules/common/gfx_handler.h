@@ -2,9 +2,11 @@
 #define GFX_HANDLER_H_GUARD
 
 #include "vk/renderer.h"
+#include "vk/pipeset.hpp"
 
 #include "particle.h"
 #include "vertex_buffer.h"
+
 
 #include <vector>
 #include <unordered_map>
@@ -32,10 +34,7 @@ private:
 	
 	struct Pipeline{
 		vk::raii::Pipeline pipeline = nullptr;
-		vk::raii::PipelineLayout pipelineLayout = nullptr;
-		std::vector<vk::raii::DescriptorSetLayout> setLayouts;
-		std::vector<vk::DescriptorSet> sets;
-		std::function <int(int,int)> accessor;
+		PipeSet pipeset;
 	}spritePipe, particlePipe;
 	//vk::raii::Pipeline spriteAdditive = nullptr;
 
