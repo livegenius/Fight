@@ -9,29 +9,31 @@ private:
 	static void* defaultAllocator(size_t size);
 	static void defaultDeallocator(void **);
 public:
-	struct Allocation{
+	uint8_t *data = nullptr;
+	uint32_t width = 0;
+	uint32_t height = 0;
+	uint32_t bytesPerPixel = 0;
+	bool compressed = false;
+
+	struct Allocator{
 		void **ptr = nullptr;
 		std::function<void*(size_t)> allocate;
 		std::function<void(void**)> deallocate;
-	};
+	} alloc = {(void**)&data, defaultAllocator, defaultDeallocator};
 
-	uint8_t *data;
-	uint32_t width;
-	uint32_t height;
-	uint32_t bytesPerPixel;
-	bool compressed = false;
-
-	ImageData();
+	ImageData() = default;
+	ImageData(Allocator alloc);
 	ImageData(uint32_t width, uint32_t height, uint32_t bytesPerPixel);
-	ImageData(std::filesystem::path image, Allocation alloc = {nullptr, defaultAllocator, defaultDeallocator});
+	ImageData(std::filesystem::path image);
+	ImageData(std::filesystem::path image, Allocator alloc);
 	~ImageData();
 	
 	static int PeekBytesPerPixel(std::filesystem::path image);
 	//bool PeekMem(void *memory);
-	bool LoadAny(std::filesystem::path image, Allocation alloc = {nullptr, defaultAllocator, defaultDeallocator});
-	bool LoadRaw(std::filesystem::path image, Allocation alloc = {nullptr, defaultAllocator, defaultDeallocator});
-	bool LoadPng(std::filesystem::path image, Allocation alloc = {nullptr, defaultAllocator, defaultDeallocator});
-	bool LoadLzs3(std::filesystem::path image, Allocation alloc = {nullptr, defaultAllocator, defaultDeallocator});
+	bool LoadAny(std::filesystem::path image);
+	bool LoadRaw(std::filesystem::path image);
+	bool LoadPng(std::filesystem::path image);
+	bool LoadLzs3(std::filesystem::path image);
 	bool WriteRaw(std::filesystem::path path) const;
 	std::size_t GetMemSize() const;
 	void FreeData();

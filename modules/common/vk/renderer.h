@@ -120,6 +120,9 @@ private:
 
 	std::array<float,4> clearColor;
 
+	//Texture upload
+	std::vector<AllocatedBuffer> stagingBuffers;
+
 private:
 	void RecreateSwapchain();
 	void CreateSwapchain();
@@ -130,6 +133,9 @@ private:
 	void CreateSyncStructs();
 	void BeginDrawing(int imageIndex);
 	void EndDrawing(int imageIndex);
+
+	static void UploadTextures(const vk::CommandBuffer &cmd, vk::Buffer *buffers, Texture **textures, size_t amount);
+	Renderer::Texture LoadAllocateTexture(const LoadTextureInfo& info, AllocatedBuffer &stagingBuffer);
 
 public:
 	//Renderer();

@@ -34,8 +34,8 @@ void ImageData::defaultDeallocator(void** data)
 	}
 }
 
-ImageData::ImageData():
-data(nullptr), width(0), height(0), bytesPerPixel(0)
+ImageData::ImageData(Allocator alloc_):
+alloc(alloc_)
 {}
 
 ImageData::ImageData(uint32_t _width, uint32_t _height, uint32_t _bytesPerPixel):
@@ -44,20 +44,27 @@ data(nullptr), width(_width), height(_height), bytesPerPixel(_bytesPerPixel)
 	data = (uint8_t*) malloc(width * height * bytesPerPixel * sizeof(uint8_t));
 }
 
-ImageData::ImageData(std::filesystem::path image, Allocation alloc): ImageData()
+ImageData::ImageData(std::filesystem::path image, Allocator alloc_):
+alloc(alloc_)
 {
-	if(!LoadAny(image, alloc))
+	if(!LoadAny(image))
+		throw std::runtime_error(image.string()+" : Can't load image.\n");
+}
+
+ImageData::ImageData(std::filesystem::path image): ImageData()
+{
+	if(!LoadAny(image))
 		throw std::runtime_error(image.string()+" : Can't load image.\n");
 }
 
 ImageData::~ImageData()
 {
-	free(data);
+	alloc.deallocate(alloc.ptr);
 }
 
-bool ImageData::LoadAny(std::filesystem::path image, Allocation alloc)
+bool ImageData::LoadAny(std::filesystem::path image)
 {
-	if(!LoadLzs3(image, alloc) && !LoadPng(image, alloc) && !LoadRaw(image, alloc))
+	if(!LoadLzs3(image) && !LoadPng(image) && !LoadRaw(image))
 	{
 		std::cerr << image<<": invalid image file\n";
 		return false;
@@ -72,8 +79,7 @@ std::size_t ImageData::GetMemSize() const
 
 void ImageData::FreeData()
 {
-	free(data);
-	data = nullptr;
+	alloc.deallocate(alloc.ptr);
 }
 
 struct raw_header{
@@ -147,14 +153,12 @@ int ImageData::PeekBytesPerPixel(std::filesystem::path path)
 		return -1;
 }
 
-bool ImageData::LoadPng(std::filesystem::path filename, Allocation alloc)
+bool ImageData::LoadPng(std::filesystem::path filename)
 {
 	FreeData();
-	if(alloc.ptr == nullptr)
-		alloc.ptr = reinterpret_cast<void**>(&data);
 	
 	std::ifstream png(filename, std::ios_base::binary);
-	int r;
+	int r; //result
 
 	if(png.fail())
 	{
@@ -287,11 +291,9 @@ bool ImageData::LoadPng(std::filesystem::path filename, Allocation alloc)
 }
 
 
-bool ImageData::LoadRaw(std::filesystem::path filename, Allocation alloc)
+bool ImageData::LoadRaw(std::filesystem::path filename)
 {
 	FreeData();
-	if(alloc.ptr == nullptr)
-		alloc.ptr = reinterpret_cast<void**>(&data);
 
 	std::ifstream in(filename, std::ios_base::binary);
 	if(!in.is_open())
@@ -316,11 +318,9 @@ bool ImageData::LoadRaw(std::filesystem::path filename, Allocation alloc)
 	return true;
 }
 
-bool ImageData::LoadLzs3(std::filesystem::path imageFile, Allocation alloc)
+bool ImageData::LoadLzs3(std::filesystem::path imageFile)
 {
 	FreeData();
-	if(alloc.ptr == nullptr)
-		alloc.ptr = reinterpret_cast<void**>(&data);
 
 	std::ifstream file(imageFile, std::ios::binary);
 	if(!file.is_open())

@@ -134,7 +134,7 @@ void Renderer::CreateSwapchain()
 	aspectRatio = (float)width/(float)height;
 	vkb::Swapchain vkbSwapchain = swapchainBuilder
 		.set_desired_format({VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
-		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+		.set_desired_present_mode(VK_PRESENT_MODE_IMMEDIATE_KHR)
 		.set_desired_extent(width, height)
 		.set_old_swapchain(*swapchain.handle)
 		.build()
@@ -531,170 +531,177 @@ void Renderer::EndDrawing(int imageIndex)
 
 Renderer::Texture Renderer::LoadTextureSingle(const LoadTextureInfo& info)
 {
-	std::vector<Texture> texturesDummy;
-	LoadTextures({info}, texturesDummy);
-	return std::move(texturesDummy.back());
+	AllocatedBuffer ab;
+	Texture texture = LoadAllocateTexture(info, ab);
+	auto texPtr = &texture;
+	auto f = std::bind(&Renderer::UploadTextures, std::placeholders::_1, &ab.buffer, &texPtr, 1);
+	ExecuteCommand(f);
+	return texture;
 }
 
-void Renderer::LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vector<Texture> &textures)
+Renderer::Texture Renderer::LoadAllocateTexture(const LoadTextureInfo& info, AllocatedBuffer &stagingBuffer)
 {
-	std::vector<int> returns(infos.size());
-	std::vector<AllocatedBuffer> stagingBuffers(infos.size()); //TODO: Make into a single one.
-	textures.reserve(textures.size()+infos.size());
-
-	struct TextureWRef{
-		size_t texture;
-		int stagingIndex;
-	};
-	std::vector<TextureWRef> newTextures;
-
-	//std::vector<AllocatedBuffer>
-	for(int i = 0; i < infos.size(); ++i)
-	{
-		auto &info = infos[i];
-		AllocatedBuffer &stagingBuffer = stagingBuffers[i];
-		auto allocateFunc = [this, &stagingBuffer](size_t size)->void*{
+	const auto allocateFunc = [this, &stagingBuffer](size_t size)->void*{
+		if(size > stagingBuffer.copySize)
 			stagingBuffer.Allocate(this, size, vk::BufferUsageFlagBits::eTransferSrc, vma::MemoryUsage::eCpuOnly);
-			return stagingBuffer.Map();
-		};
-
-		char *ptr;
-		auto deallocateFunc = [](void**){}; //TODO: !!!
-		ImageData image;
-		bool result;
-		switch(info.type)
-		{
-			case palette:{
-				auto size = info.height*info.width*4;
-				stagingBuffer.Allocate(this, size, vk::BufferUsageFlagBits::eTransferSrc, vma::MemoryUsage::eCpuOnly);
-				void * data = stagingBuffer.Map();
-				image.width = info.width;
-				image.height = info.height;
-				image.bytesPerPixel = 4;
-				memcpy(data, info.data, size);
-				result = true;
-				break;
-			}
-			default:
-				result = image.LoadAny(info.path, ImageData::Allocation{(void**)&ptr, allocateFunc, deallocateFunc});
+		return stagingBuffer.Map();
+	};
+	const auto deallocateFunc = [](void**){}; //They stay allocated. TODO: Method to free these staging buffers.
+	void *dummyPtr; //Can't just pass null because ImageData uses it to write data to. It's what gets mapped above.
+	
+	ImageData image(ImageData::Allocator{&dummyPtr, allocateFunc, deallocateFunc});
+	bool result;
+	switch(info.type)
+	{
+		case palette:{
+			auto size = info.height*info.width*4;
+			stagingBuffer.Allocate(this, size, vk::BufferUsageFlagBits::eTransferSrc, vma::MemoryUsage::eCpuOnly);
+			void * data = stagingBuffer.Map();
+			image.width = info.width;
+			image.height = info.height;
+			image.bytesPerPixel = 4;
+			memcpy(data, info.data, size);
+			result = true;
+			break;
 		}
+		default:
+			result = image.LoadAny(info.path);
+	}
 
-		if(stagingBuffer.allocation)
-			stagingBuffer.Unmap();
-		if(!result)
-		{
-			std::cerr << "Error while loading " << info.path <<"\n";
-			throw std::runtime_error("Texture can't be loaded");
+	if(!result)
+	{
+		std::cerr << "Error while loading " << info.path <<"\n";
+		throw std::runtime_error("Texture can't be loaded");
+	}
+	
+	stagingBuffer.Unmap();
+	vk::Extent3D extent = {image.width, image.height, 1};
+	vk::Format format;
+	if(image.compressed)
+		format = vk::Format::eBc3SrgbBlock;
+	else if(image.bytesPerPixel == 1)
+		format = vk::Format::eR8Uint;
+	else if(image.bytesPerPixel == 4)
+		format = vk::Format::eR8G8B8A8Srgb;
+	else
+		assert(0 && "Unsupported format: ");
+
+
+	vk::ImageCreateInfo imgInfo =
+	{
+		.imageType = vk::ImageType::e2D,
+		.format = format,
+		.extent = extent,
+		.mipLevels = 1,
+		.arrayLayers = 1,
+		.samples = vk::SampleCountFlagBits::e1,
+		.tiling = vk::ImageTiling::eOptimal,
+		.usage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst
+	};
+	
+	AllocatedImage buf(allocator, imgInfo, vma::MemoryUsage::eGpuOnly);
+
+	vk::ImageViewCreateInfo viewInfo = {
+		.image = buf.image,
+		.viewType = vk::ImageViewType::e2D,
+		.format = format,
+		.subresourceRange = {
+			.aspectMask = vk::ImageAspectFlagBits::eColor,
+			.baseMipLevel = 0,
+			.levelCount = 1,
+			.baseArrayLayer = 0,
+			.layerCount = 1,
 		}
-		
+	};
 
-		vk::Extent3D extent = {image.width, image.height, 1};
-		vk::Format format;
-		if(image.compressed)
-			format = vk::Format::eBc3SrgbBlock;
-		else if(image.bytesPerPixel == 1)
-			format = vk::Format::eR8Uint;
-		else if(image.bytesPerPixel == 4)
-			format = vk::Format::eR8G8B8A8Srgb;
-		else
-			assert(0 && "Unsupported format: ");
+	return Texture{
+		.buf = std::move(buf),
+		.view = {device, viewInfo},
+		.extent = extent,
+		.format = format,
+	};
+}
 
+void Renderer::UploadTextures(const vk::CommandBuffer &cmd, vk::Buffer *buffers, Texture **textures, size_t amount)
+{
+	std::vector<vk::ImageMemoryBarrier> barriers;
+	barriers.reserve(amount);
 
-		vk::ImageCreateInfo imgInfo =
-		{
-			.imageType = vk::ImageType::e2D,
-			.format = format,
-			.extent = extent,
-			.mipLevels = 1,
-			.arrayLayers = 1,
-			.samples = vk::SampleCountFlagBits::e1,
-			.tiling = vk::ImageTiling::eOptimal,
-			.usage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst
-		};
-		
-		AllocatedImage buf(allocator, imgInfo, vma::MemoryUsage::eGpuOnly);
-
-		vk::ImageViewCreateInfo viewInfo = {
-			.image = buf.image,
-			.viewType = vk::ImageViewType::e2D,
-			.format = format,
+	for(size_t i = 0; i < amount; ++i)
+	{
+		barriers.push_back(vk::ImageMemoryBarrier{
+			.srcAccessMask = vk::AccessFlagBits::eNoneKHR,
+			.dstAccessMask = vk::AccessFlagBits::eTransferWrite,
+			.oldLayout = vk::ImageLayout::eUndefined,
+			.newLayout = vk::ImageLayout::eTransferDstOptimal,
+			.image = textures[i]->buf.image,
 			.subresourceRange = {
 				.aspectMask = vk::ImageAspectFlagBits::eColor,
 				.baseMipLevel = 0,
 				.levelCount = 1,
 				.baseArrayLayer = 0,
 				.layerCount = 1,
-			}
-		};
-
-		textures.push_back(Texture{
-			.buf = std::move(buf),
-			.view = {device, viewInfo},
-			.extent = extent,
-			.format = format,
+			},
 		});
+	}
+	//barrier the image into the transfer-receive layout
+	cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, 0, nullptr, 0, nullptr, barriers.size(), barriers.data());
+	barriers.clear();
 
-		newTextures.push_back({textures.size()-1, i});
+	for(size_t i = 0; i < amount; ++i)
+	{
+		const auto &texture = *textures[i];
+		vk::BufferImageCopy copyRegion = {
+			.imageSubresource{
+				.aspectMask = vk::ImageAspectFlagBits::eColor,
+				.mipLevel = 0,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
+			.imageExtent = texture.extent
+		};
+		//copy the buffer into the image
+		cmd.copyBufferToImage(buffers[i], texture.buf.image, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
+		barriers.push_back(vk::ImageMemoryBarrier{
+			.srcAccessMask = vk::AccessFlagBits::eTransferWrite,
+			.dstAccessMask = vk::AccessFlagBits::eShaderRead,
+			.oldLayout = vk::ImageLayout::eTransferDstOptimal,
+			.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
+			.image = texture.buf.image,
+			.subresourceRange = {
+				.aspectMask = vk::ImageAspectFlagBits::eColor,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
+		});
 	}
 
-	ExecuteCommand([&](vk::CommandBuffer cmd) {
+	cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, 0, nullptr, 0, nullptr, barriers.size(), barriers.data());
+}
 
-		std::vector<vk::ImageMemoryBarrier> barriers;
-		
-		for(const auto &ref : newTextures)
-		{
-			const auto &texture = textures[ref.texture];
-			barriers.push_back(vk::ImageMemoryBarrier{
-				.srcAccessMask = vk::AccessFlagBits::eNoneKHR,
-				.dstAccessMask = vk::AccessFlagBits::eTransferWrite,
-				.oldLayout = vk::ImageLayout::eUndefined,
-				.newLayout = vk::ImageLayout::eTransferDstOptimal,
-				.image = texture.buf.image,
-				.subresourceRange = {
-					.aspectMask = vk::ImageAspectFlagBits::eColor,
-					.baseMipLevel = 0,
-					.levelCount = 1,
-					.baseArrayLayer = 0,
-					.layerCount = 1,
-				},
-			});
-		}
-		//barrier the image into the transfer-receive layout
-		cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTopOfPipe, vk::PipelineStageFlagBits::eTransfer, {}, 0, nullptr, 0, nullptr, barriers.size(), barriers.data());
-		barriers.clear();
+void Renderer::LoadTextures(const std::vector<LoadTextureInfo>& infos, std::vector<Texture> &textures)
+{
+	const auto amount = infos.size();
+	std::vector<int> returns(amount);
 
-		for(const auto &ref : newTextures)
-		{
-			const auto &texture = textures[ref.texture];
-			vk::BufferImageCopy copyRegion = {
-				.imageSubresource{
-					.aspectMask = vk::ImageAspectFlagBits::eColor,
-					.mipLevel = 0,
-					.baseArrayLayer = 0,
-					.layerCount = 1,
-				},
-				.imageExtent = texture.extent
-			};
-			//copy the buffer into the image
-			cmd.copyBufferToImage(stagingBuffers[ref.stagingIndex].buffer, texture.buf.image, vk::ImageLayout::eTransferDstOptimal, 1, &copyRegion);
-			barriers.push_back(vk::ImageMemoryBarrier{
-				.srcAccessMask = vk::AccessFlagBits::eTransferWrite,
-				.dstAccessMask = vk::AccessFlagBits::eShaderRead,
-				.oldLayout = vk::ImageLayout::eTransferDstOptimal,
-				.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal,
-				.image = texture.buf.image,
-				.subresourceRange = {
-					.aspectMask = vk::ImageAspectFlagBits::eColor,
-					.baseMipLevel = 0,
-					.levelCount = 1,
-					.baseArrayLayer = 0,
-					.layerCount = 1,
-				},
-			});
-		}
+	if(amount > stagingBuffers.size())
+		stagingBuffers.resize(amount);
+	textures.reserve(textures.size()+amount);
 
-		cmd.pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, 0, nullptr, 0, nullptr, barriers.size(), barriers.data());
-	});
+	std::vector<Texture*> textureRef(amount);
+	std::vector<vk::Buffer> bufferRef(amount);
+
+	for(int i = 0; i < amount; ++i)
+	{
+		textures.push_back(LoadAllocateTexture(infos[i], stagingBuffers[i]));
+		textureRef[i] = &textures.back();
+		bufferRef[i] = stagingBuffers[i].buffer;
+	}
+
+	auto f = std::bind(&Renderer::UploadTextures, std::placeholders::_1, bufferRef.data(), textureRef.data(), amount);
+	ExecuteCommand(f);
 }
 
 void Renderer::ExecuteCommand(std::function<void(vk::CommandBuffer)>&& function)

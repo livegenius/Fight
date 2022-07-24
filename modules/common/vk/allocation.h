@@ -37,8 +37,8 @@ struct AllocatedBuffer {
 	vma::Allocation allocation;
 	const vma::Allocator *allocator = nullptr;
 	void *data = nullptr;
-	vk::DeviceSize copySize;
-	int copies;
+	vk::DeviceSize copySize = 0;
+	int copies = 0;
 
 	AllocatedBuffer() = default;
 	AllocatedBuffer(const Renderer *renderer, vk::DeviceSize size, vk::BufferUsageFlags bufferUsage, vma::MemoryUsage memUsage, int copies = 1);
